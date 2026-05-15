@@ -40,6 +40,13 @@ describe("podcast transcript provider - helper branches", () => {
     expect(__test__.extractItemDurationSeconds(item("1:02"))).toBe(62);
     expect(__test__.extractItemDurationSeconds(item("01:02:03"))).toBe(3723);
     expect(__test__.extractItemDurationSeconds(item("00:00"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1::02"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1:99"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1:02:60"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1:60:00"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1.5:02"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("1e3"))).toBeNull();
+    expect(__test__.extractItemDurationSeconds(item("0x10"))).toBeNull();
     expect(__test__.extractItemDurationSeconds(item("nope"))).toBeNull();
   });
 

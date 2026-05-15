@@ -62,21 +62,21 @@ export function extractItemDurationSeconds(itemXml: string): number | null {
     return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
   }
 
-  const parts = raw
-    .split(":")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const parts = raw.split(":").map((value) => value.trim());
   if (parts.length < 2 || parts.length > 3) return null;
+  if (parts.some((value) => !/^\d+$/.test(value))) return null;
   const nums = parts.map((value) => Number(value));
   if (nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
   const seconds = (() => {
     if (nums.length === 3) {
       const [hours, minutes, secondsRaw] = nums;
       if (hours === undefined || minutes === undefined || secondsRaw === undefined) return null;
+      if (minutes >= 60 || secondsRaw >= 60) return null;
       return Math.round(hours * 3600 + minutes * 60 + secondsRaw);
     }
     const [minutes, secondsRaw] = nums;
     if (minutes === undefined || secondsRaw === undefined) return null;
+    if (secondsRaw >= 60) return null;
     return Math.round(minutes * 60 + secondsRaw);
   })();
   if (seconds === null) return null;
