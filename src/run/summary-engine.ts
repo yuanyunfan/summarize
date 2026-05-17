@@ -510,13 +510,18 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
           })
         : null;
 
+      const stdoutIsRichTty = isRichTty(deps.stdout);
+      const streamOutputMode = deps.streamingOutputMode ?? (stdoutIsRichTty ? "delta" : "line");
       const outputGate = shouldStreamSummaryToStdout
         ? createStreamOutputGate({
             stdout: deps.stdout,
             clearProgressForStdout: deps.clearProgressForStdout,
-            restoreProgressAfterStdout: deps.restoreProgressAfterStdout ?? null,
-            outputMode: deps.streamingOutputMode ?? "line",
-            richTty: isRichTty(deps.stdout),
+            restoreProgressAfterStdout:
+              streamOutputMode === "delta" ? null : (deps.restoreProgressAfterStdout ?? null),
+            outputMode: streamOutputMode,
+            richTty: stdoutIsRichTty && streamOutputMode === "line",
+            rewriteOnReplacement: stdoutIsRichTty && streamOutputMode === "delta",
+            restoreDuringStream: streamOutputMode !== "delta",
           })
         : null;
 
@@ -602,6 +607,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         if (shouldStreamSummaryToStdout) {
           const finalText = streamedRaw || streamed;
           outputGate?.finalize(finalText);
+          if (streamOutputMode === "delta") deps.restoreProgressAfterStdout?.();
           summaryAlreadyPrinted = true;
         }
       }
