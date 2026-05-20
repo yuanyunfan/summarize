@@ -53,6 +53,7 @@ import { selectMarkdownForLayout, type SlideTextMode } from "./slides-state";
 import { createSlidesTextController } from "./slides-text-controller";
 import { createSlidesViewRuntime } from "./slides-view-runtime";
 import { createSummarizeControlRuntime } from "./summarize-control-runtime";
+import { createSummaryPromptRuntime } from "./summary-prompt-runtime";
 import { createSummaryStreamRuntime } from "./summary-stream-runtime";
 import { createSummaryViewRuntime } from "./summary-view-runtime";
 import { registerSidepanelTestHooks } from "./test-hooks";
@@ -119,6 +120,9 @@ const {
   slideNoticeRetryBtn,
   slidesLayoutEl,
   subtitleEl,
+  summaryPromptBarEl,
+  summaryPromptOptionsBtn,
+  summaryPromptSelectEl,
   summarizeControlRoot,
   titleEl,
 } = createSidepanelDom();
@@ -1400,6 +1404,18 @@ const interactionRuntime = createSidepanelInteractionRuntime({
 });
 const { sendSummarize, sendChatMessage, bumpFontSize, bumpLineHeight, persistCurrentModel } =
   interactionRuntime;
+
+const summaryPromptRuntime = createSummaryPromptRuntime({
+  rootEl: summaryPromptBarEl,
+  selectEl: summaryPromptSelectEl,
+  optionsBtn: summaryPromptOptionsBtn,
+  loadSettings,
+  patchSettings,
+  openOptions: () => send({ type: "panel:openOptions" }),
+  sendSummarize,
+});
+summaryPromptRuntime.bind();
+void summaryPromptRuntime.refresh();
 
 summarizeControlRuntime = createSummarizeControlRuntime({
   summarizeControlRoot,

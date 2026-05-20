@@ -11,7 +11,6 @@ type OptionsBindingsArgs = {
     modelCustomEl: HTMLInputElement;
     languagePresetEl: HTMLSelectElement;
     languageCustomEl: HTMLInputElement;
-    promptOverrideEl: HTMLTextAreaElement;
     hoverPromptEl: HTMLTextAreaElement;
     hoverPromptResetBtn: HTMLButtonElement;
     maxCharsEl: HTMLInputElement;
@@ -95,12 +94,7 @@ export function bindOptionsInputs({
     scheduleAutoSave(200);
   });
 
-  for (const input of [
-    elements.modelCustomEl,
-    elements.languageCustomEl,
-    elements.promptOverrideEl,
-    elements.hoverPromptEl,
-  ]) {
+  for (const input of [elements.modelCustomEl, elements.languageCustomEl, elements.hoverPromptEl]) {
     input.addEventListener("input", () => {
       scheduleAutoSave(600);
     });

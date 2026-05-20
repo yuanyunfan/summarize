@@ -2,12 +2,12 @@ import { readPresetOrCustomValue, resolvePresetOrCustom } from "../../lib/combo"
 import type { Settings } from "../../lib/settings";
 import type { ColorMode, ColorScheme } from "../../lib/theme";
 import type { createModelPresetsController } from "./model-presets";
+import type { createPromptPresetsController } from "./prompt-presets";
 
 type FormElements = {
   tokenEl: HTMLInputElement;
   languagePresetEl: HTMLSelectElement;
   languageCustomEl: HTMLInputElement;
-  promptOverrideEl: HTMLTextAreaElement;
   hoverPromptEl: HTMLTextAreaElement;
   autoCliOrderEl: HTMLInputElement;
   maxCharsEl: HTMLInputElement;
@@ -41,6 +41,7 @@ export function buildSavedOptionsSettings({
   defaults,
   elements,
   modelPresets,
+  promptPresets,
   booleans,
   currentScheme,
   currentMode,
@@ -49,6 +50,7 @@ export function buildSavedOptionsSettings({
   defaults: Settings;
   elements: FormElements;
   modelPresets: ReturnType<typeof createModelPresetsController>;
+  promptPresets: ReturnType<typeof createPromptPresetsController>;
   booleans: BooleanFormState;
   currentScheme: ColorScheme;
   currentMode: ColorMode;
@@ -62,7 +64,9 @@ export function buildSavedOptionsSettings({
       customValue: elements.languageCustomEl.value,
       defaultValue: defaults.language,
     }),
-    promptOverride: elements.promptOverrideEl.value || defaults.promptOverride,
+    promptOverride: promptPresets.readPromptOverride() || defaults.promptOverride,
+    customPrompts: promptPresets.readCustomPrompts(),
+    selectedPromptId: promptPresets.readSelectedPromptId(),
     hoverPrompt: elements.hoverPromptEl.value || defaults.hoverPrompt,
     autoSummarize: booleans.autoSummarize,
     hoverSummaries: booleans.hoverSummaries,
@@ -120,7 +124,6 @@ export function applyLoadedOptionsSettings({
     elements.languageCustomEl.hidden = !resolved.isCustom;
     elements.languageCustomEl.value = resolved.customValue;
   }
-  elements.promptOverrideEl.value = settings.promptOverride;
   elements.hoverPromptEl.value = settings.hoverPrompt || defaults.hoverPrompt;
   elements.autoCliOrderEl.value = settings.autoCliOrder;
   elements.maxCharsEl.value = String(settings.maxChars);

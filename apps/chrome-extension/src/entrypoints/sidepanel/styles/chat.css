@@ -315,6 +315,49 @@
   border-color: color-mix(in srgb, var(--border) 85%, transparent);
 }
 
+.summaryPromptBar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+
+.summaryPromptBar.hidden {
+  display: none;
+}
+
+.summaryPromptField {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.summaryPromptField span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.summaryPromptField select {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 4px 8px;
+}
+
+.summaryPromptField select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--ui-focus) 45%, var(--border));
+}
+
 .chatInputRow {
   display: flex;
   gap: 8px;

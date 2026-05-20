@@ -932,6 +932,34 @@ form {
   white-space: pre-wrap;
 }
 
+.promptManager {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.promptManagerTop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.promptManagerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 1px;
+}
+
+.promptManagerActions .miniButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .skillsActions {
   display: flex;
   flex-wrap: wrap;
@@ -1044,6 +1072,14 @@ form {
 
   .processControls {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .promptManagerTop {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .promptManagerActions {
+    align-items: stretch;
   }
 
   .processHeader {

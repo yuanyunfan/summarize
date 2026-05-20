@@ -27,6 +27,8 @@ export type Settings = {
   length: string;
   language: string;
   promptOverride: string;
+  customPrompts: CustomPrompt[];
+  selectedPromptId: string;
   maxChars: number;
   requestMode: string;
   firecrawlMode: string;
@@ -41,6 +43,13 @@ export type Settings = {
   lineHeight: number;
   colorScheme: ColorScheme;
   colorMode: ColorMode;
+};
+
+export type CustomPrompt = {
+  id: string;
+  name: string;
+  prompt: string;
+  updatedAt: number;
 };
 
 export type SlidesLayout = "strip" | "gallery";
@@ -77,6 +86,9 @@ export const MAX_MAX_CHARS = 2_000_000;
 const MIN_MAX_OUTPUT_TOKENS = 16;
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 20;
+const MAX_CUSTOM_PROMPTS = 50;
+const MAX_CUSTOM_PROMPT_NAME_LENGTH = 80;
+const MAX_CUSTOM_PROMPT_TEXT_LENGTH = 20_000;
 
 const legacyFontFamilyMap = new Map<string, string>([
   [
@@ -122,6 +134,68 @@ function normalizeLanguage(value: unknown): string {
 function normalizePromptOverride(value: unknown): string {
   if (typeof value !== "string") return defaultSettings.promptOverride;
   return value;
+}
+
+function trimToLength(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+function normalizeCustomPromptId(value: unknown, fallbackIndex: number): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80);
+  return cleaned || `prompt-${fallbackIndex + 1}`;
+}
+
+function normalizeCustomPromptName(value: unknown, fallbackIndex: number): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  return trimToLength(raw || `Prompt ${fallbackIndex + 1}`, MAX_CUSTOM_PROMPT_NAME_LENGTH);
+}
+
+function normalizeCustomPromptText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return trimToLength(value, MAX_CUSTOM_PROMPT_TEXT_LENGTH);
+}
+
+function normalizeUpdatedAt(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return 0;
+  return Math.floor(numeric);
+}
+
+function normalizeCustomPrompts(value: unknown): CustomPrompt[] {
+  if (!Array.isArray(value)) return defaultSettings.customPrompts;
+  const prompts: CustomPrompt[] = [];
+  const ids = new Set<string>();
+  for (const [index, entry] of value.entries()) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const prompt = normalizeCustomPromptText(record.prompt);
+    const baseId = normalizeCustomPromptId(record.id, index);
+    let id = baseId;
+    let suffix = 2;
+    while (ids.has(id)) {
+      id = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    ids.add(id);
+    prompts.push({
+      id,
+      name: normalizeCustomPromptName(record.name, index),
+      prompt,
+      updatedAt: normalizeUpdatedAt(record.updatedAt),
+    });
+    if (prompts.length >= MAX_CUSTOM_PROMPTS) break;
+  }
+  return prompts;
+}
+
+function normalizeSelectedPromptId(value: unknown, customPrompts: CustomPrompt[]): string {
+  if (typeof value !== "string") return defaultSettings.selectedPromptId;
+  const trimmed = value.trim();
+  if (!trimmed) return defaultSettings.selectedPromptId;
+  return customPrompts.some((prompt) => prompt.id === trimmed)
+    ? trimmed
+    : defaultSettings.selectedPromptId;
 }
 
 function normalizeHoverPrompt(value: unknown): string {
@@ -319,6 +393,8 @@ export const defaultSettings: Settings = {
   length: "xl",
   language: "auto",
   promptOverride: "",
+  customPrompts: [],
+  selectedPromptId: "",
   maxChars: 120_000,
   requestMode: "",
   firecrawlMode: "",
@@ -355,6 +431,7 @@ export async function loadSettings(): Promise<Settings> {
       })
     : { [storageKey]: loadFallbackSettings() };
   const raw = (res[storageKey] ?? {}) as Partial<Settings>;
+  const customPrompts = normalizeCustomPrompts(raw.customPrompts);
   return {
     ...defaultSettings,
     ...raw,
@@ -363,6 +440,8 @@ export async function loadSettings(): Promise<Settings> {
     length: normalizeLength(raw.length),
     language: normalizeLanguage(raw.language),
     promptOverride: normalizePromptOverride(raw.promptOverride),
+    customPrompts,
+    selectedPromptId: normalizeSelectedPromptId(raw.selectedPromptId, customPrompts),
     autoSummarize:
       typeof raw.autoSummarize === "boolean" ? raw.autoSummarize : defaultSettings.autoSummarize,
     hoverSummaries:
@@ -421,12 +500,15 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
+  const customPrompts = normalizeCustomPrompts(settings.customPrompts);
   const normalized = {
     ...settings,
     model: normalizeModel(settings.model),
     length: normalizeLength(settings.length),
     language: normalizeLanguage(settings.language),
     promptOverride: normalizePromptOverride(settings.promptOverride),
+    customPrompts,
+    selectedPromptId: normalizeSelectedPromptId(settings.selectedPromptId, customPrompts),
     hoverPrompt: normalizeHoverPrompt(settings.hoverPrompt),
     autoCliOrder: normalizeAutoCliOrder(settings.autoCliOrder),
     requestMode: normalizeRequestMode(settings.requestMode),
@@ -463,4 +545,28 @@ export async function patchSettings(patch: Partial<Settings>): Promise<Settings>
   const next = { ...current, ...patch };
   await saveSettings(next);
   return next;
+}
+
+export function createCustomPromptId(): string {
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return `prompt-${Date.now().toString(36)}-${random}`;
+}
+
+export function resolveSelectedCustomPrompt(
+  settings: Pick<Settings, "customPrompts" | "selectedPromptId">,
+): CustomPrompt | null {
+  const selectedId = settings.selectedPromptId.trim();
+  if (!selectedId) return null;
+  return settings.customPrompts.find((prompt) => prompt.id === selectedId) ?? null;
+}
+
+export function resolveActivePromptOverride(
+  settings: Pick<Settings, "promptOverride" | "customPrompts" | "selectedPromptId">,
+): string {
+  const selected = resolveSelectedCustomPrompt(settings);
+  if (selected) return selected.prompt.trim();
+  return settings.promptOverride.trim();
 }

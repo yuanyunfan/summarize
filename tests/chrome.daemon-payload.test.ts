@@ -141,6 +141,48 @@ describe("chrome/daemon-payload", () => {
     expect(body.autoCliOrder).toBe("gemini,claude");
   });
 
+  it("uses the selected saved prompt for summaries", () => {
+    const body = buildDaemonRequestBody({
+      extracted: {
+        url: "https://example.com/article",
+        title: "Hello",
+        text: "Content",
+        truncated: false,
+      },
+      settings: {
+        ...defaultSettings,
+        promptOverride: "Ad-hoc prompt",
+        customPrompts: [
+          { id: "bullets", name: "Bullets", prompt: "Return five bullets.", updatedAt: 1 },
+        ],
+        selectedPromptId: "bullets",
+      },
+    });
+
+    expect(body.prompt).toBe("Return five bullets.");
+  });
+
+  it("falls back to ad-hoc prompt when no saved prompt is selected", () => {
+    const body = buildDaemonRequestBody({
+      extracted: {
+        url: "https://example.com/article",
+        title: "Hello",
+        text: "Content",
+        truncated: false,
+      },
+      settings: {
+        ...defaultSettings,
+        promptOverride: "Ad-hoc prompt",
+        customPrompts: [
+          { id: "bullets", name: "Bullets", prompt: "Return five bullets.", updatedAt: 1 },
+        ],
+        selectedPromptId: "",
+      },
+    });
+
+    expect(body.prompt).toBe("Ad-hoc prompt");
+  });
+
   it("requests slides when enabled", () => {
     const body = buildSummarizeRequestBody({
       extracted: {

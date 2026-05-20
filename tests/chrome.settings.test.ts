@@ -134,4 +134,40 @@ describe("chrome/settings", () => {
     expect(loaded.autoCliFallback).toBe(false);
     expect(loaded.autoCliOrder).toBe("gemini,openclaw,opencode,copilot,claude");
   });
+
+  it("normalizes saved custom prompts and active selection", async () => {
+    storage.settings = {
+      customPrompts: [
+        { id: "weekly", name: " Weekly ", prompt: "Summarize as weekly notes.", updatedAt: 12 },
+        { id: "weekly", name: "", prompt: "Different prompt.", updatedAt: "13" },
+        { id: "bad id!", name: "Invalid id", prompt: "Clean id.", updatedAt: -1 },
+      ],
+      selectedPromptId: "weekly",
+    };
+
+    const loaded = await loadSettings();
+    expect(loaded.customPrompts).toEqual([
+      {
+        id: "weekly",
+        name: "Weekly",
+        prompt: "Summarize as weekly notes.",
+        updatedAt: 12,
+      },
+      { id: "weekly-2", name: "Prompt 2", prompt: "Different prompt.", updatedAt: 13 },
+      { id: "bad-id-", name: "Invalid id", prompt: "Clean id.", updatedAt: 0 },
+    ]);
+    expect(loaded.selectedPromptId).toBe("weekly");
+  });
+
+  it("drops invalid selected prompt ids", async () => {
+    await saveSettings({
+      ...defaultSettings,
+      customPrompts: [{ id: "saved", name: "Saved", prompt: "Use this.", updatedAt: 1 }],
+      selectedPromptId: "missing",
+    });
+
+    const loaded = await loadSettings();
+    expect(loaded.selectedPromptId).toBe("");
+    expect(loaded.customPrompts).toHaveLength(1);
+  });
 });

@@ -1,4 +1,4 @@
-import type { Settings } from "./settings";
+import { resolveActivePromptOverride, type Settings } from "./settings";
 
 export type ExtractedPage = {
   url: string;
@@ -18,7 +18,7 @@ export function buildDaemonRequestBody({
   settings: Settings;
   noCache?: boolean;
 }): Record<string, unknown> {
-  const promptOverride = settings.promptOverride?.trim();
+  const promptOverride = resolveActivePromptOverride(settings);
   const maxOutputTokens = settings.maxOutputTokens?.trim();
   const timeout = settings.timeout?.trim();
   const overrides: Record<string, unknown> = {};

@@ -71,6 +71,9 @@ export function createSidepanelDom() {
   const inlineErrorRetryBtn = byId<HTMLButtonElement>("inlineErrorRetry");
   const inlineErrorLogsBtn = byId<HTMLButtonElement>("inlineErrorLogs");
   const inlineErrorCloseBtn = byId<HTMLButtonElement>("inlineErrorClose");
+  const summaryPromptBarEl = byId<HTMLDivElement>("summaryPromptBar");
+  const summaryPromptSelectEl = byId<HTMLSelectElement>("summaryPromptSelect");
+  const summaryPromptOptionsBtn = byId<HTMLButtonElement>("summaryPromptOptions");
 
   return {
     advancedBtn,
@@ -129,6 +132,9 @@ export function createSidepanelDom() {
     slideNoticeRetryBtn,
     slidesLayoutEl,
     subtitleEl,
+    summaryPromptBarEl,
+    summaryPromptOptionsBtn,
+    summaryPromptSelectEl,
     summarizeControlRoot,
     titleEl,
   };

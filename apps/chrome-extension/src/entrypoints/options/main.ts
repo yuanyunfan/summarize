@@ -11,6 +11,7 @@ import { createModelPresetsController } from "./model-presets";
 import { createOptionsSaveRuntime } from "./persistence";
 import { mountOptionsPickers } from "./pickers";
 import { createProcessesViewer } from "./processes-viewer";
+import { createPromptPresetsController } from "./prompt-presets";
 import type { createSkillsController } from "./skills-controller";
 import {
   applyBuildInfo,
@@ -32,7 +33,13 @@ const {
   modelCustomEl,
   languagePresetEl,
   languageCustomEl,
+  promptPresetEl,
+  promptNameEl,
   promptOverrideEl,
+  promptNewBtn,
+  promptSaveBtn,
+  promptDeleteBtn,
+  promptMetaEl,
   autoToggleRoot,
   maxCharsEl,
   hoverPromptEl,
@@ -211,7 +218,6 @@ const settingsElements = {
   tokenEl,
   languagePresetEl,
   languageCustomEl,
-  promptOverrideEl,
   hoverPromptEl,
   autoCliOrderEl,
   maxCharsEl,
@@ -227,6 +233,7 @@ const settingsElements = {
   fontFamilyEl,
   fontSizeEl,
 };
+let promptPresets: ReturnType<typeof createPromptPresetsController>;
 
 const { saveNow, scheduleAutoSave } = createOptionsSaveRuntime({
   isInitializing: () => isInitializing,
@@ -240,6 +247,7 @@ const { saveNow, scheduleAutoSave } = createOptionsSaveRuntime({
         defaults: defaultSettings,
         elements: settingsElements,
         modelPresets,
+        promptPresets,
         booleans: booleanSettings?.getState() ?? {
           autoSummarize: defaultSettings.autoSummarize,
           chatEnabled: defaultSettings.chatEnabled,
@@ -257,6 +265,21 @@ const { saveNow, scheduleAutoSave } = createOptionsSaveRuntime({
     );
   },
 });
+
+promptPresets = createPromptPresetsController({
+  elements: {
+    presetEl: promptPresetEl,
+    nameEl: promptNameEl,
+    promptEl: promptOverrideEl,
+    newBtn: promptNewBtn,
+    saveBtn: promptSaveBtn,
+    deleteBtn: promptDeleteBtn,
+    metaEl: promptMetaEl,
+  },
+  scheduleAutoSave,
+  flashStatus,
+});
+promptPresets.bind();
 
 booleanSettings = createBooleanSettingsRuntime({
   defaults: defaultSettings,
@@ -338,6 +361,7 @@ async function load() {
     languagePresets,
     elements: settingsElements,
   });
+  promptPresets.applySettings(s);
   booleanSettings.setState(loadedState.booleans);
   booleanSettings.render();
   currentScheme = loadedState.colorScheme;
@@ -369,7 +393,6 @@ bindOptionsInputs({
     modelCustomEl,
     languagePresetEl,
     languageCustomEl,
-    promptOverrideEl,
     hoverPromptEl,
     hoverPromptResetBtn,
     maxCharsEl,

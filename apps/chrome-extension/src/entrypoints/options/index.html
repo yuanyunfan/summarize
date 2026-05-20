@@ -257,14 +257,38 @@
                 <code>--set-default</code> to also set your default model to <code>free</code>.
               </div>
             </label>
-            <label>
-              <span>Prompt override</span>
-              <textarea
-                id="promptOverride"
-                rows="6"
-                placeholder="Custom instructions (prefix). Context + content still appended."
-              ></textarea>
-            </label>
+            <div class="promptManager">
+              <div class="promptManagerTop">
+                <label>
+                  <span>Summary prompt</span>
+                  <select id="promptPreset"></select>
+                </label>
+                <div class="promptManagerActions">
+                  <button id="promptNew" type="button" class="miniButton">New</button>
+                  <button id="promptSave" type="button" class="miniButton">Save</button>
+                  <button id="promptDelete" type="button" class="miniButton">Delete</button>
+                </div>
+              </div>
+              <label>
+                <span>Prompt name</span>
+                <input
+                  id="promptName"
+                  type="text"
+                  placeholder="Saved prompt name"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </label>
+              <label>
+                <span>Prompt override</span>
+                <textarea
+                  id="promptOverride"
+                  rows="6"
+                  placeholder="Custom instructions (prefix). Context + content still appended."
+                ></textarea>
+              </label>
+              <div id="promptMeta" class="subtitle"></div>
+            </div>
             <label>
               <span>Max chars (extracted)</span>
               <input id="maxChars" type="number" min="20000" step="10000" />

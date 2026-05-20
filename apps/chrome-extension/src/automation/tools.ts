@@ -1,6 +1,6 @@
 import type { ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
 import { parseSseEvent } from "../lib/runtime-contracts";
-import { loadSettings } from "../lib/settings";
+import { loadSettings, resolveActivePromptOverride } from "../lib/settings";
 import { parseSseStream } from "../lib/sse";
 import {
   deleteArtifact,
@@ -120,7 +120,7 @@ async function executeSummarizeTool(args: SummarizeToolArgs): Promise<SummarizeT
   const language = args.language ?? settings.language;
   if (language) body.language = language;
 
-  const prompt = args.prompt ?? settings.promptOverride;
+  const prompt = args.prompt ?? resolveActivePromptOverride(settings);
   if (prompt) body.prompt = prompt;
 
   const timeout = args.timeout ?? settings.timeout;
