@@ -16,7 +16,11 @@ import {
   waitForPanelPort,
 } from "./helpers/extension-harness";
 import { allowFirefoxExtensionTests } from "./helpers/extension-test-config";
-import { waitForChatEnabled, waitForSettingsHydratedHook } from "./helpers/panel-hooks";
+import {
+  waitForChatEnabled,
+  waitForSettingsHydratedHook,
+  waitForSlidesRuntimeHooks,
+} from "./helpers/panel-hooks";
 
 test.skip(
   ({ browserName }) => browserName === "firefox" && !allowFirefoxExtensionTests,
@@ -418,6 +422,39 @@ test("sidepanel updates title after stream when tab title changes", async ({
     });
 
     await expect(page.locator("#title")).toHaveText("Updated Title");
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
+test("sidepanel renders mermaid summary code fences as diagrams", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
+    await waitForPanelPort(page);
+    await waitForSlidesRuntimeHooks(page);
+
+    await page.evaluate(() => {
+      const hooks = (
+        window as typeof globalThis & {
+          __summarizeTestHooks?: { applySummaryMarkdown?: (markdown: string) => void };
+        }
+      ).__summarizeTestHooks;
+      hooks?.applySummaryMarkdown?.(
+        ["```mermaid", "flowchart TD", "A[Start] --> B[Preview]", "```"].join("\n"),
+      );
+    });
+
+    const diagram = page.locator("#render .renderMermaid svg");
+    await expect(diagram).toBeVisible();
+    await expect(page.locator("#render pre > code.language-mermaid")).toHaveCount(0);
+    const box = await diagram.boundingBox();
+    expect((box?.width ?? 0) > 0).toBe(true);
+    expect((box?.height ?? 0) > 0).toBe(true);
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);

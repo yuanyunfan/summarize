@@ -2,6 +2,121 @@ import { selectMarkdownForLayout } from "./slides-state";
 import { buildSummaryEmptyState } from "./summary-empty-state";
 import { linkifyTimestamps } from "./timestamp-links";
 
+type MermaidRuntime = {
+  initialize: (config: Record<string, unknown>) => void;
+  render: (
+    id: string,
+    text: string,
+  ) => Promise<{ svg: string; bindFunctions?: (element: Element) => void }>;
+};
+
+const MERMAID_MAX_CHARS = 50_000;
+const defaultMermaidLoader = () =>
+  import("mermaid").then((module) => module.default as MermaidRuntime);
+let mermaidLoadPromise: Promise<MermaidRuntime> | null = null;
+let mermaidRuntimeLoader: () => Promise<MermaidRuntime> = defaultMermaidLoader;
+let mermaidCounter = 0;
+
+export function setMermaidRuntimeLoaderForTest(loader: (() => Promise<MermaidRuntime>) | null) {
+  mermaidLoadPromise = null;
+  mermaidRuntimeLoader = loader ?? defaultMermaidLoader;
+}
+
+function loadMermaid(): Promise<MermaidRuntime> {
+  mermaidLoadPromise ??= mermaidRuntimeLoader().then((mermaid) => {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      secure: [
+        "secure",
+        "securityLevel",
+        "startOnLoad",
+        "maxTextSize",
+        "suppressErrorRendering",
+        "maxEdges",
+      ],
+      maxTextSize: MERMAID_MAX_CHARS,
+      suppressErrorRendering: true,
+      theme: "neutral",
+      htmlLabels: false,
+      flowchart: {
+        htmlLabels: false,
+        useMaxWidth: true,
+      },
+    });
+    return mermaid;
+  });
+  return mermaidLoadPromise;
+}
+
+function isMermaidCodeBlock(code: Element): boolean {
+  return (
+    code.classList.contains("language-mermaid") ||
+    code.classList.contains("lang-mermaid") ||
+    code.getAttribute("data-language")?.toLowerCase() === "mermaid"
+  );
+}
+
+function sanitizeMermaidSvg(container: HTMLElement) {
+  container.querySelectorAll("script, foreignObject").forEach((node) => node.remove());
+  for (const element of Array.from(container.querySelectorAll("*"))) {
+    for (const attr of Array.from(element.attributes)) {
+      const name = attr.name.toLowerCase();
+      const value = attr.value.trim().toLowerCase();
+      if (name.startsWith("on")) {
+        element.removeAttribute(attr.name);
+        continue;
+      }
+      if ((name === "href" || name === "xlink:href") && value.startsWith("javascript:")) {
+        element.removeAttribute(attr.name);
+      }
+    }
+  }
+}
+
+async function renderMermaidPreviews(markdownHost: HTMLElement) {
+  const blocks = Array.from(markdownHost.querySelectorAll("pre > code")).filter(isMermaidCodeBlock);
+  if (blocks.length === 0) return;
+
+  let mermaid: MermaidRuntime;
+  try {
+    mermaid = await loadMermaid();
+  } catch {
+    return;
+  }
+
+  for (const code of blocks) {
+    const pre = code.parentElement;
+    const source = code.textContent?.trim() ?? "";
+    if (
+      !pre ||
+      !markdownHost.contains(pre) ||
+      source.length === 0 ||
+      source.length > MERMAID_MAX_CHARS
+    ) {
+      continue;
+    }
+
+    try {
+      const id = `summary-mermaid-${Date.now()}-${++mermaidCounter}`;
+      const { svg, bindFunctions } = await mermaid.render(id, source);
+      if (!pre.isConnected || !markdownHost.contains(pre)) continue;
+
+      const figure = document.createElement("figure");
+      figure.className = "renderMermaid";
+      const viewport = document.createElement("div");
+      viewport.className = "renderMermaid__viewport";
+      viewport.innerHTML = svg;
+      sanitizeMermaidSvg(viewport);
+      bindFunctions?.(viewport);
+      figure.append(viewport);
+      pre.replaceWith(figure);
+    } catch {
+      pre.classList.add("renderMermaid__fallback");
+    }
+  }
+}
+
 function createCopyButton({
   text,
   headerSetStatus,
@@ -154,6 +269,7 @@ export function renderSummaryMarkdownDisplay({
     markdownHost.className = "render__markdownBody";
     markdownHost.innerHTML = md.render(linkifyTimestamps(displayMarkdown));
     hostEl.append(actions, markdownHost);
+    void renderMermaidPreviews(markdownHost);
   } catch (err) {
     const message = err instanceof Error ? err.stack || err.message : String(err);
     headerSetStatus(`错误：${message}`);

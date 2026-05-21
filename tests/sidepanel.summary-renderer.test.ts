@@ -1,12 +1,33 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mermaidMocks = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(async (id: string) => ({
+    svg: `<svg id="${id}" role="img"><g><text>diagram</text></g></svg>`,
+  })),
+}));
+
 import {
   renderSummaryEmptyState,
   renderSummaryMarkdownDisplay,
+  setMermaidRuntimeLoaderForTest,
 } from "../apps/chrome-extension/src/entrypoints/sidepanel/summary-renderer.js";
 
 describe("sidepanel summary renderer", () => {
+  beforeEach(() => {
+    mermaidMocks.initialize.mockClear();
+    mermaidMocks.render.mockClear();
+    mermaidMocks.render.mockResolvedValue({
+      svg: '<svg role="img"><g><text>diagram</text></g></svg>',
+    });
+    setMermaidRuntimeLoaderForTest(async () => ({
+      initialize: mermaidMocks.initialize,
+      render: mermaidMocks.render,
+    }));
+  });
+
   it("renders and clears empty states", () => {
     const hostEl = document.createElement("div");
     renderSummaryEmptyState({
@@ -63,6 +84,124 @@ describe("sidepanel summary renderer", () => {
     expect(links[1]?.getAttribute("target")).toBe("_blank");
     expect(renderInlineSlides).toHaveBeenCalledWith(hostEl, { fallback: true });
     expect(hostEl.querySelector(".render__copy")).not.toBeNull();
+  });
+
+  it("renders mermaid code fences as diagram previews", async () => {
+    const hostEl = document.createElement("div");
+    document.body.append(hostEl);
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown: "```mermaid\nflowchart TD\nA --> B\n```",
+      md: {
+        render: () => '<pre><code class="language-mermaid">flowchart TD\nA --&gt; B</code></pre>',
+      },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    await vi.waitFor(() => {
+      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+    });
+
+    expect(mermaidMocks.initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        securityLevel: "strict",
+        startOnLoad: false,
+      }),
+    );
+    expect(mermaidMocks.render).toHaveBeenCalledWith(
+      expect.stringMatching(/^summary-mermaid-/),
+      "flowchart TD\nA --> B",
+    );
+    expect(hostEl.querySelector("pre > code.language-mermaid")).toBeNull();
+  });
+
+  it("leaves mermaid source visible when diagram rendering fails", async () => {
+    const hostEl = document.createElement("div");
+    document.body.append(hostEl);
+    mermaidMocks.render.mockRejectedValueOnce(new Error("bad diagram"));
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown: "```mermaid\nnot valid\n```",
+      md: { render: () => '<pre><code class="language-mermaid">not valid</code></pre>' },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        hostEl.querySelector("pre.renderMermaid__fallback > code.language-mermaid"),
+      ).not.toBeNull();
+    });
+
+    expect(hostEl.querySelector(".renderMermaid")).toBeNull();
+  });
+
+  it("sanitizes rendered mermaid svg before inserting it", async () => {
+    const hostEl = document.createElement("div");
+    document.body.append(hostEl);
+    mermaidMocks.render.mockResolvedValueOnce({
+      svg: [
+        '<svg role="img" onclick="alert(1)">',
+        "<script>alert(1)</script>",
+        '<a href="javascript:alert(1)"><text>Unsafe</text></a>',
+        "<foreignObject>html</foreignObject>",
+        "</svg>",
+      ].join(""),
+    });
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown: "```mermaid\nflowchart TD\nA --> B\n```",
+      md: {
+        render: () => '<pre><code class="language-mermaid">flowchart TD\nA --&gt; B</code></pre>',
+      },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    await vi.waitFor(() => {
+      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+    });
+
+    expect(hostEl.querySelector("script")).toBeNull();
+    expect(hostEl.querySelector("foreignObject")).toBeNull();
+    expect(hostEl.querySelector("svg")?.getAttribute("onclick")).toBeNull();
+    expect(hostEl.querySelector("a")?.getAttribute("href")).toBeNull();
   });
 
   it("copies rendered markdown text to the clipboard", async () => {

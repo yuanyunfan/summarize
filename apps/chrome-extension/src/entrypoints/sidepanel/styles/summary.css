@@ -301,6 +301,32 @@ button.setup__pill.isActive {
   border-radius: 8px;
 }
 
+.renderMermaid {
+  margin: 14px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, white);
+  overflow: hidden;
+}
+
+.renderMermaid__viewport {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.renderMermaid__viewport svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  min-width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.renderMermaid__fallback {
+  border-color: color-mix(in srgb, #ffb454 44%, var(--border));
+}
+
 .raw {
   white-space: pre-wrap;
   word-break: break-word;
