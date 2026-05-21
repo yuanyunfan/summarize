@@ -3,7 +3,7 @@ import { getModel } from "@earendil-works/pi-ai";
 import { isOpenRouterBaseUrl } from "@steipete/summarize-core";
 import { createSyntheticModel } from "../llm/providers/shared.js";
 import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
-import { parseCliUserModelId } from "../run/env.js";
+import { parseBooleanEnv, parseCliUserModelId } from "../run/env.js";
 import { resolveRunContextState } from "../run/run-context.js";
 import { resolveModelSelection } from "../run/run-models.js";
 import { resolveRunOverrides } from "../run/run-settings.js";
@@ -53,12 +53,12 @@ function overrideModelGatewaySettings({
   provider,
   model,
   baseUrl,
-  forceOpenAiChatCompletions,
+  openAiChatCompletionsPreference,
 }: {
   provider: string;
   model: Model<Api>;
   baseUrl: string | null;
-  forceOpenAiChatCompletions: boolean;
+  openAiChatCompletionsPreference: boolean | null;
 }) {
   const nextModel = baseUrl ? ({ ...model, baseUrl } as Model<Api>) : model;
   if (provider !== "openai") return nextModel;
@@ -67,35 +67,68 @@ function overrideModelGatewaySettings({
       ? nextModel.baseUrl.trim()
       : null;
   const shouldUseChatCompletions =
-    forceOpenAiChatCompletions ||
-    isCustomOpenAiBaseUrl(effectiveBaseUrl) ||
-    (effectiveBaseUrl !== null && isOpenRouterBaseUrl(effectiveBaseUrl));
-  if (!shouldUseChatCompletions) return nextModel;
-  const headers =
-    effectiveBaseUrl !== null && isOpenRouterBaseUrl(effectiveBaseUrl)
-      ? {
-          ...((nextModel as Model<Api> & { headers?: Record<string, string> }).headers ?? {}),
-          "HTTP-Referer": "https://github.com/steipete/summarize",
-          "X-Title": "summarize",
-        }
-      : (nextModel as Model<Api> & { headers?: Record<string, string> }).headers;
-  return {
-    ...nextModel,
-    api: "openai-completions",
-    ...(headers ? { headers } : {}),
-  } as Model<Api>;
+    openAiChatCompletionsPreference === true ||
+    (effectiveBaseUrl !== null && isOpenRouterBaseUrl(effectiveBaseUrl)) ||
+    (openAiChatCompletionsPreference !== false && isCustomOpenAiBaseUrl(effectiveBaseUrl));
+  if (shouldUseChatCompletions) {
+    const headers =
+      effectiveBaseUrl !== null && isOpenRouterBaseUrl(effectiveBaseUrl)
+        ? {
+            ...((nextModel as Model<Api> & { headers?: Record<string, string> }).headers ?? {}),
+            "HTTP-Referer": "https://github.com/steipete/summarize",
+            "X-Title": "summarize",
+          }
+        : (nextModel as Model<Api> & { headers?: Record<string, string> }).headers;
+    return {
+      ...nextModel,
+      api: "openai-completions",
+      ...(headers ? { headers } : {}),
+    } as Model<Api>;
+  }
+  if (openAiChatCompletionsPreference === false) {
+    return {
+      ...nextModel,
+      api: "openai-responses",
+    } as Model<Api>;
+  }
+  return nextModel;
+}
+
+function resolveOpenAiChatCompletionsPreference({
+  env,
+  config,
+}: {
+  env: Record<string, string | undefined>;
+  config: ReturnType<typeof resolveRunContextState>["config"];
+}): boolean | null {
+  const envValue = parseBooleanEnv(env.OPENAI_USE_CHAT_COMPLETIONS);
+  if (envValue !== null) return envValue;
+  const configValue = config?.openai?.useChatCompletions;
+  return typeof configValue === "boolean" ? configValue : null;
+}
+
+function resolveSyntheticOpenAiApi({
+  baseUrl,
+  openAiChatCompletionsPreference,
+}: {
+  baseUrl: string;
+  openAiChatCompletionsPreference: boolean | null;
+}): Model<Api>["api"] {
+  if (isOpenRouterBaseUrl(baseUrl)) return "openai-completions";
+  if (openAiChatCompletionsPreference === false) return "openai-responses";
+  return "openai-completions";
 }
 
 function resolveModelWithFallback({
   provider,
   modelId,
   baseUrl,
-  forceOpenAiChatCompletions,
+  openAiChatCompletionsPreference,
 }: {
   provider: string;
   modelId: string;
   baseUrl: string | null;
-  forceOpenAiChatCompletions: boolean;
+  openAiChatCompletionsPreference: boolean | null;
 }): Model<Api> {
   try {
     const model = getModel(provider as never, modelId as never);
@@ -104,14 +137,17 @@ function resolveModelWithFallback({
       provider,
       model: model as Model<Api>,
       baseUrl,
-      forceOpenAiChatCompletions,
+      openAiChatCompletionsPreference,
     });
   } catch (error) {
     if (baseUrl) {
       return createSyntheticModel({
         provider: provider as never,
         modelId,
-        api: "openai-completions",
+        api:
+          provider === "openai"
+            ? resolveSyntheticOpenAiApi({ baseUrl, openAiChatCompletionsPreference })
+            : "openai-completions",
         baseUrl,
         allowImages: false,
       });
@@ -249,7 +285,6 @@ export async function resolveAgentModel({
     nvidiaBaseUrl,
     envForAuto,
     cliAvailability,
-    openaiUseChatCompletions,
   } = resolveRunContextState({
     env,
     envForRun: env,
@@ -272,6 +307,7 @@ export async function resolveAgentModel({
 
   const overrides = resolveRunOverrides({});
   const maxOutputTokens = overrides.maxOutputTokensArg ?? 2048;
+  const openAiChatCompletionsPreference = resolveOpenAiChatCompletionsPreference({ env, config });
 
   const { requestedModel, configForModelSelection, isFallbackModel } = resolveModelSelection({
     config,
@@ -299,7 +335,8 @@ export async function resolveAgentModel({
         provider: providerForPiAi,
         modelId,
         baseUrl,
-        forceOpenAiChatCompletions: provider === "openai" && openaiUseChatCompletions,
+        openAiChatCompletionsPreference:
+          provider === "openai" ? openAiChatCompletionsPreference : null,
       }),
     };
   };

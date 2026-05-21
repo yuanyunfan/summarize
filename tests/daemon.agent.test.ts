@@ -181,6 +181,38 @@ describe("daemon/agent", () => {
     expect(model.api).toBe("openai-completions");
   });
 
+  it("respects explicit responses mode for custom openai base urls", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/gpt-5.5" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+
+    await completeAgentResponse({
+      env: {
+        HOME: home,
+        OPENAI_API_KEY: "sk-openai",
+      },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/gpt-5.5",
+      tools: [],
+      automationEnabled: false,
+    });
+
+    const model = mockCompleteSimple.mock.calls[0]?.[0] as {
+      api: string;
+      baseUrl?: string;
+    };
+    expect(model.baseUrl).toBe("http://127.0.0.1:7024/v1");
+    expect(model.api).toBe("openai-responses");
+  });
+
   it("uses chat completions for known openai models when config enables them", async () => {
     const home = makeTempHome();
     writeHomeConfig(home, {
