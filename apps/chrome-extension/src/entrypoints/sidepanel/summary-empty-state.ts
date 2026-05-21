@@ -17,26 +17,26 @@ export type SummaryEmptyState = {
 export function buildSummaryEmptyState(input: SummaryEmptyStateInput): SummaryEmptyState | null {
   if (input.hasSlides) return null;
 
-  const subject = input.tabTitle?.trim() || input.tabUrl?.trim() || "this page";
+  const subject = input.tabTitle?.trim() || input.tabUrl?.trim() || "当前页面";
   if (!input.tabUrl) {
     return {
-      label: "No page",
-      message: "Open a page to summarize.",
+      label: "没有页面",
+      message: "打开一个页面后即可摘要。",
       detail: null,
     };
   }
 
   if (input.phase === "connecting" || input.phase === "streaming" || input.autoSummarize) {
     return {
-      label: "Loading",
-      message: "Preparing summary",
+      label: "加载中",
+      message: "正在准备摘要",
       detail: subject,
     };
   }
 
   return {
-    label: "Ready",
-    message: "Click Summarize to start.",
+    label: "就绪",
+    message: "点击摘要开始。",
     detail: subject,
   };
 }

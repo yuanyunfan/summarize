@@ -219,7 +219,7 @@ export class ChatController {
       msgEl.classList.add("tool");
       if (message.isError) msgEl.classList.add("error");
       const output = extractText(message);
-      const header = `Tool result: ${message.toolName}${message.isError ? " (error)" : ""}`;
+      const header = `工具结果：${message.toolName}${message.isError ? "（错误）" : ""}`;
       const body = output ? `\n\n\`\`\`\n${output}\n\`\`\`` : "";
       msgEl.innerHTML = this.markdown.render(`${header}${body}`);
       const attachments = extractAttachments(message);

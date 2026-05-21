@@ -173,7 +173,7 @@ describe("sidepanel summarize control runtime", () => {
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(calls.showSlideNotice).toHaveBeenCalledWith(
-      "Slide extraction requires ffmpeg. Install and restart the daemon.",
+      "提取 Slides 需要 ffmpeg。请安装后重启 daemon。",
     );
     expect(calls.patchSettings).not.toHaveBeenCalled();
     expect(state.slidesEnabled).toBe(false);

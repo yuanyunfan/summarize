@@ -46,7 +46,7 @@ test("options pickers apply overlay selection", async ({ browserName: _browserNa
     await expect(modeList).toBeVisible();
     await modeList.locator('[role="option"]').nth(1).click();
 
-    await expect(modeTrigger).toHaveText("Light");
+    await expect(modeTrigger).toHaveText("浅色");
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);
@@ -204,9 +204,7 @@ test("options disables automation permissions button when granted", async ({
     await page.waitForSelector("#tabs");
 
     await expect(page.locator("#automationPermissions")).toBeDisabled();
-    await expect(page.locator("#automationPermissions")).toHaveText(
-      "Automation permissions granted",
-    );
+    await expect(page.locator("#automationPermissions")).toHaveText("自动化权限已授权");
     await expect(page.locator("#userScriptsNotice")).toBeHidden();
     assertNoErrors(harness);
   } finally {
@@ -242,9 +240,7 @@ test("options shows user scripts guidance when unavailable", async ({
     await page.waitForSelector("#tabs");
 
     await expect(page.locator("#automationPermissions")).toBeEnabled();
-    await expect(page.locator("#automationPermissions")).toHaveText(
-      "Enable automation permissions",
-    );
+    await expect(page.locator("#automationPermissions")).toHaveText("启用自动化权限");
     await expect(page.locator("#userScriptsNotice")).toBeVisible();
     await expect(page.locator("#userScriptsNotice")).toContainText(/User Scripts|chrome:\/\//);
     assertNoErrors(harness);

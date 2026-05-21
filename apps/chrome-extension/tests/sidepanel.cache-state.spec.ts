@@ -298,7 +298,7 @@ test("sidepanel clears cached slides when switching from a cached YouTube video 
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
     await expect(page.locator("#title")).toHaveText("Bravo Tab");
     const emptyState = page.locator('#render [data-empty-state="true"]');
-    await expect(emptyState).toContainText("Click Summarize to start.");
+    await expect(emptyState).toContainText("点击摘要开始。");
     await expect(emptyState).toContainText("Bravo Tab");
     await expect(page.locator("#render")).not.toContainText("Summary A");
     await expect.poll(async () => (await getPanelSlideDescriptions(page)).length).toBe(0);

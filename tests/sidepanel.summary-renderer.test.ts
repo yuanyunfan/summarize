@@ -98,7 +98,7 @@ describe("sidepanel summary renderer", () => {
     await Promise.resolve();
 
     expect(writeText).toHaveBeenCalledWith("# Title\n\nBody");
-    expect(setStatus).toHaveBeenCalledWith("Copied");
+    expect(setStatus).toHaveBeenCalledWith("已复制");
   });
 
   it("reports empty copy attempts without touching the clipboard", async () => {
@@ -130,9 +130,9 @@ describe("sidepanel summary renderer", () => {
       tabUrl: "https://example.com/watch",
     });
 
-    expect(hostEl.textContent).toContain("Summarize");
+    expect(hostEl.textContent).toContain("摘要");
     expect(writeText).not.toHaveBeenCalled();
-    expect(setStatus).not.toHaveBeenCalledWith("Copied");
+    expect(setStatus).not.toHaveBeenCalledWith("已复制");
   });
 
   it("falls back to execCommand copy when clipboard write fails", async () => {
@@ -172,7 +172,7 @@ describe("sidepanel summary renderer", () => {
     await Promise.resolve();
 
     expect(execCommand).toHaveBeenCalledWith("copy");
-    expect(setStatus).toHaveBeenCalledWith("Copied");
+    expect(setStatus).toHaveBeenCalledWith("已复制");
   });
 
   it("surfaces a failed execCommand fallback", async () => {
@@ -212,7 +212,7 @@ describe("sidepanel summary renderer", () => {
     await Promise.resolve();
 
     expect(execCommand).toHaveBeenCalledWith("copy");
-    expect(setStatus).toHaveBeenCalledWith("Copy failed");
+    expect(setStatus).toHaveBeenCalledWith("复制失败");
   });
 
   it("falls back to the empty state and reports markdown render errors", () => {
@@ -237,7 +237,7 @@ describe("sidepanel summary renderer", () => {
       tabTitle: "Video",
       tabUrl: "https://example.com/watch",
     });
-    expect(hostEl.textContent).toContain("Preparing summary");
+    expect(hostEl.textContent).toContain("正在准备摘要");
 
     renderSummaryMarkdownDisplay({
       activeTabUrl: "https://example.com/watch",
@@ -285,6 +285,6 @@ describe("sidepanel summary renderer", () => {
       tabTitle: "Video",
       tabUrl: "https://example.com/watch",
     });
-    expect(setStatus).toHaveBeenCalledWith("Error: bad markdown");
+    expect(setStatus).toHaveBeenCalledWith("错误：bad markdown");
   });
 });

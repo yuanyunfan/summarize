@@ -120,8 +120,8 @@ export function createSidepanelBgMessageRuntime(options: {
         setStatus: options.setStatus,
         isStreaming: options.isStreaming,
         handleRunError: (message) => {
-          const detail = message && message.trim().length > 0 ? message : "Something went wrong.";
-          options.setStatus(`Error: ${detail}`);
+          const detail = message && message.trim().length > 0 ? message : "出错了。";
+          options.setStatus(`错误：${detail}`);
           options.setPhase("error", { error: detail });
           if (options.panelState.chatStreaming) {
             options.finishStreamingMessage();

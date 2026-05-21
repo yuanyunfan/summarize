@@ -317,7 +317,7 @@
 
 .summaryPromptBar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(92px, 0.72fr) minmax(116px, 1fr) auto;
   gap: 8px;
   align-items: end;
   margin-bottom: 8px;

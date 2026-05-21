@@ -63,7 +63,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
     mode = "summarize",
     streamingStatusText,
     idleTimeoutMs = 120_000,
-    idleTimeoutMessage = "No response from the daemon for a while. It may have stopped. Click “Try again”.",
+    idleTimeoutMessage = "daemon 一段时间没有响应，可能已经停止。点击“重试”。",
   } = options;
   let controller: AbortController | null = null;
   let activeAbortState: { reason: "manual" | "timeout" | null } | null = null;
@@ -121,7 +121,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
     const token = (await getToken()).trim();
     if (generation !== activeGeneration) return;
     if (!token) {
-      onStatus("Setup required (missing token)");
+      onStatus("需要先完成设置（缺少 token）");
       return;
     }
 
@@ -142,7 +142,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
 
     onBaseTitle?.(run.title || run.url);
     onBaseSubtitle?.("");
-    onStatus("Connecting…");
+    onStatus("正在连接…");
 
     try {
       const res = await (fetchImpl ?? fetch)(
@@ -156,7 +156,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       if (!res.body) throw new Error("Missing stream body");
 
-      onStatus(streamingStatusText ?? (mode === "chat" ? "" : "Summarizing…"));
+      onStatus(streamingStatusText ?? (mode === "chat" ? "" : "正在摘要…"));
       onPhaseChange("streaming");
 
       const iterator = parseSseStream(res.body);
@@ -251,7 +251,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
       }
       hadError = true;
       const message = onError ? onError(err) : err instanceof Error ? err.message : String(err);
-      onStatus(`Error: ${message}`);
+      onStatus(`错误：${message}`);
       onPhaseChange("error");
       onDone?.();
     } finally {

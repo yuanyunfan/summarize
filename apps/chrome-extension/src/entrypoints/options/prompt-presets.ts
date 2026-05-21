@@ -22,7 +22,7 @@ function derivePromptName(prompt: string): string {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean);
-  if (!firstLine) return "New prompt";
+  if (!firstLine) return "新 Prompt";
   return firstLine.length > 48 ? `${firstLine.slice(0, 45)}...` : firstLine;
 }
 
@@ -51,7 +51,7 @@ export function createPromptPresetsController({
   const renderPresetOptions = () => {
     normalizeSelection();
     elements.presetEl.textContent = "";
-    elements.presetEl.append(option("", adHocPrompt.trim() ? "Ad-hoc prompt" : "Default prompt"));
+    elements.presetEl.append(option("", adHocPrompt.trim() ? "临时 Prompt" : "默认 Prompt"));
     for (const prompt of customPrompts) {
       elements.presetEl.append(option(prompt.id, prompt.name));
     }
@@ -63,11 +63,10 @@ export function createPromptPresetsController({
     isApplying = true;
     elements.nameEl.disabled = !prompt;
     elements.deleteBtn.disabled = !prompt;
-    elements.saveBtn.textContent = prompt ? "Update prompt" : "Save as prompt";
+    elements.saveBtn.textContent = prompt ? "更新 Prompt" : "保存为 Prompt";
     elements.nameEl.value = prompt?.name ?? "";
     elements.promptEl.value = prompt?.prompt ?? adHocPrompt;
-    elements.metaEl.textContent =
-      customPrompts.length === 1 ? "1 saved prompt" : `${customPrompts.length} saved prompts`;
+    elements.metaEl.textContent = `已保存 ${customPrompts.length} 个 Prompt`;
     isApplying = false;
   };
 
@@ -101,7 +100,7 @@ export function createPromptPresetsController({
     render();
     scheduleAutoSave(200);
     elements.nameEl.focus();
-    flashStatus("Prompt saved");
+    flashStatus("Prompt 已保存");
   };
 
   const bind = () => {
@@ -137,7 +136,7 @@ export function createPromptPresetsController({
       }
       render();
       scheduleAutoSave(200);
-      flashStatus("Prompt updated");
+      flashStatus("Prompt 已更新");
     });
 
     elements.deleteBtn.addEventListener("click", () => {
@@ -147,7 +146,7 @@ export function createPromptPresetsController({
       selectedPromptId = "";
       render();
       scheduleAutoSave(200);
-      flashStatus("Prompt deleted");
+      flashStatus("Prompt 已删除");
     });
   };
 

@@ -29,7 +29,7 @@ export function createSlidesStreamController(
     onError,
     fetchImpl,
     idleTimeoutMs = 300_000,
-    idleTimeoutMessage = "Timed out waiting for slide updates.",
+    idleTimeoutMessage = "等待 slide 更新超时。",
   } = options;
   let controller: AbortController | null = null;
   let streaming = false;
@@ -124,7 +124,7 @@ export function createSlidesStreamController(
       if (generation !== activeGeneration) return;
       if (nextController.signal.aborted) return;
       if (!sawDone) {
-        throw new Error("Stream ended unexpectedly. The daemon may have stopped.");
+        throw new Error("流式响应意外结束，daemon 可能已经停止。");
       }
     } catch (err) {
       if (err instanceof Error && err.name === "IdleTimeoutError") {

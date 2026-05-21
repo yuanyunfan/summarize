@@ -45,7 +45,7 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
       remove.type = "button";
       remove.className = "chatQueueRemove";
       remove.textContent = "x";
-      remove.setAttribute("aria-label", "Remove queued message");
+      remove.setAttribute("aria-label", "移除排队消息");
       remove.addEventListener("click", () => removeQueuedMessage(item.id));
 
       row.append(text, remove);
@@ -57,7 +57,7 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
     const text = normalizeQueueText(input);
     if (!text) return false;
     if (queue.length >= opts.maxQueue) {
-      opts.setStatus(`Queue full (${opts.maxQueue}). Remove one to add more.`);
+      opts.setStatus(`队列已满（${opts.maxQueue}）。先移除一条再添加。`);
       return false;
     }
     queue.push({ id: crypto.randomUUID(), text, createdAt: Date.now() });

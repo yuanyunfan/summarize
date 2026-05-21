@@ -143,7 +143,7 @@ export function createSummaryStreamRuntime({
       onRender: renderMarkdown,
       onSyncWithActiveTab: syncWithActiveTab,
       onError: (err) => {
-        const message = friendlyFetchError(err, "Stream failed");
+        const message = friendlyFetchError(err, "流式摘要失败");
         lastStreamError = message;
         return message;
       },

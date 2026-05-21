@@ -57,8 +57,8 @@ describe("options persistence", () => {
 
     await expect(runtime.saveNow()).resolves.toBeUndefined();
 
-    expect(setStatus).toHaveBeenLastCalledWith("Save failed: storage unavailable");
-    expect(flashStatus).not.toHaveBeenCalledWith("Saved");
+    expect(setStatus).toHaveBeenLastCalledWith("保存失败：storage unavailable");
+    expect(flashStatus).not.toHaveBeenCalledWith("已保存");
   });
 
   it("handles autosave failures without an unhandled rejection", async () => {
@@ -79,8 +79,8 @@ describe("options persistence", () => {
     runtime.scheduleAutoSave(10);
     await vi.advanceTimersByTimeAsync(10);
 
-    expect(setStatus).toHaveBeenLastCalledWith("Save failed: quota exceeded");
-    expect(flashStatus).not.toHaveBeenCalledWith("Saved");
+    expect(setStatus).toHaveBeenLastCalledWith("保存失败：quota exceeded");
+    expect(flashStatus).not.toHaveBeenCalledWith("已保存");
     vi.useRealTimers();
   });
 });

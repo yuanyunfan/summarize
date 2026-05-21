@@ -34,7 +34,7 @@ describe("options daemon status", () => {
     health.resolve(jsonResponse({ version: "0.15.2" }));
     await staleCheck;
 
-    expect(statusEl.textContent).toBe("Add token to verify daemon connection");
+    expect(statusEl.textContent).toBe("添加 token 以验证 daemon 连接");
     expect(statusEl.dataset.state).toBe("warn");
   });
 });

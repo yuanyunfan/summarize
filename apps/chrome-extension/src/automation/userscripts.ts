@@ -25,14 +25,12 @@ export async function getUserScriptsStatus(): Promise<UserScriptsStatus> {
 // Returns a user-facing, actionable message for the current userScripts status.
 export function buildUserScriptsGuidance(status: UserScriptsStatus): string {
   const chromeVersion = status.chromeVersion ?? 0;
-  const permissionHint = status.permissionGranted
-    ? null
-    : "First click “Enable automation permissions” in Settings.";
+  const permissionHint = status.permissionGranted ? null : "请先在设置里点击“启用自动化权限”。";
 
   if (status.apiAvailable) {
     return [
       permissionHint,
-      "User Scripts permission is required. Enable it in Options → Automation permissions, then allow “User Scripts” in chrome://extensions.",
+      "需要 User Scripts 权限。请在 Options → 自动化权限里启用，然后在 chrome://extensions 里允许 “User Scripts”。",
     ]
       .filter(Boolean)
       .join(" ");
@@ -41,7 +39,7 @@ export function buildUserScriptsGuidance(status: UserScriptsStatus): string {
   if (chromeVersion >= 138) {
     return [
       permissionHint,
-      `Chrome ${chromeVersion} detected. To enable User Scripts:\n\n1. Go to chrome://extensions/\n2. Find this extension and click "Details"\n3. Enable the "Allow User Scripts" toggle\n4. Reload the page and try again`,
+      `检测到 Chrome ${chromeVersion}。启用 User Scripts：\n\n1. 打开 chrome://extensions/\n2. 找到这个扩展并点击“详情”\n3. 打开“允许 User Scripts”开关\n4. 重新加载页面后重试`,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -50,7 +48,7 @@ export function buildUserScriptsGuidance(status: UserScriptsStatus): string {
   if (chromeVersion >= 120) {
     return [
       permissionHint,
-      `Chrome ${chromeVersion} detected. The userScripts API requires Chrome 120+ with experimental features enabled. Update Chrome and retry.`,
+      `检测到 Chrome ${chromeVersion}。userScripts API 需要 Chrome 120+ 并启用实验特性。请更新 Chrome 后重试。`,
     ]
       .filter(Boolean)
       .join(" ");
@@ -59,13 +57,11 @@ export function buildUserScriptsGuidance(status: UserScriptsStatus): string {
   if (chromeVersion > 0) {
     return [
       permissionHint,
-      `Chrome ${chromeVersion} detected. The userScripts API requires Chrome 120 or higher. Please update Chrome.`,
+      `检测到 Chrome ${chromeVersion}。userScripts API 需要 Chrome 120 或更高版本。请更新 Chrome。`,
     ]
       .filter(Boolean)
       .join(" ");
   }
 
-  return [permissionHint, "User Scripts API is not available in this browser."]
-    .filter(Boolean)
-    .join(" ");
+  return [permissionHint, "当前浏览器不可用 User Scripts API。"].filter(Boolean).join(" ");
 }

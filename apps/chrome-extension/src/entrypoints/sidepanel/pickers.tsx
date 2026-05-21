@@ -51,18 +51,18 @@ const LENGTH_COUNT_PATTERN = /^(?<value>\d+(?:\.\d+)?)(?<unit>k|m)?$/i;
 type LengthItem = SelectItem & { tooltip?: string };
 
 const lengthLabels: Record<SummaryLength, string> = {
-  short: "Short",
-  medium: "Medium",
-  long: "Long",
-  xl: "Extra Large (XL)",
-  xxl: "Extra Extra Large (XXL)",
+  short: "短",
+  medium: "中",
+  long: "长",
+  xl: "加长（XL）",
+  xxl: "超长（XXL）",
 };
 
 const formatCount = (value: number) => value.toLocaleString();
 
 const formatWordCount = (value: number | null | undefined) => {
   if (!value || !Number.isFinite(value)) return null;
-  return `${formatCount(value)} words`;
+  return `${formatCount(value)} 词`;
 };
 
 const formatDuration = (seconds: number | null | undefined) => {
@@ -73,28 +73,28 @@ const formatDuration = (seconds: number | null | undefined) => {
   const secs = total % 60;
   const mm = minutes.toString().padStart(2, "0");
   const ss = secs.toString().padStart(2, "0");
-  return hours > 0 ? `${hours}:${mm}:${ss} min` : `${minutes}:${ss} min`;
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`;
 };
 
 const formatLengthTooltip = (preset: SummaryLength): string => {
   const spec = SUMMARY_LENGTH_SPECS[preset];
-  return `${lengthLabels[preset]}: target ~${formatCount(spec.targetCharacters)} chars (${formatCount(
+  return `${lengthLabels[preset]}：目标约 ${formatCount(spec.targetCharacters)} 字符（${formatCount(
     spec.minCharacters,
-  )}-${formatCount(spec.maxCharacters)}). ${spec.formatting}`;
+  )}-${formatCount(spec.maxCharacters)}）。${spec.formatting}`;
 };
 
 const lengthItems: LengthItem[] = [
-  { value: "short", label: "Short", tooltip: formatLengthTooltip("short") },
-  { value: "medium", label: "Medium", tooltip: formatLengthTooltip("medium") },
-  { value: "long", label: "Long", tooltip: formatLengthTooltip("long") },
+  { value: "short", label: "短", tooltip: formatLengthTooltip("short") },
+  { value: "medium", label: "中", tooltip: formatLengthTooltip("medium") },
+  { value: "long", label: "长", tooltip: formatLengthTooltip("long") },
   { value: "xl", label: "XL", tooltip: formatLengthTooltip("xl") },
   { value: "xxl", label: "XXL", tooltip: formatLengthTooltip("xxl") },
   {
     value: "20k",
     label: "20k",
-    tooltip: "Custom target around 20,000 characters (soft guideline).",
+    tooltip: "自定义目标约 20,000 字符（软约束）。",
   },
-  { value: "custom", label: "Custom…", tooltip: "Set a custom length like 1500, 20k, or 1.5k." },
+  { value: "custom", label: "自定义…", tooltip: "设置自定义长度，例如 1500、20k 或 1.5k。" },
 ];
 
 const schemeItems: SelectItem[] = [
@@ -107,9 +107,9 @@ const schemeItems: SelectItem[] = [
 ];
 
 const modeItems: SelectItem[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+  { value: "system", label: "系统" },
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
 ];
 
 const modeIcons: Record<string, JSX.Element> = {
@@ -343,7 +343,7 @@ function LengthField({
 
   return (
     <label className={variant === "mini" ? "length mini" : "length wide"} {...resolvedLabelProps}>
-      <span className="pickerTitle">Length</span>
+      <span className="pickerTitle">长度</span>
       <div className="combo">
         <div className="picker" {...api.getRootProps()}>
           {presetValue === "custom" ? (
@@ -352,7 +352,7 @@ function LengthField({
                 ref={inputRef}
                 id="lengthCustom"
                 type="text"
-                placeholder="Custom (e.g. 20k)"
+                placeholder="自定义（如 20k）"
                 autocapitalize="off"
                 autocomplete="off"
                 spellcheck="false"
@@ -373,12 +373,12 @@ function LengthField({
                 }}
               />
               <button className="pickerTrigger presetsTrigger" {...api.getTriggerProps()}>
-                Presets
+                预设
               </button>
             </div>
           ) : (
             <button className="pickerTrigger" {...api.getTriggerProps()}>
-              <span>{api.valueAsString || "Length"}</span>
+              <span>{api.valueAsString || "长度"}</span>
             </button>
           )}
           {portalRoot ? createPortal(content, portalRoot) : content}
@@ -423,7 +423,7 @@ function SidepanelPickers(props: SidepanelPickerProps) {
   return (
     <>
       <SelectField
-        label="Scheme"
+        label="配色"
         labelClassName="scheme"
         pickerId="scheme"
         api={schemeApi}
@@ -442,14 +442,14 @@ function SidepanelPickers(props: SidepanelPickerProps) {
         )}
       />
       <SelectField
-        label="Mode"
+        label="模式"
         labelClassName="mode"
         pickerId="mode"
         api={modeApi}
         items={modeItems}
         triggerContent={(label, value) => (
           <>
-            <span>{label || "System"}</span>
+            <span>{label || "系统"}</span>
             <span className="modeIcon">{modeIcons[value] ?? null}</span>
           </>
         )}
@@ -461,7 +461,7 @@ function SidepanelPickers(props: SidepanelPickerProps) {
         )}
       />
       <SelectField
-        label="Font"
+        label="字体"
         labelClassName="font"
         pickerId="font"
         api={fontApi}
@@ -498,10 +498,16 @@ function SidepanelLengthPicker(props: SidepanelLengthPickerProps) {
 function SummarizeControl(props: SummarizeControlProps) {
   const pageMeta = formatWordCount(props.pageWords);
   const videoMeta = formatDuration(props.videoDurationSeconds);
+  const mediaLabel =
+    props.videoLabel === "Audio"
+      ? "音频"
+      : props.videoLabel === "Video"
+        ? "视频"
+        : props.videoLabel;
 
-  const pageLabel = pageMeta ? `Page · ${pageMeta}` : "Page";
-  const videoLabel = `${props.videoLabel ?? "Video"}${videoMeta ? ` · ${videoMeta}` : ""}`;
-  const videoSlidesLabel = `${props.videoLabel ?? "Video"} + Slides`;
+  const pageLabel = pageMeta ? `页面 · ${pageMeta}` : "页面";
+  const videoLabel = `${mediaLabel ?? "视频"}${videoMeta ? ` · ${videoMeta}` : ""}`;
+  const videoSlidesLabel = `${mediaLabel ?? "视频"} + Slides`;
 
   const sourceItems: SelectItem[] = props.mediaAvailable
     ? [
@@ -529,7 +535,7 @@ function SummarizeControl(props: SummarizeControlProps) {
 
   const selectedValue = api.value[0] ?? "";
   const selectedLabel =
-    api.valueAsString || sourceItems.find((item) => item.value === selectedValue)?.label || "Page";
+    api.valueAsString || sourceItems.find((item) => item.value === selectedValue)?.label || "页面";
 
   const positionerProps = api.getPositionerProps();
   const positionerStyle = {
@@ -609,7 +615,7 @@ function SummarizeControl(props: SummarizeControlProps) {
         <button
           type="button"
           className="ghost summarizeButton isDropdown"
-          aria-label={`Summarize (${selectedLabel})`}
+          aria-label={`生成摘要（${selectedLabel}）`}
           data-busy={props.busy ? "true" : "false"}
           disabled={!props.mediaAvailable && props.mode === "video"}
           {...rest}
@@ -617,20 +623,20 @@ function SummarizeControl(props: SummarizeControlProps) {
           onPointerDown={onPointerDown}
           onKeyDown={onKeyDown}
         >
-          Summarize
+          摘要
         </button>
         {portalRoot ? createPortal(content, portalRoot) : content}
         <select className="pickerHidden" {...api.getHiddenSelectProps()} />
       </div>
       {showSlidesTextToggle ? (
         <fieldset className="summarizeSlidesToggle">
-          <legend className="summarizeSlidesToggle__label">Slides text source</legend>
+          <legend className="summarizeSlidesToggle__label">Slides 文本来源</legend>
           <button
             type="button"
             data-active={props.slidesTextMode === "transcript" ? "true" : "false"}
             onClick={() => props.onSlidesTextModeChange?.("transcript")}
           >
-            Transcript
+            字幕
           </button>
           <button
             type="button"

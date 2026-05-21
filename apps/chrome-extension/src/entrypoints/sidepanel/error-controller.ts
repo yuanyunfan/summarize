@@ -28,7 +28,7 @@ const hasMeaningfulMessage = (message: string) =>
 
 const normalizeMessage = (message: string) => {
   const trimmed = stripInvisible(message).trim();
-  return trimmed.length > 0 ? trimmed : "Something went wrong.";
+  return trimmed.length > 0 ? trimmed : "出错了。";
 };
 
 export const createErrorController = (options: ErrorControllerOptions): ErrorController => {

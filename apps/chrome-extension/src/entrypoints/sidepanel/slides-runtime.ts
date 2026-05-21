@@ -104,7 +104,7 @@ export function createSidepanelSlidesRuntime({
       slidesRunRuntime.handleSlidesStatus(text);
     },
     onError: (err) => {
-      const message = friendlyFetchError(err, "Slides stream failed");
+      const message = friendlyFetchError(err, "Slides 流失败");
       showSlideNotice(message, { allowRetry: true });
       setSlidesBusy(false);
       if (!isStreaming()) {

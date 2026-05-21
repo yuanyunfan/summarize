@@ -67,9 +67,9 @@ export type ProcessesViewerOptions = {
 };
 
 const STATUS_LABELS: Record<ProcessStatus, string> = {
-  running: "RUNNING",
-  exited: "DONE",
-  error: "ERROR",
+  running: "运行中",
+  exited: "已完成",
+  error: "错误",
 };
 
 const formatElapsed = (elapsedMs: number): string => {
@@ -138,7 +138,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
   };
 
   const clearLogs = () => {
-    logsTitleEl.textContent = "Logs";
+    logsTitleEl.textContent = "日志";
     logsOutputEl.textContent = "";
     logsText = "";
     logsCopyBtn.disabled = true;
@@ -151,7 +151,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = 7;
-      cell.textContent = "No active processes.";
+      cell.textContent = "没有活动进程。";
       cell.className = "processEmpty";
       row.append(cell);
       rows.append(row);
@@ -232,7 +232,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
         clearLogs();
         return;
       }
-      logsTitleEl.textContent = `Logs · ${requestedId.slice(0, 8)}`;
+      logsTitleEl.textContent = `日志 · ${requestedId.slice(0, 8)}`;
       logsText = json.lines
         .map((line) => `${line.stream === "stderr" ? "err" : "out"} | ${line.line}`)
         .join("\n");
@@ -251,7 +251,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
     if (!isActive()) return;
     const token = getToken().trim();
     if (!token) {
-      setMeta("Add token to load processes.");
+      setMeta("添加 token 以加载进程。");
       renderTable([]);
       clearLogs();
       needsRefresh = true;
@@ -262,7 +262,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
     const limit = normalizeLimit(limitEl.value);
     limitEl.value = String(limit);
     if (!opts.auto) {
-      setMeta("Loading processes…");
+      setMeta("正在加载进程…");
     }
     try {
       const url = new URL("http://127.0.0.1:8787/v1/processes");
@@ -281,13 +281,13 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
       }
       const json = (await res.json()) as ProcessListResponse;
       if (!json?.ok || !Array.isArray(json.processes)) {
-        setMeta("No process data.");
+        setMeta("没有进程数据。");
         renderTable([]);
         clearLogs();
         return;
       }
       renderTable(json.processes);
-      setMeta(`${json.processes.length} processes`);
+      setMeta(`${json.processes.length} 个进程`);
       if (selectedId && !json.processes.some((item) => item.id === selectedId)) {
         selectedId = null;
         clearLogs();

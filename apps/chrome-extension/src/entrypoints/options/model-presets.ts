@@ -13,7 +13,7 @@ export function createModelPresetsController({
     presetEl.innerHTML = "";
     const auto = document.createElement("option");
     auto.value = "auto";
-    auto.textContent = "Auto";
+    auto.textContent = "自动";
     presetEl.append(auto);
     const gptFast = document.createElement("option");
     gptFast.value = "gpt-fast";
@@ -21,7 +21,7 @@ export function createModelPresetsController({
     presetEl.append(gptFast);
     const custom = document.createElement("option");
     custom.value = "custom";
-    custom.textContent = "Custom…";
+    custom.textContent = "自定义…";
     presetEl.append(custom);
   };
 

@@ -1,27 +1,3 @@
 export const optionsTabStorageKey = "summarize:options-tab";
 
-export const languagePresets = [
-  "auto",
-  "en",
-  "de",
-  "es",
-  "fr",
-  "it",
-  "pt",
-  "nl",
-  "sv",
-  "no",
-  "da",
-  "fi",
-  "pl",
-  "cs",
-  "tr",
-  "ru",
-  "uk",
-  "ar",
-  "hi",
-  "ja",
-  "ko",
-  "zh-cn",
-  "zh-tw",
-] as const;
+export { languagePresetValues as languagePresets } from "../../lib/language-options";

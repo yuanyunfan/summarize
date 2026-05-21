@@ -24,7 +24,7 @@ export function createAppearanceControls(options: {
   const updateAutoToggle = () => {
     autoToggle.update({
       id: "sidepanel-auto",
-      label: "Auto summarize",
+      label: "自动摘要",
       checked: autoValue,
       onCheckedChange: (checked) => {
         autoValue = checked;
@@ -77,7 +77,7 @@ export function createAppearanceControls(options: {
 
   const autoToggle = mountCheckbox(options.autoToggleRoot, {
     id: "sidepanel-auto",
-    label: "Auto summarize",
+    label: "自动摘要",
     checked: autoValue,
     onCheckedChange: (checked) => {
       autoValue = checked;

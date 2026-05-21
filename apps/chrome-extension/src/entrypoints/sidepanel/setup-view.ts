@@ -32,7 +32,7 @@ export function installStepsHtml({
 
   const installToggle = isMac
     ? `
-      <div class="setup__toggle" role="tablist" aria-label="Install method">
+      <div class="setup__toggle" role="tablist" aria-label="安装方式">
         <button class="setup__pill" type="button" data-install="npm" role="tab" aria-selected="false">NPM</button>
         <button class="setup__pill" type="button" data-install="brew" role="tab" aria-selected="false">Homebrew</button>
       </div>
@@ -40,23 +40,21 @@ export function installStepsHtml({
     : "";
 
   const installIntro = `
-    <div class="setup__section">
-      <div class="setup__headerRow">
-        <p class="setup__title" data-install-title><strong>1) Install summarize</strong></p>
+      <div class="setup__section">
+        <div class="setup__headerRow">
+        <p class="setup__title" data-install-title><strong>1) 安装 summarize</strong></p>
         ${installToggle}
       </div>
       <div class="setup__codeRow">
         <code data-install-code>${isMac ? brewCmd : npmCmd}</code>
-        <button class="ghost icon setup__copy" type="button" data-copy="install" aria-label="Copy install command">
+        <button class="ghost icon setup__copy" type="button" data-copy="install" aria-label="复制安装命令">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6Zm-4 4a2 2 0 0 1 2-2h1v2H6v8h8v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Z" />
           </svg>
         </button>
       </div>
       <p class="setup__hint" data-install-hint>${
-        isMac
-          ? "Homebrew installs summarize plus the local media dependencies."
-          : "NPM installs the CLI (requires Node.js)."
+        isMac ? "Homebrew 会安装 summarize 和本地媒体依赖。" : "NPM 会安装 CLI（需要 Node.js）。"
       }</p>
     </div>
   `;
@@ -64,10 +62,10 @@ export function installStepsHtml({
   const daemonIntro = isSupported
     ? `
       <div class="setup__section">
-        <p class="setup__title"><strong>2) Register the daemon (${daemonLabel})</strong></p>
+        <p class="setup__title"><strong>2) 注册 daemon（${daemonLabel}）</strong></p>
         <div class="setup__codeRow">
           <code data-daemon-code>${daemonCmd}</code>
-          <button class="ghost icon setup__copy" type="button" data-copy="daemon" aria-label="Copy daemon command">
+          <button class="ghost icon setup__copy" type="button" data-copy="daemon" aria-label="复制 daemon 命令">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6Zm-4 4a2 2 0 0 1 2-2h1v2H6v8h8v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Z" />
             </svg>
@@ -77,8 +75,8 @@ export function installStepsHtml({
     `
     : `
       <div class="setup__section">
-        <p class="setup__title"><strong>2) Daemon auto-start</strong></p>
-        <p class="setup__hint">Not supported on this OS yet.</p>
+        <p class="setup__title"><strong>2) Daemon 自动启动</strong></p>
+        <p class="setup__hint">当前 OS 暂不支持。</p>
       </div>
     `;
 
@@ -86,25 +84,25 @@ export function installStepsHtml({
     showTroubleshooting && isSupported
       ? `
       <div class="setup__section">
-        <p class="setup__title"><strong>Troubleshooting</strong></p>
+        <p class="setup__title"><strong>故障排查</strong></p>
         <div class="setup__codeRow">
           <code>summarize daemon status</code>
-          <button class="ghost icon setup__copy" type="button" data-copy="status" aria-label="Copy status command">
+          <button class="ghost icon setup__copy" type="button" data-copy="status" aria-label="复制状态命令">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6Zm-4 4a2 2 0 0 1 2-2h1v2H6v8h8v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Z" />
             </svg>
           </button>
         </div>
-        <p class="setup__hint">Shows daemon health, version, and token auth status.</p>
+        <p class="setup__hint">查看 daemon 健康状态、版本和 token 授权状态。</p>
         <div class="setup__codeRow">
           <code>summarize daemon restart</code>
-          <button class="ghost icon setup__copy" type="button" data-copy="restart" aria-label="Copy restart command">
+          <button class="ghost icon setup__copy" type="button" data-copy="restart" aria-label="复制重启命令">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6Zm-4 4a2 2 0 0 1 2-2h1v2H6v8h8v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Z" />
             </svg>
           </button>
         </div>
-        <p class="setup__hint">Restarts the daemon if it’s stuck or not responding.</p>
+        <p class="setup__hint">daemon 卡住或无响应时重启它。</p>
       </div>
     `
       : "";
@@ -115,7 +113,7 @@ export function installStepsHtml({
     ${installIntro}
     ${daemonIntro}
     <div class="setup__section setup__actions">
-      <button id="regen" type="button" class="ghost">Regenerate Token</button>
+      <button id="regen" type="button" class="ghost">重新生成 Token</button>
     </div>
     ${troubleshooting}
   `;
@@ -168,7 +166,7 @@ export function wireSetupButtons({
   };
 
   const flashCopied = () => {
-    headerSetStatus("Copied");
+    headerSetStatus("已复制");
     setTimeout(() => headerSetStatus(getStatusResetText()), 800);
   };
 
@@ -180,19 +178,18 @@ export function wireSetupButtons({
   const applyInstallMethod = (method: InstallMethod) => {
     const label = method === "brew" ? "Homebrew" : "NPM";
     if (installTitleEl) {
-      installTitleEl.innerHTML = `<strong>1) Install summarize (${label})</strong>`;
+      installTitleEl.innerHTML = `<strong>1) 安装 summarize（${label}）</strong>`;
     }
     if (installCodeEl) {
       installCodeEl.textContent = method === "brew" ? brewCmd : npmCmd;
     }
     if (installHintEl) {
       if (!isMac) {
-        installHintEl.textContent = "NPM installs the CLI (requires Node.js).";
+        installHintEl.textContent = "NPM 会安装 CLI（需要 Node.js）。";
       } else if (method === "brew") {
-        installHintEl.textContent =
-          "Homebrew installs summarize plus the local media dependencies.";
+        installHintEl.textContent = "Homebrew 会安装 summarize 和本地媒体依赖。";
       } else {
-        installHintEl.textContent = "NPM installs the CLI (requires Node.js).";
+        installHintEl.textContent = "NPM 会安装 CLI（需要 Node.js）。";
       }
     }
     for (const button of installButtons) {

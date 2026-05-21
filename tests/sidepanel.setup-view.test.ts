@@ -21,7 +21,7 @@ describe("sidepanel setup view", () => {
     });
 
     expect(html).toContain("npm i -g @steipete/summarize");
-    expect(html).toContain("NPM installs the CLI (requires Node.js).");
+    expect(html).toContain("NPM 会安装 CLI（需要 Node.js）。");
     expect(html).not.toContain("Homebrew tap is macOS-only.");
   });
 });

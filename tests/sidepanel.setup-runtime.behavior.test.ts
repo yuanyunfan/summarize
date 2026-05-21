@@ -89,7 +89,7 @@ describe("sidepanel setup runtime behavior", () => {
 
   it("formats failed fetch guidance with daemon troubleshooting help", () => {
     expect(friendlyFetchError(new Error("Failed to fetch"), "Connect")).toContain(
-      "daemon unreachable or blocked by Chrome",
+      "daemon 不可达或被 Chrome 阻止",
     );
   });
 
@@ -127,7 +127,7 @@ describe("sidepanel setup runtime behavior", () => {
     expect(setupViewMocks.installStepsHtml).toHaveBeenCalledWith(
       expect.objectContaining({
         token: "fresh-token",
-        headline: "Setup",
+        headline: "设置",
       }),
     );
     expect(setupViewMocks.wireSetupButtons).toHaveBeenCalledWith(
@@ -165,12 +165,12 @@ describe("sidepanel setup runtime behavior", () => {
 
     expect(loadToken).toHaveBeenCalledOnce();
     expect(setupEl.classList.remove).toHaveBeenCalledWith("hidden");
-    expect(setupEl.innerHTML).toContain("headline=Daemon not reachable");
-    expect(setupEl.innerHTML).toContain("Check that the LaunchAgent is installed.");
+    expect(setupEl.innerHTML).toContain("headline=无法连接 daemon");
+    expect(setupEl.innerHTML).toContain("检查 LaunchAgent 是否已安装。");
     expect(setupViewMocks.installStepsHtml).toHaveBeenCalledWith(
       expect.objectContaining({
         token: "saved-token",
-        headline: "Daemon not reachable",
+        headline: "无法连接 daemon",
         showTroubleshooting: true,
       }),
     );

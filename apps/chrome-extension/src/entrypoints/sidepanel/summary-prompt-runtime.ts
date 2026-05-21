@@ -41,9 +41,7 @@ export function createSummaryPromptRuntime({
       : "";
     isRendering = true;
     selectEl.textContent = "";
-    selectEl.append(
-      option("", settings.promptOverride.trim() ? "Ad-hoc prompt" : "Default prompt"),
-    );
+    selectEl.append(option("", settings.promptOverride.trim() ? "临时 Prompt" : "默认 Prompt"));
     for (const prompt of settings.customPrompts) {
       selectEl.append(option(prompt.id, prompt.name));
     }

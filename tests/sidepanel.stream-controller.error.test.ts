@@ -97,7 +97,7 @@ describe("sidepanel stream controller error handling", () => {
 
     expect(phases.at(-1)).toBe("error");
     expect(phases).not.toContain("idle");
-    expect(statuses.some((status) => status.includes("Error:"))).toBe(true);
+    expect(statuses.some((status) => status.includes("错误："))).toBe(true);
   });
 
   it("keeps error phase when the fetch fails", async () => {
@@ -137,7 +137,7 @@ describe("sidepanel stream controller error handling", () => {
     await controller.start(run);
 
     expect(phases.at(-1)).toBe("error");
-    expect(statuses.some((status) => status.includes("Stream ended unexpectedly"))).toBe(true);
+    expect(statuses.some((status) => status.includes("流式响应意外结束"))).toBe(true);
   });
 
   it("keeps error phase when the stream stalls without output", async () => {

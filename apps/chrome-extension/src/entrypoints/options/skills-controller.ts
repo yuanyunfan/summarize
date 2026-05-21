@@ -33,8 +33,8 @@ export function createSkillsController({
 
   const updateSkillsEmptyState = () => {
     elements.emptyEl.textContent = skillsSearchQuery
-      ? "No skills match your search."
-      : "No skills created yet.";
+      ? "没有匹配搜索条件的 skills。"
+      : "还没有创建 skills。";
     elements.emptyEl.hidden = skillsFiltered.length > 0 || importConflicts.length > 0;
   };
 
@@ -49,7 +49,7 @@ export function createSkillsController({
   };
 
   const deleteSkillWithPrompt = async (skill: Skill) => {
-    if (!confirm(`Delete skill "${skill.name}"?`)) return;
+    if (!confirm(`删除 skill "${skill.name}"？`)) return;
     await deleteSkill(skill.name);
     editingSkill = null;
     await loadSkills();
@@ -77,7 +77,7 @@ export function createSkillsController({
     importConflicts = [];
     importedSkills = [];
     await loadSkills();
-    flashStatus(`Imported ${toImport.length} skill(s).`);
+    flashStatus(`已导入 ${toImport.length} 个 skill。`);
   };
 
   const renderSkills = () => {
@@ -88,10 +88,10 @@ export function createSkillsController({
       elements.conflictsEl.hidden = false;
       const title = document.createElement("div");
       title.className = "skillName";
-      title.textContent = "Import conflicts";
+      title.textContent = "导入冲突";
       const hint = document.createElement("div");
       hint.className = "hint";
-      hint.textContent = "Select which skills should overwrite existing entries.";
+      hint.textContent = "选择哪些 skills 要覆盖现有条目。";
       const list = document.createElement("div");
       list.className = "skillsConflictsList";
 
@@ -132,7 +132,7 @@ export function createSkillsController({
       const cancelBtn = document.createElement("button");
       cancelBtn.type = "button";
       cancelBtn.className = "miniButton";
-      cancelBtn.textContent = "Cancel";
+      cancelBtn.textContent = "取消";
       cancelBtn.addEventListener("click", () => {
         importConflicts = [];
         importedSkills = [];
@@ -141,7 +141,7 @@ export function createSkillsController({
       const importBtn = document.createElement("button");
       importBtn.type = "button";
       importBtn.className = "miniButton";
-      importBtn.textContent = "Import selected";
+      importBtn.textContent = "导入选中项";
       importBtn.addEventListener("click", () => {
         void performImport(importedSkills);
       });
@@ -161,11 +161,11 @@ export function createSkillsController({
 
         const heading = document.createElement("div");
         heading.className = "skillName";
-        heading.textContent = `Edit skill: ${editingSkill.name}`;
+        heading.textContent = `编辑 skill：${editingSkill.name}`;
 
         const nameLabel = document.createElement("label");
         const nameLabelText = document.createElement("span");
-        nameLabelText.textContent = "Name";
+        nameLabelText.textContent = "名称";
         const nameInput = document.createElement("input");
         nameInput.type = "text";
         nameInput.value = editingSkill.name;
@@ -174,7 +174,7 @@ export function createSkillsController({
 
         const domainLabel = document.createElement("label");
         const domainLabelText = document.createElement("span");
-        domainLabelText.textContent = "Domain patterns (comma-separated)";
+        domainLabelText.textContent = "域名匹配规则（逗号分隔）";
         const domainInput = document.createElement("input");
         domainInput.type = "text";
         domainInput.value = editingSkill.domainPatterns.join(", ");
@@ -189,7 +189,7 @@ export function createSkillsController({
 
         const shortLabel = document.createElement("label");
         const shortText = document.createElement("span");
-        shortText.textContent = "Short description";
+        shortText.textContent = "简短描述";
         const shortInput = document.createElement("input");
         shortInput.type = "text";
         shortInput.value = editingSkill.shortDescription;
@@ -200,7 +200,7 @@ export function createSkillsController({
 
         const descriptionLabel = document.createElement("label");
         const descriptionText = document.createElement("span");
-        descriptionText.textContent = "Description (Markdown)";
+        descriptionText.textContent = "描述（Markdown）";
         const descriptionInput = document.createElement("textarea");
         descriptionInput.rows = 4;
         descriptionInput.value = editingSkill.description;
@@ -211,7 +211,7 @@ export function createSkillsController({
 
         const examplesLabel = document.createElement("label");
         const examplesText = document.createElement("span");
-        examplesText.textContent = "Examples (JavaScript)";
+        examplesText.textContent = "示例（JavaScript）";
         const examplesInput = document.createElement("textarea");
         examplesInput.rows = 4;
         examplesInput.value = editingSkill.examples;
@@ -222,7 +222,7 @@ export function createSkillsController({
 
         const libraryLabel = document.createElement("label");
         const libraryText = document.createElement("span");
-        libraryText.textContent = "Library code";
+        libraryText.textContent = "Library 代码";
         const libraryInput = document.createElement("textarea");
         libraryInput.rows = 8;
         libraryInput.value = editingSkill.library;
@@ -236,7 +236,7 @@ export function createSkillsController({
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
         cancelBtn.className = "miniButton";
-        cancelBtn.textContent = "Cancel";
+        cancelBtn.textContent = "取消";
         cancelBtn.addEventListener("click", () => {
           editingSkill = null;
           renderSkills();
@@ -244,7 +244,7 @@ export function createSkillsController({
         const saveBtn = document.createElement("button");
         saveBtn.type = "button";
         saveBtn.className = "miniButton";
-        saveBtn.textContent = "Save";
+        saveBtn.textContent = "保存";
         saveBtn.addEventListener("click", () => {
           void saveEditingSkill();
         });
@@ -289,7 +289,7 @@ export function createSkillsController({
       const editBtn = document.createElement("button");
       editBtn.type = "button";
       editBtn.className = "miniButton";
-      editBtn.textContent = "Edit";
+      editBtn.textContent = "编辑";
       editBtn.addEventListener("click", () => {
         editingSkill = { ...skill };
         renderSkills();
@@ -297,7 +297,7 @@ export function createSkillsController({
       const deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
       deleteBtn.className = "miniButton";
-      deleteBtn.textContent = "Delete";
+      deleteBtn.textContent = "删除";
       deleteBtn.addEventListener("click", () => {
         void deleteSkillWithPrompt(skill);
       });
@@ -367,7 +367,7 @@ export function createSkillsController({
           const text = await file.text();
           const parsed = JSON.parse(text);
           if (!Array.isArray(parsed)) {
-            setStatus("Invalid skills file: expected an array.");
+            setStatus("无效的 skills 文件：预期 JSON 数组。");
             return;
           }
           const incoming = parsed
@@ -389,9 +389,7 @@ export function createSkillsController({
 
           await performImport(incoming);
         } catch (error) {
-          setStatus(
-            `Failed to import skills: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          setStatus(`导入 skills 失败：${error instanceof Error ? error.message : String(error)}`);
         }
       })();
     });

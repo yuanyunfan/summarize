@@ -326,9 +326,9 @@ function maybeNotifyUserScriptsNotice(message: string) {
   window.dispatchEvent(
     new CustomEvent("summarize:automation-permissions", {
       detail: {
-        title: "User Scripts required",
+        title: "需要 User Scripts",
         message,
-        ctaLabel: "Open extension details",
+        ctaLabel: "打开扩展详情",
         ctaAction: "extensions",
       },
     }),
@@ -341,9 +341,7 @@ async function executeDebuggerTool(args: { action?: string; code?: string }) {
 
   const hasPermission = await chrome.permissions.contains({ permissions: ["debugger"] });
   if (!hasPermission) {
-    throw new Error(
-      "Debugger permission not granted. Enable it in Options → Automation permissions.",
-    );
+    throw new Error("未授予 Debugger 权限。请在 Options → 自动化权限里启用。");
   }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

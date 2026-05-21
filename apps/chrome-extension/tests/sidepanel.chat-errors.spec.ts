@@ -204,16 +204,16 @@ test("sidepanel shows automation notice when permission event fires", async ({
       window.dispatchEvent(
         new CustomEvent("summarize:automation-permissions", {
           detail: {
-            title: "User Scripts required",
-            message: "Enable User Scripts to use automation.",
-            ctaLabel: "Open extension details",
+            title: "需要 User Scripts",
+            message: "启用 User Scripts 后才能使用自动化。",
+            ctaLabel: "打开扩展详情",
           },
         }),
       );
     });
 
     await expect(page.locator("#automationNotice")).toBeVisible();
-    await expect(page.locator("#automationNoticeMessage")).toContainText("Enable User Scripts");
+    await expect(page.locator("#automationNoticeMessage")).toContainText("启用 User Scripts");
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);

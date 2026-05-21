@@ -117,7 +117,7 @@ describe("options processes viewer", () => {
     );
     await flushAsyncWork();
 
-    expect(elements.logsTitleEl.textContent).toBe("Logs · bravo-12");
+    expect(elements.logsTitleEl.textContent).toBe("日志 · bravo-12");
     expect(elements.logsOutputEl.textContent).toBe("out | bravo output");
     expect(elements.logsCopyBtn.disabled).toBe(false);
   });

@@ -27,9 +27,9 @@ const schemeItems: SelectItem[] = [
 ];
 
 const modeItems: SelectItem[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+  { value: "system", label: "系统" },
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
 ];
 
 function SelectField({
@@ -110,7 +110,7 @@ function OptionsPickers(props: OptionsPickerProps) {
   return (
     <>
       <SelectField
-        label="Color scheme"
+        label="配色"
         labelClassName="scheme"
         api={schemeApi}
         items={schemeItems}
@@ -128,11 +128,11 @@ function OptionsPickers(props: OptionsPickerProps) {
         )}
       />
       <SelectField
-        label="Appearance"
+        label="外观"
         labelClassName="mode"
         api={modeApi}
         items={modeItems}
-        triggerContent={(label) => <span>{label || "System"}</span>}
+        triggerContent={(label) => <span>{label || "系统"}</span>}
         optionContent={(item) => <span>{item.label}</span>}
       />
     </>

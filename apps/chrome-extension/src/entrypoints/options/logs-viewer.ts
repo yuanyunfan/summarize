@@ -43,10 +43,10 @@ export type LogsViewerOptions = {
 
 const LOG_LEVELS: LogLevel[] = ["info", "warn", "error", "verbose"];
 const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
-  info: "INFO",
-  warn: "WARN",
-  error: "ERROR",
-  verbose: "VERBOSE",
+  info: "信息",
+  warn: "警告",
+  error: "错误",
+  verbose: "详细",
 };
 const LOG_LEVEL_ALIASES: Record<string, LogLevel> = {
   info: "info",
@@ -91,14 +91,14 @@ const formatRelativeTime = (timeMs: number): string => {
   const diffMs = Date.now() - timeMs;
   if (!Number.isFinite(diffMs)) return "";
   const diffSeconds = Math.max(0, Math.round(diffMs / 1000));
-  if (diffSeconds < 10) return "just now";
-  if (diffSeconds < 60) return `${diffSeconds}s ago`;
+  if (diffSeconds < 10) return "刚刚";
+  if (diffSeconds < 60) return `${diffSeconds}s 前`;
   const diffMinutes = Math.round(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 60) return `${diffMinutes}m 前`;
   const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours}h 前`;
   const diffDays = Math.round(diffHours / 24);
-  return `${diffDays}d ago`;
+  return `${diffDays}d 前`;
 };
 
 const formatLogTime = (value: unknown): string => {
@@ -220,16 +220,16 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
   }) => {
     const summaryParts: string[] = [];
     if (typeof info.sizeBytes === "number") {
-      summaryParts.push(`size ${formatBytes(info.sizeBytes)}`);
+      summaryParts.push(`大小 ${formatBytes(info.sizeBytes)}`);
     }
     if (typeof info.mtimeMs === "number") {
       const relative = formatRelativeTime(info.mtimeMs);
-      if (relative) summaryParts.push(`updated ${relative}`);
+      if (relative) summaryParts.push(`更新于 ${relative}`);
       metaEl.title = new Date(info.mtimeMs).toLocaleString();
     } else {
       metaEl.title = "";
     }
-    if (info.truncated) summaryParts.push("tail truncated");
+    if (info.truncated) summaryParts.push("尾部已截断");
     if (info.warning) summaryParts.push(info.warning);
     setMeta(summaryParts.join(" · "));
   };
@@ -267,7 +267,7 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
       levelCell.textContent = LOG_LEVEL_LABELS[entry.level];
       levelCell.className = `level ${entry.level}`;
       const eventCell = document.createElement("td");
-      eventCell.textContent = entry.event || (entry.isJson ? "log" : "raw");
+      eventCell.textContent = entry.event || (entry.isJson ? "日志" : "原始");
       const detailCell = document.createElement("td");
       detailCell.textContent = entry.details || entry.raw;
       detailCell.className = "details";
@@ -279,7 +279,7 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = 4;
-      cell.textContent = "No matching log entries.";
+      cell.textContent = "没有匹配的日志条目。";
       cell.className = "details";
       row.append(cell);
       rows.append(row);
@@ -306,7 +306,7 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
     const isExtensionSource = source === "extension";
     const token = getToken().trim();
     if (!isExtensionSource && !token) {
-      setMeta("Add token to load daemon logs.");
+      setMeta("添加 token 以加载 daemon 日志。");
       setLines([]);
       needsRefresh = true;
       return;
@@ -316,18 +316,18 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
     const tail = normalizeTailCount(tailEl.value);
     tailEl.value = String(tail);
     if (!opts.auto) {
-      setMeta("Loading logs…");
+      setMeta("正在加载日志…");
     }
     try {
       if (isExtensionSource) {
         const result = await readExtensionLogs(tail);
         if (!result.ok) {
-          setMeta("Extension logs unavailable.");
+          setMeta("扩展日志不可用。");
           setLines([]);
           return;
         }
         if (!result.lines.length) {
-          setMeta("No logs returned.");
+          setMeta("没有返回日志。");
           setLines([]);
           return;
         }
@@ -358,7 +358,7 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
         warning?: string;
       };
       if (!json?.ok || !Array.isArray(json.lines)) {
-        setMeta("No logs returned.");
+        setMeta("没有返回日志。");
         setLines([]);
         return;
       }

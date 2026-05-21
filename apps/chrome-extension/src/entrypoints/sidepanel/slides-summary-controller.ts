@@ -143,7 +143,7 @@ export function createSlidesSummaryController(options: SlidesSummaryControllerOp
       onError: (error) => {
         if (!isCurrentGeneration(generation)) return "";
         state.hadError = true;
-        return options.friendlyFetchError(error, "Slides summary failed");
+        return options.friendlyFetchError(error, "Slides 摘要失败");
       },
       onDone: () => {
         if (!isCurrentGeneration(generation)) return;

@@ -12,7 +12,7 @@ function createCopyButton({
   const button = document.createElement("button");
   button.className = "ghost icon render__copy";
   button.type = "button";
-  button.setAttribute("aria-label", "Copy summary");
+  button.setAttribute("aria-label", "复制摘要");
   button.innerHTML = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M8 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6Zm-4 4a2 2 0 0 1 2-2h1v2H6v8h8v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9Z" />
@@ -33,12 +33,12 @@ async function copySummaryText({
 }) {
   const trimmed = text.trim();
   if (!trimmed) {
-    headerSetStatus("Nothing to copy");
+    headerSetStatus("没有可复制的内容");
     return;
   }
   try {
     await navigator.clipboard.writeText(trimmed);
-    headerSetStatus("Copied");
+    headerSetStatus("已复制");
     return;
   } catch {
     // fallback
@@ -57,7 +57,7 @@ async function copySummaryText({
   ghost.remove();
   selection?.removeAllRanges();
   range.detach();
-  headerSetStatus(ok ? "Copied" : "Copy failed");
+  headerSetStatus(ok ? "已复制" : "复制失败");
 }
 
 export function renderSummaryEmptyState({
@@ -156,7 +156,7 @@ export function renderSummaryMarkdownDisplay({
     hostEl.append(actions, markdownHost);
   } catch (err) {
     const message = err instanceof Error ? err.stack || err.message : String(err);
-    headerSetStatus(`Error: ${message}`);
+    headerSetStatus(`错误：${message}`);
     return;
   }
   for (const a of Array.from(hostEl.querySelectorAll("a"))) {

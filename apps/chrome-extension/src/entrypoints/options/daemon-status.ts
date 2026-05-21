@@ -60,18 +60,18 @@ export function createDaemonStatusChecker({
     const checkId = daemonCheckId;
     const trimmedToken = token.trim();
     if (!trimmedToken) {
-      setDaemonStatus("Add token to verify daemon connection", "warn");
+      setDaemonStatus("添加 token 以验证 daemon 连接", "warn");
       return;
     }
 
-    setDaemonStatus("Checking daemon…");
+    setDaemonStatus("正在检查 daemon…");
 
     try {
       const res = await fetchWithRetry("http://127.0.0.1:8787/health");
       if (checkId !== daemonCheckId) return;
       if (!res.ok) {
         setDaemonStatus(
-          `Daemon error (${res.status} ${res.statusText}) — run \`summarize daemon status\``,
+          `Daemon 错误（${res.status} ${res.statusText}）— 请运行 \`summarize daemon status\``,
           "error",
         );
         return;
@@ -79,7 +79,7 @@ export function createDaemonStatusChecker({
       const json = (await res.json()) as { version?: unknown };
       const daemonVersion = typeof json.version === "string" ? json.version.trim() : "";
       const extVersion = getExtensionVersion();
-      const versionNote = daemonVersion ? `v${daemonVersion}` : "version unknown";
+      const versionNote = daemonVersion ? `v${daemonVersion}` : "版本未知";
 
       try {
         const ping = await fetchWithRetry("http://127.0.0.1:8787/v1/ping", {
@@ -88,17 +88,14 @@ export function createDaemonStatusChecker({
         if (checkId !== daemonCheckId) return;
         if (!ping.ok) {
           setDaemonStatus(
-            `Daemon ${versionNote} (token mismatch) — update token in side panel and Save`,
+            `Daemon ${versionNote}（token 不匹配）— 请在侧边栏更新 token 并保存`,
             "warn",
           );
           return;
         }
       } catch {
         if (checkId !== daemonCheckId) return;
-        setDaemonStatus(
-          `Daemon ${versionNote} (auth failed) — update token in side panel and Save`,
-          "warn",
-        );
+        setDaemonStatus(`Daemon ${versionNote}（认证失败）— 请在侧边栏更新 token 并保存`, "warn");
         return;
       }
 
@@ -107,11 +104,11 @@ export function createDaemonStatusChecker({
         return;
       }
 
-      setDaemonStatus(`Daemon ${versionNote} connected`, "ok");
+      setDaemonStatus(`Daemon ${versionNote} 已连接`, "ok");
     } catch {
       if (checkId !== daemonCheckId) return;
       setDaemonStatus(
-        "Daemon unreachable — run `summarize daemon status` and check ~/.summarize/logs/daemon.err.log",
+        "Daemon 无法连接 — 请运行 `summarize daemon status` 并检查 ~/.summarize/logs/daemon.err.log",
         "error",
       );
     }

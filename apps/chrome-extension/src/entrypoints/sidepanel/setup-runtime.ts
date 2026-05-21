@@ -18,7 +18,7 @@ export function resolvePlatformKind(): PlatformKind {
 export function friendlyFetchError(err: unknown, context: string): string {
   const message = err instanceof Error ? err.message : String(err);
   if (message.toLowerCase() === "failed to fetch") {
-    return `${context}: Failed to fetch (daemon unreachable or blocked by Chrome; try \`summarize daemon status\`, maybe \`summarize daemon restart\`, and check ~/.summarize/logs/daemon.err.log)`;
+    return `${context}: 请求失败（daemon 不可达或被 Chrome 阻止；可尝试 \`summarize daemon status\`，必要时运行 \`summarize daemon restart\`，并检查 ~/.summarize/logs/daemon.err.log）`;
   }
   return `${context}: ${message}`;
 }
@@ -38,9 +38,8 @@ export function createSetupRuntime(options: {
     options.setupEl.classList.remove("hidden");
     options.setupEl.innerHTML = installStepsHtml({
       token,
-      headline: "Setup",
-      message:
-        "Install summarize, then register the daemon so the side panel can stream summaries.",
+      headline: "设置",
+      message: "安装 summarize，然后注册 daemon，侧边栏才能流式生成摘要。",
       platformKind,
     });
     wireSetupButtons({
@@ -68,8 +67,8 @@ export function createSetupRuntime(options: {
         options.setupEl.innerHTML = `
           ${installStepsHtml({
             token,
-            headline: "Daemon not reachable",
-            message: state.daemon.error ?? "Check that the LaunchAgent is installed.",
+            headline: "无法连接 daemon",
+            message: state.daemon.error ?? "检查 LaunchAgent 是否已安装。",
             platformKind,
             showTroubleshooting: true,
           })}

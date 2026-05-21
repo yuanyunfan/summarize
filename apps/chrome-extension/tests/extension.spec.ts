@@ -139,7 +139,7 @@ test("sidepanel shows a ready state instead of going blank when switching tabs m
       }),
     });
 
-    await expect(page.locator("#render")).toContainText("Click Summarize to start.");
+    await expect(page.locator("#render")).toContainText("点击摘要开始。");
     await expect(page.locator("#render")).toContainText("Bravo Tab");
     await expect(page.locator("#render")).not.toContainText("Summary A");
 
@@ -168,8 +168,8 @@ test("sidepanel shows a loading state instead of going blank while waiting for a
       }),
     });
 
-    await expect(page.locator("#render")).toContainText("Preparing summary");
-    await expect(page.locator(".renderEmpty__label")).toHaveText("Loading");
+    await expect(page.locator("#render")).toContainText("正在准备摘要");
+    await expect(page.locator(".renderEmpty__label")).toHaveText("加载中");
 
     assertNoErrors(harness);
   } finally {
@@ -231,7 +231,7 @@ test("sidepanel resumes a pending summary run when returning to the original tab
       },
     });
 
-    await expect(page.locator("#render")).toContainText("Click Summarize to start.");
+    await expect(page.locator("#render")).toContainText("点击摘要开始。");
     await expect(page.locator("#render")).toContainText("Bravo Tab");
     await expect(page.locator("#render")).not.toContainText("Summary A");
 
@@ -424,11 +424,11 @@ test("sidepanel switches between page, video, and slides modes", async ({
     };
 
     await ensureMediaAvailable(false);
-    await expect(summarizeButton).toHaveAttribute("aria-label", /Page(?: · 120 words)?/);
+    await expect(summarizeButton).toHaveAttribute("aria-label", /页面(?: · 120 词)?/);
 
     await setSummarizeMode("page", false);
     await expectSummarizeMode("page", false);
-    await expect(summarizeButton).toHaveAttribute("aria-label", /Page/);
+    await expect(summarizeButton).toHaveAttribute("aria-label", /页面/);
     await expect(
       page.locator("img.slideStrip__thumbImage, img.slideInline__thumbImage"),
     ).toHaveCount(0);
@@ -436,7 +436,7 @@ test("sidepanel switches between page, video, and slides modes", async ({
     await ensureMediaAvailable(false);
     await setSummarizeMode("video", false);
     await expectSummarizeMode("video", false);
-    await expect(summarizeButton).toHaveAttribute("aria-label", /Video/);
+    await expect(summarizeButton).toHaveAttribute("aria-label", /视频/);
     await expect(
       page.locator("img.slideStrip__thumbImage, img.slideInline__thumbImage"),
     ).toHaveCount(0);
@@ -450,7 +450,7 @@ test("sidepanel switches between page, video, and slides modes", async ({
     await ensureMediaAvailable(false);
     await setSummarizeMode("page", false);
     await expectSummarizeMode("page", false);
-    await expect(summarizeButton).toHaveAttribute("aria-label", /Page/);
+    await expect(summarizeButton).toHaveAttribute("aria-label", /页面/);
     await sendBgMessage(harness, {
       type: "run:start",
       run: {

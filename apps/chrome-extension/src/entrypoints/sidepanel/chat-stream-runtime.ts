@@ -44,7 +44,7 @@ export function createChatStreamRuntime(opts: ChatStreamRuntimeOpts) {
         await opts.executeAgentLoop();
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        opts.setStatus(`Error: ${message}`);
+        opts.setStatus(`错误：${message}`);
         opts.showInlineError(message);
       } finally {
         finishStreamingMessage();
@@ -79,7 +79,7 @@ export function createChatStreamRuntime(opts: ChatStreamRuntimeOpts) {
         await opts.executeAgentLoop();
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        opts.setStatus(`Error: ${message}`);
+        opts.setStatus(`错误：${message}`);
         opts.showInlineError(message);
       } finally {
         finishStreamingMessage();

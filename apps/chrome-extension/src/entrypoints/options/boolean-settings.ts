@@ -49,7 +49,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.autoToggleRoot,
       id: "options-auto",
-      label: "Auto-summarize when panel is open",
+      label: "打开侧边栏时自动摘要",
       getValue: () => state.autoSummarize,
       setValue: (checked) => {
         state.autoSummarize = checked;
@@ -59,7 +59,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.chatToggleRoot,
       id: "options-chat",
-      label: "Enable Chat mode in the side panel",
+      label: "启用侧边栏 Chat 模式",
       getValue: () => state.chatEnabled,
       setValue: (checked) => {
         state.chatEnabled = checked;
@@ -69,7 +69,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.automationToggleRoot,
       id: "options-automation",
-      label: "Enable website automation",
+      label: "启用网页自动化",
       getValue: () => state.automationEnabled,
       setValue: (checked) => {
         state.automationEnabled = checked;
@@ -80,7 +80,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.hoverSummariesToggleRoot,
       id: "options-hover-summaries",
-      label: "Hover summaries (experimental)",
+      label: "悬停摘要（实验性）",
       getValue: () => state.hoverSummaries,
       setValue: (checked) => {
         state.hoverSummaries = checked;
@@ -90,7 +90,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.summaryTimestampsToggleRoot,
       id: "options-summary-timestamps",
-      label: "Summary timestamps (media only)",
+      label: "摘要时间戳（仅媒体）",
       getValue: () => state.summaryTimestamps,
       setValue: (checked) => {
         state.summaryTimestamps = checked;
@@ -100,7 +100,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.slidesParallelToggleRoot,
       id: "options-slides-parallel",
-      label: "Show summary first (parallel slides)",
+      label: "优先显示摘要（并行提取 slides）",
       getValue: () => state.slidesParallel,
       setValue: (checked) => {
         state.slidesParallel = checked;
@@ -110,7 +110,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.slidesOcrToggleRoot,
       id: "options-slides-ocr",
-      label: "Enable OCR slide text",
+      label: "启用 slide OCR 文本",
       getValue: () => state.slidesOcrEnabled,
       setValue: (checked) => {
         state.slidesOcrEnabled = checked;
@@ -120,7 +120,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.extendedLoggingToggleRoot,
       id: "options-extended-logging",
-      label: "Extended logging",
+      label: "扩展日志",
       getValue: () => state.extendedLogging,
       setValue: (checked) => {
         state.extendedLogging = checked;
@@ -130,7 +130,7 @@ export function createBooleanSettingsRuntime(options: {
     createBooleanToggleController({
       root: options.roots.autoCliFallbackToggleRoot,
       id: "options-auto-cli-fallback",
-      label: "Auto CLI fallback",
+      label: "自动 CLI fallback",
       getValue: () => state.autoCliFallback,
       setValue: (checked) => {
         state.autoCliFallback = checked;

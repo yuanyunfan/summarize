@@ -41,10 +41,10 @@ export function createModelPresetsController({
   const setDefaultPresets = () => {
     modelPresetEl.innerHTML = "";
     for (const { value, label } of [
-      { value: "auto", label: "Auto" },
+      { value: "auto", label: "自动" },
       { value: "gpt-fast", label: "GPT Fast" },
       { value: "free", label: "Free" },
-      { value: "custom", label: "Custom…" },
+      { value: "custom", label: "自定义…" },
     ]) {
       const option = document.createElement("option");
       option.value = value;
@@ -217,12 +217,12 @@ export function createModelPresetsController({
     if (refreshFreeRunning) return;
     const token = (await loadSettings()).token.trim();
     if (!token) {
-      setStatus("Setup required (missing token).", "error");
+      setStatus("需要先完成设置（缺少 token）。", "error");
       return;
     }
     refreshFreeRunning = true;
     modelRefreshBtn.disabled = true;
-    setStatus("Starting scan…", "running");
+    setStatus("正在开始扫描…", "running");
     let winnerModel: string | null = null;
 
     try {
@@ -266,11 +266,11 @@ export function createModelPresetsController({
         }
       }
 
-      const winnerNote = winnerModel ? ` Top: ${winnerModel}` : "";
-      setStatus(`Free models updated.${winnerNote}`, "ok");
+      const winnerNote = winnerModel ? ` 最优：${winnerModel}` : "";
+      setStatus(`免费模型已更新。${winnerNote}`, "ok");
       await refreshPresets(token);
     } catch (error) {
-      setStatus(friendlyFetchError(error, "Refresh free failed"), "error");
+      setStatus(friendlyFetchError(error, "刷新免费模型失败"), "error");
     } finally {
       refreshFreeRunning = false;
       modelRefreshBtn.disabled = false;

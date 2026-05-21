@@ -12,7 +12,7 @@ export function createOptionsSaveRuntime(options: {
 
   const formatSaveError = (error: unknown) => {
     const message = error instanceof Error ? error.message.trim() : String(error).trim();
-    return message ? `Save failed: ${message}` : "Save failed";
+    return message ? `保存失败：${message}` : "保存失败";
   };
 
   const saveNow = async () => {
@@ -23,11 +23,11 @@ export function createOptionsSaveRuntime(options: {
     saveInFlight = true;
     saveQueued = false;
     const currentSeq = ++saveSequence;
-    setStatus("Saving…");
+    setStatus("正在保存…");
     try {
       await persist();
       if (currentSeq === saveSequence) {
-        flashStatus("Saved");
+        flashStatus("已保存");
       }
     } catch (error) {
       if (currentSeq === saveSequence) {

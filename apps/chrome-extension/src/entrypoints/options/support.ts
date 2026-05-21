@@ -49,12 +49,12 @@ export async function copyTokenToClipboard(options: {
   const { tokenEl, flashStatus } = options;
   const token = tokenEl.value.trim();
   if (!token) {
-    flashStatus("Token empty");
+    flashStatus("Token 为空");
     return;
   }
   try {
     await navigator.clipboard.writeText(token);
-    flashStatus("Token copied");
+    flashStatus("Token 已复制");
     return;
   } catch {
     // fallback
@@ -63,7 +63,7 @@ export async function copyTokenToClipboard(options: {
   tokenEl.select();
   tokenEl.setSelectionRange(0, token.length);
   const ok = document.execCommand("copy");
-  flashStatus(ok ? "Token copied" : "Copy failed");
+  flashStatus(ok ? "Token 已复制" : "复制失败");
 }
 
 export function createAutomationPermissionsController(options: {
@@ -81,9 +81,7 @@ export function createAutomationPermissionsController(options: {
     const apiAvailable = status.apiAvailable;
 
     automationPermissionsBtn.disabled = !chrome.permissions || (hasPermission && apiAvailable);
-    automationPermissionsBtn.textContent = hasPermission
-      ? "Automation permissions granted"
-      : "Enable automation permissions";
+    automationPermissionsBtn.textContent = hasPermission ? "自动化权限已授权" : "启用自动化权限";
 
     if (!getAutomationEnabled()) {
       userScriptsNoticeEl.hidden = true;
@@ -107,7 +105,7 @@ export function createAutomationPermissionsController(options: {
         permissions: ["userScripts"],
       });
       if (!ok) {
-        flashStatus("Permission request denied");
+        flashStatus("权限请求被拒绝");
       }
     } catch {
       // ignore

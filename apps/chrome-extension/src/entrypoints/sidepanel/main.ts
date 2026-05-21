@@ -53,6 +53,7 @@ import { selectMarkdownForLayout, type SlideTextMode } from "./slides-state";
 import { createSlidesTextController } from "./slides-text-controller";
 import { createSlidesViewRuntime } from "./slides-view-runtime";
 import { createSummarizeControlRuntime } from "./summarize-control-runtime";
+import { createSummaryLanguageRuntime } from "./summary-language-runtime";
 import { createSummaryPromptRuntime } from "./summary-prompt-runtime";
 import { createSummaryStreamRuntime } from "./summary-stream-runtime";
 import { createSummaryViewRuntime } from "./summary-view-runtime";
@@ -120,6 +121,7 @@ const {
   slideNoticeRetryBtn,
   slidesLayoutEl,
   subtitleEl,
+  summaryLanguageSelectEl,
   summaryPromptBarEl,
   summaryPromptOptionsBtn,
   summaryPromptSelectEl,
@@ -407,7 +409,7 @@ function showAutomationNotice({
   automationNoticeSticky = Boolean(sticky);
   automationNoticeTitleEl.textContent = title;
   automationNoticeMessageEl.textContent = message;
-  automationNoticeActionBtn.textContent = ctaLabel || "Open extension details";
+  automationNoticeActionBtn.textContent = ctaLabel || "打开扩展详情";
   automationNoticeActionBtn.onclick = () => {
     if (ctaAction === "options") {
       void chrome.runtime.openOptionsPage();
@@ -429,7 +431,7 @@ window.addEventListener("summarize:automation-permissions", (event) => {
   ).detail;
   if (!detail?.message) return;
   showAutomationNotice({
-    title: detail.title ?? "Automation permission required",
+    title: detail.title ?? "需要自动化权限",
     message: detail.message,
     ctaLabel: detail.ctaLabel,
     ctaAction: detail.ctaAction,
@@ -586,9 +588,7 @@ const setPhase = (phase: PanelPhase, opts?: { error?: string | null }) => {
   panelState.error = phase === "error" ? (opts?.error ?? panelState.error) : null;
   if (phase === "error") {
     const message =
-      panelState.error && panelState.error.trim().length > 0
-        ? panelState.error
-        : "Something went wrong.";
+      panelState.error && panelState.error.trim().length > 0 ? panelState.error : "出错了。";
     errorController.showPanelError(message);
     setSlidesBusy(false);
   } else {
@@ -613,7 +613,7 @@ chrome.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
   if (!raw || typeof raw !== "object") return;
   const type = (raw as { type?: string }).type;
   if (type === "automation:abort-agent") {
-    requestAgentAbort("Agent aborted");
+    requestAgentAbort("Agent 已中止");
     sendResponse?.({ ok: true });
     return true;
   }
@@ -650,7 +650,7 @@ const syncWithActiveTab = () => navigationRuntime.syncWithActiveTab();
 
 async function clearCurrentView() {
   if (panelState.chatStreaming) {
-    requestAgentAbort("Cleared");
+    requestAgentAbort("已清空");
   }
   streamController.abort();
   stopSlidesStream();
@@ -750,14 +750,14 @@ const panelCacheController = createPanelCacheController({
 window.addEventListener("error", (event) => {
   const message =
     event.error instanceof Error ? event.error.stack || event.error.message : event.message;
-  headerController.setStatus(`Error: ${message}`);
+  headerController.setStatus(`错误：${message}`);
   setPhase("error", { error: message });
 });
 
 window.addEventListener("unhandledrejection", (event) => {
   const reason = (event as PromiseRejectionEvent).reason;
   const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
-  headerController.setStatus(`Error: ${message}`);
+  headerController.setStatus(`错误：${message}`);
   setPhase("error", { error: message });
 });
 
@@ -1405,6 +1405,15 @@ const interactionRuntime = createSidepanelInteractionRuntime({
 const { sendSummarize, sendChatMessage, bumpFontSize, bumpLineHeight, persistCurrentModel } =
   interactionRuntime;
 
+const summaryLanguageRuntime = createSummaryLanguageRuntime({
+  selectEl: summaryLanguageSelectEl,
+  loadSettings,
+  patchSettings,
+  sendSummarize,
+});
+summaryLanguageRuntime.bind();
+void summaryLanguageRuntime.refresh();
+
 const summaryPromptRuntime = createSummaryPromptRuntime({
   rootEl: summaryPromptBarEl,
   selectEl: summaryPromptSelectEl,
@@ -1554,8 +1563,8 @@ function describeAutomationToolCall(call: ToolCall): string {
 async function confirmAutomationToolCall(call: ToolCall): Promise<boolean> {
   return window.confirm(
     [
-      "Summarize agent wants to run an automation tool.",
-      "Only approve this if you expected the current task to control the browser or extension automation.",
+      "Summarize agent 想运行一个自动化工具。",
+      "只有在你确认当前任务需要控制浏览器或扩展自动化时才批准。",
       "",
       describeAutomationToolCall(call),
     ].join("\n"),

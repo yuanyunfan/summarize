@@ -123,7 +123,7 @@ describe("sidepanel slides stream controller", () => {
 
     await controller.start("run-1");
 
-    expect(errors.some((msg) => msg.includes("Stream ended unexpectedly"))).toBe(true);
+    expect(errors.some((msg) => msg.includes("流式响应意外结束"))).toBe(true);
   });
 
   it("times out when no events arrive", async () => {

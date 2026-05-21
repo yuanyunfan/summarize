@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../apps/chrome-extension/src/automation/userscripts.js", () => ({
-  buildUserScriptsGuidance: vi.fn(() => "Enable User Scripts"),
+  buildUserScriptsGuidance: vi.fn(() => "启用 User Scripts"),
   getUserScriptsStatus: vi.fn(async () => ({
     apiAvailable: false,
     permissionGranted: false,
@@ -121,7 +121,7 @@ describe("options support", () => {
     await copyTokenToClipboard({ tokenEl, flashStatus });
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("abc123");
-    expect(flashStatus).toHaveBeenCalledWith("Token copied");
+    expect(flashStatus).toHaveBeenCalledWith("Token 已复制");
   });
 
   it("uses execCommand fallback when clipboard write fails", async () => {
@@ -138,7 +138,7 @@ describe("options support", () => {
     await copyTokenToClipboard({ tokenEl, flashStatus });
 
     expect(execCommand).toHaveBeenCalledWith("copy");
-    expect(flashStatus).toHaveBeenCalledWith("Token copied");
+    expect(flashStatus).toHaveBeenCalledWith("Token 已复制");
   });
 
   it("reports empty or failed token copies", async () => {
@@ -146,7 +146,7 @@ describe("options support", () => {
     const flashStatus = vi.fn();
 
     await copyTokenToClipboard({ tokenEl: emptyEl, flashStatus });
-    expect(flashStatus).toHaveBeenCalledWith("Token empty");
+    expect(flashStatus).toHaveBeenCalledWith("Token 为空");
 
     const tokenEl = createFakeInput("abc123");
     vi.stubGlobal("navigator", {
@@ -157,7 +157,7 @@ describe("options support", () => {
     });
 
     await copyTokenToClipboard({ tokenEl, flashStatus });
-    expect(flashStatus).toHaveBeenLastCalledWith("Copy failed");
+    expect(flashStatus).toHaveBeenLastCalledWith("复制失败");
   });
 
   it("updates automation permissions ui for disabled and satisfied states", async () => {
@@ -184,7 +184,7 @@ describe("options support", () => {
     await disabledController.updateUi();
     expect(userScriptsNoticeEl.hidden).toBe(true);
     expect(automationPermissionsBtn.disabled).toBe(false);
-    expect(automationPermissionsBtn.textContent).toBe("Enable automation permissions");
+    expect(automationPermissionsBtn.textContent).toBe("启用自动化权限");
 
     vi.mocked(getUserScriptsStatus).mockResolvedValueOnce({
       apiAvailable: true,
@@ -200,7 +200,7 @@ describe("options support", () => {
     await enabledController.updateUi();
     expect(userScriptsNoticeEl.hidden).toBe(true);
     expect(automationPermissionsBtn.disabled).toBe(true);
-    expect(automationPermissionsBtn.textContent).toBe("Automation permissions granted");
+    expect(automationPermissionsBtn.textContent).toBe("自动化权限已授权");
   });
 
   it("shows guidance and handles denied automation permission requests", async () => {
@@ -235,11 +235,11 @@ describe("options support", () => {
     await controller.updateUi();
     expect(buildUserScriptsGuidance).toHaveBeenCalled();
     expect(userScriptsNoticeEl.hidden).toBe(false);
-    expect(userScriptsNoticeEl.textContent).toBe("Enable User Scripts");
+    expect(userScriptsNoticeEl.textContent).toBe("启用 User Scripts");
 
     await controller.requestPermissions();
     expect(request).toHaveBeenCalledWith({ permissions: ["userScripts"] });
-    expect(flashStatus).toHaveBeenCalledWith("Permission request denied");
+    expect(flashStatus).toHaveBeenCalledWith("权限请求被拒绝");
   });
 
   it("ignores permission requests when permissions api is missing or throws", async () => {
@@ -279,6 +279,6 @@ describe("options support", () => {
       flashStatus,
     });
     await throwingController.requestPermissions();
-    expect(flashStatus).not.toHaveBeenCalledWith("Permission request denied");
+    expect(flashStatus).not.toHaveBeenCalledWith("权限请求被拒绝");
   });
 });

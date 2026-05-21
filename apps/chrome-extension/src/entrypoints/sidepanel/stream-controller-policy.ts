@@ -26,10 +26,10 @@ export function getTerminalStreamError(args: {
   streamedAnyNonWhitespace: boolean;
 }): Error | null {
   if (!args.sawDone) {
-    return new Error("Stream ended unexpectedly. The daemon may have stopped.");
+    return new Error("流式响应意外结束，daemon 可能已经停止。");
   }
   if (!args.streamedAnyNonWhitespace) {
-    return new Error("Model returned no output.");
+    return new Error("模型没有返回内容。");
   }
   return null;
 }

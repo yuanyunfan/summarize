@@ -107,7 +107,7 @@ export function createSummarizeControlRuntime(options: SummarizeControlRuntimeOp
       const tools = await fetchSlideTools(options.loadSettings, state.slidesOcrEnabled);
       if (!tools.ok) {
         options.showSlideNotice(
-          `Slide extraction requires ${tools.missing.join(", ")}. Install and restart the daemon.`,
+          `提取 Slides 需要 ${tools.missing.join(", ")}。请安装后重启 daemon。`,
         );
         refreshSummarizeControl();
         return;

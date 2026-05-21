@@ -268,7 +268,7 @@ describe("slides summary controller", () => {
     expect(renderInlineSlidesFallback).toHaveBeenCalledOnce();
 
     const message = streamOptions?.onError?.(new Error("boom"));
-    expect(message).toBe("Slides summary failed");
+    expect(message).toBe("Slides 摘要失败");
 
     streamOptions?.onDone?.();
     expect(controller.getComplete()).toBe(false);

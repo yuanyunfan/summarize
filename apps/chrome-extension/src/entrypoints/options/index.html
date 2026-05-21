@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Summarize Settings</title>
+    <title>Summarize 设置</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <main>
       <div class="top">
-        <h1>Summarize Settings</h1>
+        <h1>Summarize 设置</h1>
         <div class="topMeta">
           <div id="daemonStatus" class="daemonStatus daemonStatus--compact" data-state="warn">
             <span class="daemonStatus__dot" aria-hidden="true"></span>
-            <span class="daemonStatus__text">Checking daemon…</span>
+            <span class="daemonStatus__text">正在检查 daemon…</span>
           </div>
           <div id="buildInfo" class="buildInfo"></div>
           <span id="status" class="status" aria-live="polite"></span>
         </div>
       </div>
       <form id="form">
-        <div id="tabs" class="tabs" role="tablist" aria-label="Settings sections">
+        <div id="tabs" class="tabs" role="tablist" aria-label="设置分区">
           <button
             id="tab-general"
             class="tabButton"
@@ -30,7 +30,7 @@
             aria-controls="panel-general"
             aria-selected="true"
           >
-            General
+            通用
           </button>
           <button
             id="tab-ui"
@@ -41,7 +41,7 @@
             aria-controls="panel-ui"
             aria-selected="false"
           >
-            UI
+            界面
           </button>
           <button
             id="tab-model"
@@ -52,7 +52,7 @@
             aria-controls="panel-model"
             aria-selected="false"
           >
-            Model
+            摘要
           </button>
           <button
             id="tab-skills"
@@ -63,7 +63,7 @@
             aria-controls="panel-skills"
             aria-selected="false"
           >
-            Skills
+            技能
           </button>
           <button
             id="tab-advanced"
@@ -74,7 +74,7 @@
             aria-controls="panel-advanced"
             aria-selected="false"
           >
-            Advanced
+            高级
           </button>
           <button
             id="tab-processes"
@@ -85,7 +85,7 @@
             aria-controls="panel-processes"
             aria-selected="false"
           >
-            Processes
+            进程
           </button>
           <button
             id="tab-logs"
@@ -96,7 +96,7 @@
             aria-controls="panel-logs"
             aria-selected="false"
           >
-            Logs
+            日志
           </button>
         </div>
 
@@ -110,39 +110,39 @@
           <section class="section">
             <div class="combo">
               <div id="autoToggle" class="row"></div>
-              <span class="subtitle">Auto-summarize when the panel is open.</span>
+              <span class="subtitle">打开侧边栏时自动生成摘要。</span>
             </div>
             <div class="combo">
               <div id="chatToggle"></div>
-              <span class="subtitle">Enable Chat mode in the side panel (default on).</span>
+              <span class="subtitle">在侧边栏启用 Chat 模式（默认开启）。</span>
             </div>
             <div class="combo">
               <div id="automationToggle"></div>
-              <span class="subtitle">Enable website automation tools in the side panel.</span>
+              <span class="subtitle">在侧边栏启用网页自动化工具。</span>
             </div>
             <div class="combo">
               <button id="automationPermissions" type="button" class="miniButton">
-                Enable automation permissions
+                启用自动化权限
               </button>
               <span class="subtitle permissionHint">
-                Opens Chrome permission prompt for optional <code>userScripts</code>.
+                打开 Chrome 权限提示，授权可选的 <code>userScripts</code>。
               </span>
             </div>
             <div id="userScriptsNotice" class="notice" hidden></div>
           </section>
 
           <section class="section">
-            <h2>Token setup</h2>
+            <h2>Token 设置</h2>
             <label>
               <span>Token</span>
               <div class="inputRow">
-                <input id="token" type="text" placeholder="(generated in side panel)" />
+                <input id="token" type="text" placeholder="（由侧边栏生成）" />
                 <button
                   id="tokenCopy"
                   type="button"
                   class="iconButton inputCopyButton"
-                  aria-label="Copy token"
-                  title="Copy token"
+                  aria-label="复制 token"
+                  title="复制 token"
                 >
                   <svg class="copyIcon" viewBox="0 0 16 16" aria-hidden="true">
                     <path
@@ -167,15 +167,15 @@
           hidden
         >
           <section class="section">
-            <h2>UI</h2>
+            <h2>界面</h2>
             <div class="uiGrid">
               <div id="pickersRoot"></div>
               <label>
-                <span>Font family (CSS)</span>
+                <span>字体（CSS）</span>
                 <input id="fontFamily" type="text" />
               </label>
               <label>
-                <span>Font size</span>
+                <span>字号</span>
                 <input id="fontSize" type="number" min="12" max="20" step="1" />
               </label>
             </div>
@@ -191,40 +191,40 @@
           hidden
         >
           <section class="section">
-            <h2>Prompt · Language · Model</h2>
+            <h2>摘要语言 · Prompt · 模型</h2>
             <label>
-              <span>Language</span>
+              <span>摘要语言</span>
               <div class="combo">
                 <select id="languagePreset">
-                  <option value="auto">Auto (detect)</option>
+                  <option value="auto">自动检测</option>
+                  <option value="zh-cn">中文（简体）</option>
+                  <option value="zh-tw">中文（繁体）</option>
                   <option value="en">English</option>
-                  <option value="de">German</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="it">Italian</option>
-                  <option value="pt">Portuguese</option>
-                  <option value="nl">Dutch</option>
-                  <option value="sv">Swedish</option>
-                  <option value="no">Norwegian</option>
-                  <option value="da">Danish</option>
-                  <option value="fi">Finnish</option>
-                  <option value="pl">Polish</option>
-                  <option value="cs">Czech</option>
-                  <option value="tr">Turkish</option>
-                  <option value="ru">Russian</option>
-                  <option value="uk">Ukrainian</option>
-                  <option value="ar">Arabic</option>
-                  <option value="hi">Hindi</option>
-                  <option value="ja">Japanese</option>
-                  <option value="ko">Korean</option>
-                  <option value="zh-cn">Chinese (Simplified)</option>
-                  <option value="zh-tw">Chinese (Traditional)</option>
-                  <option value="custom">Custom…</option>
+                  <option value="ja">日本語</option>
+                  <option value="ko">한국어</option>
+                  <option value="de">Deutsch</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="it">Italiano</option>
+                  <option value="pt">Português</option>
+                  <option value="nl">Nederlands</option>
+                  <option value="sv">Svenska</option>
+                  <option value="no">Norsk</option>
+                  <option value="da">Dansk</option>
+                  <option value="fi">Suomi</option>
+                  <option value="pl">Polski</option>
+                  <option value="cs">Čeština</option>
+                  <option value="tr">Türkçe</option>
+                  <option value="ru">Русский</option>
+                  <option value="uk">Українська</option>
+                  <option value="ar">العربية</option>
+                  <option value="hi">हिन्दी</option>
+                  <option value="custom">自定义…</option>
                 </select>
                 <input
                   id="languageCustom"
                   type="text"
-                  placeholder="Custom (e.g. en-US / Portuguese (Brazil))"
+                  placeholder="自定义（例如 en-US / Portuguese (Brazil)）"
                   autocapitalize="off"
                   autocomplete="off"
                   spellcheck="false"
@@ -233,12 +233,12 @@
               </div>
             </label>
             <label>
-              <span>Model</span>
+              <span>模型</span>
               <div class="combo">
                 <select id="modelPreset">
-                  <option value="auto">Auto</option>
+                  <option value="auto">自动</option>
                   <option value="gpt-fast">GPT Fast</option>
-                  <option value="custom">Custom…</option>
+                  <option value="custom">自定义…</option>
                 </select>
                 <input
                   id="modelCustom"
@@ -251,46 +251,46 @@
                 />
               </div>
               <div class="hint">
-                Tip: configure “free” models via <code>summarize refresh-free</code> (needs
-                <code>OPENROUTER_API_KEY</code>). Writes
-                <code>~/.summarize/config.json</code> (updates <code>models.free</code>). Add
-                <code>--set-default</code> to also set your default model to <code>free</code>.
+                提示：可以通过 <code>summarize refresh-free</code> 配置 “free” 模型（需要
+                <code>OPENROUTER_API_KEY</code>）。会写入
+                <code>~/.summarize/config.json</code> 并更新 <code>models.free</code>。加上
+                <code>--set-default</code> 可同时把默认模型设为 <code>free</code>。
               </div>
             </label>
             <div class="promptManager">
               <div class="promptManagerTop">
                 <label>
-                  <span>Summary prompt</span>
+                  <span>摘要 Prompt</span>
                   <select id="promptPreset"></select>
                 </label>
                 <div class="promptManagerActions">
-                  <button id="promptNew" type="button" class="miniButton">New</button>
-                  <button id="promptSave" type="button" class="miniButton">Save</button>
-                  <button id="promptDelete" type="button" class="miniButton">Delete</button>
+                  <button id="promptNew" type="button" class="miniButton">新建</button>
+                  <button id="promptSave" type="button" class="miniButton">保存</button>
+                  <button id="promptDelete" type="button" class="miniButton">删除</button>
                 </div>
               </div>
               <label>
-                <span>Prompt name</span>
+                <span>Prompt 名称</span>
                 <input
                   id="promptName"
                   type="text"
-                  placeholder="Saved prompt name"
+                  placeholder="已保存的 prompt 名称"
                   autocomplete="off"
                   spellcheck="false"
                 />
               </label>
               <label>
-                <span>Prompt override</span>
+                <span>Prompt 内容</span>
                 <textarea
                   id="promptOverride"
                   rows="6"
-                  placeholder="Custom instructions (prefix). Context + content still appended."
+                  placeholder="自定义摘要指令。系统仍会附加页面上下文和正文内容。"
                 ></textarea>
               </label>
               <div id="promptMeta" class="subtitle"></div>
             </div>
             <label>
-              <span>Max chars (extracted)</span>
+              <span>最大提取字符数</span>
               <input id="maxChars" type="number" min="20000" step="10000" />
             </label>
           </section>
@@ -305,25 +305,19 @@
           hidden
         >
           <section class="section">
-            <h2>Automation Skills</h2>
-            <div class="hint">
-              Manage reusable JavaScript libraries for domain-specific automation.
-            </div>
+            <h2>自动化 Skills</h2>
+            <div class="hint">管理用于特定网站自动化的可复用 JavaScript 库。</div>
             <div class="skillsActions">
-              <button id="skillsExport" type="button" class="miniButton">Export skills</button>
-              <button id="skillsImport" type="button" class="miniButton">Import skills</button>
+              <button id="skillsExport" type="button" class="miniButton">导出 skills</button>
+              <button id="skillsImport" type="button" class="miniButton">导入 skills</button>
             </div>
             <label>
-              <span>Search</span>
-              <input
-                id="skillsSearch"
-                type="text"
-                placeholder="Search by name, domain, or description"
-              />
+              <span>搜索</span>
+              <input id="skillsSearch" type="text" placeholder="按名称、域名或描述搜索" />
             </label>
             <div id="skillsImportConflicts" class="skillsConflicts" hidden></div>
             <div id="skillsList" class="skillsList"></div>
-            <div id="skillsEmpty" class="skillsEmpty" hidden>No skills created yet.</div>
+            <div id="skillsEmpty" class="skillsEmpty" hidden>还没有创建 skills。</div>
           </section>
         </div>
 
@@ -337,22 +331,20 @@
         >
           <section class="section advancedSection">
             <header class="advancedHead">
-              <h2>Advanced Overrides</h2>
-              <div class="hint">
-                Values here override daemon config. Leave blank to use the daemon default.
-              </div>
+              <h2>高级覆盖</h2>
+              <div class="hint">这里的值会覆盖 daemon 配置；留空则使用 daemon 默认值。</div>
             </header>
             <div id="advancedFields" class="advancedFields">
               <div class="subgroup">
                 <div class="subgroupHead">
-                  <span class="subgroupTitle">Logging</span>
+                  <span class="subgroupTitle">日志</span>
                 </div>
                 <div class="subgroupBody">
                   <div class="toggleField">
                     <div id="extendedLoggingToggle"></div>
                     <span class="toggleHint">
-                      Include full input + output in daemon logs. Large; only when daemon logging is
-                      enabled.
+                      在 daemon 日志中记录完整输入和输出。体积较大，仅建议在 daemon logging
+                      开启时使用。
                     </span>
                   </div>
                 </div>
@@ -360,25 +352,25 @@
 
               <div class="subgroup">
                 <div class="subgroupHead">
-                  <span class="subgroupTitle">Auto model fallback</span>
+                  <span class="subgroupTitle">自动模型 fallback</span>
                 </div>
                 <div class="subgroupBody">
                   <div class="toggleField">
                     <div id="autoCliFallbackToggle"></div>
                     <span class="toggleHint">
-                      When model is Auto, try coding CLIs if no API model key is configured.
+                      模型为 Auto 且没有配置 API key 时，尝试使用 coding CLI。
                     </span>
                   </div>
                   <label class="field">
-                    <span>Auto CLI order</span>
+                    <span>Auto CLI 顺序</span>
                     <input
                       id="autoCliOrder"
                       type="text"
                       placeholder="claude,gemini,codex,agent,openclaw,opencode,copilot"
                     />
                     <span class="subtitle">
-                      Comma-separated providers (claude, gemini, codex, agent, openclaw, opencode,
-                      copilot).
+                      逗号分隔 provider（claude、gemini、codex、agent、openclaw、opencode、
+                      copilot）。
                     </span>
                   </label>
                 </div>
@@ -386,38 +378,34 @@
 
               <div class="subgroup">
                 <div class="subgroupHead">
-                  <span class="subgroupTitle">Summary display</span>
+                  <span class="subgroupTitle">摘要显示</span>
                 </div>
                 <div class="subgroupBody">
                   <div class="toggleField">
                     <div id="summaryTimestampsToggle"></div>
-                    <span class="toggleHint">
-                      Include clickable timestamps in summaries for media (default on).
-                    </span>
+                    <span class="toggleHint"> 媒体摘要中包含可点击时间戳（默认开启）。 </span>
                   </div>
                   <div class="toggleField">
                     <div id="slidesParallelToggle"></div>
-                    <span class="toggleHint">
-                      Show summary first while slides extract in parallel.
-                    </span>
+                    <span class="toggleHint"> 并行提取 slides 时优先显示摘要。 </span>
                   </div>
                   <div class="toggleField">
                     <div id="slidesOcrToggle"></div>
-                    <span class="toggleHint">Allow OCR text for slides (off by default).</span>
+                    <span class="toggleHint">允许使用 slide OCR 文本（默认关闭）。</span>
                   </div>
                   <div class="toggleField">
                     <div id="hoverSummariesToggle"></div>
                     <span class="toggleHint">
-                      Show hover summary tooltips in pages. Experimental, default off.
+                      在页面里显示悬停摘要 tooltip。实验性功能，默认关闭。
                     </span>
                   </div>
                   <label class="field">
                     <div class="labelRow">
-                      <span>Hover summary prompt</span>
-                      <button id="hoverPromptReset" type="button" class="miniButton">Reset</button>
+                      <span>悬停摘要 Prompt</span>
+                      <button id="hoverPromptReset" type="button" class="miniButton">重置</button>
                     </div>
                     <textarea id="hoverPrompt" rows="3"></textarea>
-                    <span class="subtitle">Prompt used for hover summaries in pages.</span>
+                    <span class="subtitle">用于页面悬停摘要的 Prompt。</span>
                   </label>
                 </div>
               </div>
@@ -428,101 +416,99 @@
                 </div>
                 <div class="subgroupBody advancedGrid">
                   <label class="field">
-                    <span>Pipeline mode</span>
+                    <span>Pipeline 模式</span>
                     <select id="requestMode">
-                      <option value="">Default (auto)</option>
-                      <option value="page">Page (use visible text)</option>
-                      <option value="url">URL (force URL extraction)</option>
+                      <option value="">默认（auto）</option>
+                      <option value="page">页面（使用可见文本）</option>
+                      <option value="url">URL（强制 URL 提取）</option>
                     </select>
-                    <span class="subtitle">Page text vs URL extraction.</span>
+                    <span class="subtitle">页面文本和 URL 提取策略。</span>
                   </label>
                   <label class="field">
                     <span>Firecrawl</span>
                     <select id="firecrawlMode">
-                      <option value="">Default (auto)</option>
-                      <option value="off">Off</option>
-                      <option value="auto">Auto</option>
-                      <option value="always">Always</option>
+                      <option value="">默认（auto）</option>
+                      <option value="off">关闭</option>
+                      <option value="auto">自动</option>
+                      <option value="always">始终</option>
                     </select>
-                    <span class="subtitle">Fetches + cleans pages to Markdown via API.</span>
+                    <span class="subtitle">通过 API 抓取页面并清洗为 Markdown。</span>
                   </label>
                   <label class="field">
-                    <span>Markdown mode</span>
+                    <span>Markdown 模式</span>
                     <select id="markdownMode">
-                      <option value="">Default (readability)</option>
+                      <option value="">默认（readability）</option>
                       <option value="readability">Readability</option>
                       <option value="llm">LLM</option>
-                      <option value="auto">Auto</option>
-                      <option value="off">Off</option>
+                      <option value="auto">自动</option>
+                      <option value="off">关闭</option>
                     </select>
-                    <span class="subtitle">HTML → Markdown conversion strategy.</span>
+                    <span class="subtitle">HTML 到 Markdown 的转换策略。</span>
                   </label>
                   <label class="field">
                     <span>Preprocess</span>
                     <select id="preprocessMode">
-                      <option value="">Default (off)</option>
-                      <option value="off">Off</option>
-                      <option value="auto">Auto</option>
-                      <option value="always">Always</option>
+                      <option value="">默认（关闭）</option>
+                      <option value="off">关闭</option>
+                      <option value="auto">自动</option>
+                      <option value="always">始终</option>
                     </select>
-                    <span class="subtitle">
-                      Convert PDF/Doc files to text first for better model compatibility.
-                    </span>
+                    <span class="subtitle"> 先把 PDF/Doc 文件转换为文本，提高模型兼容性。 </span>
                   </label>
                 </div>
               </div>
 
               <div class="subgroup">
                 <div class="subgroupHead">
-                  <span class="subgroupTitle">Media</span>
+                  <span class="subgroupTitle">媒体</span>
                 </div>
                 <div class="subgroupBody advancedGrid">
                   <label class="field">
-                    <span>YouTube mode</span>
+                    <span>YouTube 模式</span>
                     <select id="youtubeMode">
-                      <option value="">Default (config)</option>
-                      <option value="auto">Auto (best transcript)</option>
-                      <option value="no-auto">No auto captions</option>
+                      <option value="">默认（config）</option>
+                      <option value="auto">自动（最佳字幕）</option>
+                      <option value="no-auto">不使用自动字幕</option>
                       <option value="yt-dlp">yt-dlp</option>
                       <option value="web">Web</option>
                       <option value="apify">Apify</option>
                     </select>
                     <span class="subtitle">
-                      Auto picks best; Web uses captions; yt-dlp extracts audio; Apify is fallback.
+                      Auto 自动选择最佳来源；Web 使用字幕；yt-dlp 提取音频；Apify 作为 fallback。
                     </span>
                   </label>
                   <label class="field">
-                    <span>Transcriber</span>
+                    <span>转写器</span>
                     <select id="transcriber">
-                      <option value="">Default (daemon config)</option>
-                      <option value="whisper">Whisper (default)</option>
+                      <option value="">默认（daemon config）</option>
+                      <option value="whisper">Whisper（默认）</option>
                       <option value="parakeet">NVIDIA Parakeet</option>
                       <option value="canary">NVIDIA Canary</option>
                     </select>
-                    <span class="subtitle">Override the daemon's default transcriber.</span>
+                    <span class="subtitle">覆盖 daemon 默认转写器。</span>
                   </label>
                 </div>
               </div>
 
               <div class="subgroup">
                 <div class="subgroupHead">
-                  <span class="subgroupTitle">Limits</span>
+                  <span class="subgroupTitle">限制</span>
                 </div>
                 <div class="subgroupBody advancedGrid advancedGrid--thirds">
                   <label class="field">
-                    <span>Timeout</span>
+                    <span>超时</span>
                     <input id="timeout" type="text" placeholder="2m" />
-                    <span class="subtitle">Overall fetch + model timeout (e.g. 90s, 2m).</span>
+                    <span class="subtitle">抓取和模型调用的总超时，例如 90s、2m。</span>
                   </label>
                   <label class="field">
-                    <span>Retries</span>
+                    <span>重试次数</span>
                     <input id="retries" type="number" min="0" max="5" step="1" />
-                    <span class="subtitle">LLM retry attempts on timeout (0–5).</span>
+                    <span class="subtitle">LLM 超时后的重试次数（0-5）。</span>
                   </label>
                   <label class="field">
-                    <span>Max output tokens</span>
+                    <span>最大输出 tokens</span>
                     <input id="maxOutputTokens" type="text" placeholder="2k" />
-                    <span class="subtitle">Hard cap for model output (e.g. 2k).</span>
+                    <span class="subtitle">模型输出的硬上限，例如 2k。</span>
                   </label>
                 </div>
               </div>
@@ -541,36 +527,34 @@
           <section class="section">
             <div class="processHeader">
               <div>
-                <h2>Process Manager</h2>
-                <div class="hint">
-                  Track external tools spawned by the daemon (ffmpeg, yt-dlp, tesseract).
-                </div>
+                <h2>进程管理</h2>
+                <div class="hint">查看 daemon 启动的外部工具（ffmpeg、yt-dlp、tesseract）。</div>
               </div>
               <div class="processActions">
                 <label class="logsToggle">
                   <input id="processesAuto" type="checkbox" checked />
-                  Auto refresh
+                  自动刷新
                 </label>
-                <button id="processesRefresh" type="button" class="miniButton">Refresh</button>
+                <button id="processesRefresh" type="button" class="miniButton">刷新</button>
               </div>
             </div>
             <div class="processControls">
               <label class="processControl">
-                <span>Show completed</span>
+                <span>显示已完成</span>
                 <input id="processesShowCompleted" type="checkbox" />
               </label>
               <label class="processControl">
-                <span>Limit</span>
+                <span>数量上限</span>
                 <input id="processesLimit" type="number" min="10" max="200" step="10" value="80" />
               </label>
               <label class="processControl">
-                <span>Log tail</span>
+                <span>日志尾部行数</span>
                 <input id="processesTail" type="number" min="20" max="1000" step="20" value="200" />
               </label>
               <label class="processControl">
-                <span>Stream</span>
+                <span>输出流</span>
                 <select id="processesStream">
-                  <option value="merged">Merged</option>
+                  <option value="merged">合并</option>
                   <option value="stdout">Stdout</option>
                   <option value="stderr">Stderr</option>
                 </select>
@@ -581,13 +565,13 @@
               <table id="processesTable" class="processTable">
                 <thead>
                   <tr>
-                    <th>Tool</th>
+                    <th>工具</th>
                     <th>PID</th>
-                    <th>Status</th>
-                    <th>Elapsed</th>
-                    <th>Progress</th>
-                    <th>Run</th>
-                    <th>Command</th>
+                    <th>状态</th>
+                    <th>耗时</th>
+                    <th>进度</th>
+                    <th>运行</th>
+                    <th>命令</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -595,13 +579,13 @@
             </div>
             <div class="processLogs">
               <div class="processLogsHeader">
-                <div id="processesLogsTitle" class="processLogsTitle">Logs</div>
+                <div id="processesLogsTitle" class="processLogsTitle">日志</div>
                 <button
                   id="processesLogsCopy"
                   type="button"
                   class="iconButton processLogsCopy"
-                  aria-label="Copy logs"
-                  title="Copy logs"
+                  aria-label="复制日志"
+                  title="复制日志"
                 >
                   <svg class="copyIcon" viewBox="0 0 16 16" aria-hidden="true">
                     <path
@@ -628,18 +612,18 @@
         >
           <section class="section">
             <div class="logsHeader">
-              <h2>Logs</h2>
+              <h2>日志</h2>
               <div class="logsActions">
-                <button id="logsRefresh" type="button" class="miniButton">Refresh</button>
+                <button id="logsRefresh" type="button" class="miniButton">刷新</button>
                 <label class="logsAuto">
                   <input id="logsAuto" type="checkbox" />
-                  <span>Auto refresh</span>
+                  <span>自动刷新</span>
                 </label>
               </div>
             </div>
             <div class="logsControls">
               <label>
-                <span>Source</span>
+                <span>来源</span>
                 <select id="logsSource">
                   <option value="extension">extension.log</option>
                   <option value="daemon">daemon.jsonl</option>
@@ -648,32 +632,32 @@
                 </select>
               </label>
               <label>
-                <span>Tail lines</span>
+                <span>尾部行数</span>
                 <input id="logsTail" type="number" min="100" max="5000" step="100" value="800" />
               </label>
             </div>
             <div class="logsFilters">
               <label class="logsToggle">
                 <input id="logsParsed" type="checkbox" checked />
-                <span>Parsed</span>
+                <span>解析</span>
               </label>
               <div class="logsLevelFilters">
-                <span class="logsFilterLabel">Levels</span>
+                <span class="logsFilterLabel">级别</span>
                 <label>
                   <input type="checkbox" data-log-level="info" checked />
-                  <span>Info</span>
+                  <span>信息</span>
                 </label>
                 <label>
                   <input type="checkbox" data-log-level="warn" checked />
-                  <span>Warn</span>
+                  <span>警告</span>
                 </label>
                 <label>
                   <input type="checkbox" data-log-level="error" checked />
-                  <span>Error</span>
+                  <span>错误</span>
                 </label>
                 <label>
                   <input type="checkbox" data-log-level="verbose" checked />
-                  <span>Verbose</span>
+                  <span>详细</span>
                 </label>
               </div>
             </div>
@@ -682,10 +666,10 @@
               <table id="logsTable" class="logsTable" hidden>
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Level</th>
-                    <th>Event</th>
-                    <th>Details</th>
+                    <th>时间</th>
+                    <th>级别</th>
+                    <th>事件</th>
+                    <th>详情</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -696,17 +680,16 @@
         </div>
       </form>
       <div class="pageFooter hint">
-        <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">Summarize</a> made
-        by
+        <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">Summarize</a> 由
         <a href="https://steipete.me" target="_blank" rel="noopener noreferrer"
           >Peter Steinberger</a
         >
-        · MIT licensed ·
+        构建 · MIT 许可 ·
         <a
           href="https://github.com/steipete/summarize/issues"
           target="_blank"
           rel="noopener noreferrer"
-          >Report issues on GitHub</a
+          >在 GitHub 反馈问题</a
         >
       </div>
     </main>

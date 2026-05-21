@@ -12,8 +12,8 @@ describe("sidepanel summary empty state", () => {
         hasSlides: false,
       }),
     ).toEqual({
-      label: "Ready",
-      message: "Click Summarize to start.",
+      label: "就绪",
+      message: "点击摘要开始。",
       detail: "Example Video",
     });
   });
@@ -28,8 +28,8 @@ describe("sidepanel summary empty state", () => {
         hasSlides: false,
       }),
     ).toEqual({
-      label: "Loading",
-      message: "Preparing summary",
+      label: "加载中",
+      message: "正在准备摘要",
       detail: "Example Video",
     });
   });
@@ -44,8 +44,8 @@ describe("sidepanel summary empty state", () => {
         hasSlides: false,
       }),
     ).toEqual({
-      label: "No page",
-      message: "Open a page to summarize.",
+      label: "没有页面",
+      message: "打开一个页面后即可摘要。",
       detail: null,
     });
   });

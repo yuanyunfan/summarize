@@ -93,12 +93,12 @@ describe("options skills controller", () => {
     elements.searchEl.value = "zzz";
     elements.searchEl.dispatchEvent(new Event("input"));
     expect(elements.emptyEl.hidden).toBe(false);
-    expect(elements.emptyEl.textContent).toBe("No skills match your search.");
+    expect(elements.emptyEl.textContent).toBe("没有匹配搜索条件的 skills。");
 
     elements.searchEl.value = "";
     elements.searchEl.dispatchEvent(new Event("input"));
     const editButton = Array.from(elements.listEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Edit",
+      (button) => button.textContent === "编辑",
     );
     editButton?.click();
     const shortInput = Array.from(elements.listEl.querySelectorAll("input")).find(
@@ -107,7 +107,7 @@ describe("options skills controller", () => {
     shortInput!.value = "updated alpha summary";
     shortInput!.dispatchEvent(new Event("input"));
     const saveButton = Array.from(elements.listEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Save",
+      (button) => button.textContent === "保存",
     );
     saveButton?.click();
     await flush();
@@ -118,7 +118,7 @@ describe("options skills controller", () => {
 
     await controller.load();
     const deleteButton = Array.from(elements.listEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Delete",
+      (button) => button.textContent === "删除",
     );
     deleteButton?.click();
     await flush();
@@ -168,7 +168,7 @@ describe("options skills controller", () => {
     await flush();
     restore.mockRestore();
 
-    expect(setStatus).toHaveBeenCalledWith("Invalid skills file: expected an array.");
+    expect(setStatus).toHaveBeenCalledWith("无效的 skills 文件：预期 JSON 数组。");
   });
 
   it("renders import conflicts and can cancel or import selected skills", async () => {
@@ -196,10 +196,10 @@ describe("options skills controller", () => {
     restore.mockRestore();
 
     expect(elements.conflictsEl.hidden).toBe(false);
-    expect(elements.conflictsEl.textContent).toContain("Import conflicts");
+    expect(elements.conflictsEl.textContent).toContain("导入冲突");
 
     const cancelButton = Array.from(elements.conflictsEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Cancel",
+      (button) => button.textContent === "取消",
     );
     cancelButton?.click();
     expect(elements.conflictsEl.hidden).toBe(true);
@@ -219,13 +219,13 @@ describe("options skills controller", () => {
     checkbox.checked = false;
     checkbox.dispatchEvent(new Event("change"));
     const importButton = Array.from(elements.conflictsEl.querySelectorAll("button")).find(
-      (button) => button.textContent === "Import selected",
+      (button) => button.textContent === "导入选中项",
     );
     importButton?.click();
     await flush();
 
     expect(saveSkill).toHaveBeenCalledWith(expect.objectContaining({ name: "beta" }));
     expect(saveSkill).not.toHaveBeenCalledWith(expect.objectContaining({ name: "alpha" }));
-    expect(flashStatus).toHaveBeenCalledWith("Imported 1 skill(s).");
+    expect(flashStatus).toHaveBeenCalledWith("已导入 1 个 skill。");
   });
 });

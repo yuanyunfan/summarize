@@ -30,10 +30,10 @@ describe("sidepanel stream controller policy", () => {
   it("normalizes terminal stream completion errors", () => {
     expect(
       getTerminalStreamError({ sawDone: false, streamedAnyNonWhitespace: true })?.message,
-    ).toBe("Stream ended unexpectedly. The daemon may have stopped.");
+    ).toBe("流式响应意外结束，daemon 可能已经停止。");
     expect(
       getTerminalStreamError({ sawDone: true, streamedAnyNonWhitespace: false })?.message,
-    ).toBe("Model returned no output.");
+    ).toBe("模型没有返回内容。");
     expect(getTerminalStreamError({ sawDone: true, streamedAnyNonWhitespace: true })).toBeNull();
   });
 });

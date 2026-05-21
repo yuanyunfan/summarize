@@ -84,7 +84,7 @@ async function dispatchNativeInput(
 ): Promise<NativeInputResponse> {
   const hasPermission = await chrome.permissions.contains({ permissions: ["debugger"] });
   if (!hasPermission) {
-    return { ok: false, error: "Debugger permission not granted." };
+    return { ok: false, error: "未授予 Debugger 权限。" };
   }
 
   try {
