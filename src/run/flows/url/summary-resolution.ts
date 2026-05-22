@@ -12,7 +12,10 @@ import { resolveGitHubModelsApiKey } from "../../../llm/github-models.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
 import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
-import { isClassificationOnlySummary } from "../../../shared/summary-sanitizer.js";
+import {
+  isClassificationOnlySummary,
+  sanitizeSummaryMarkdown,
+} from "../../../shared/summary-sanitizer.js";
 import {
   readLastSuccessfulCliProvider,
   writeLastSuccessfulCliProvider,
@@ -240,7 +243,9 @@ export async function resolveUrlSummaryExecution({
       });
       const cached = cacheStore.getJson<{ summary?: unknown; model?: unknown }>("summary", key);
       const cachedSummary =
-        cached && typeof cached.summary === "string" ? cached.summary.trim() : null;
+        cached && typeof cached.summary === "string"
+          ? sanitizeSummaryMarkdown(cached.summary)
+          : null;
       const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
       if (cachedSummary && !isClassificationOnlySummary(cachedSummary)) {
         const cachedAttempt = cachedModelId
@@ -284,7 +289,8 @@ export async function resolveUrlSummaryExecution({
           lengthKey,
           languageKey,
         });
-        const cached = cacheStore.getText("summary", key);
+        const cachedRaw = cacheStore.getText("summary", key);
+        const cached = cachedRaw ? sanitizeSummaryMarkdown(cachedRaw) : null;
         if (!cached || isClassificationOnlySummary(cached)) continue;
         writeVerbose(
           io.stderr,

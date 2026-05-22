@@ -13,6 +13,11 @@ const CLASSIFICATION_LABEL_PATTERN = new RegExp(
   `^(?:${CLASSIFICATION_LABELS.map((label) => escapeRegExp(label)).join("|")})$`,
   "i",
 );
+const CLASSIFICATION_TYPED_LABEL_PATTERN = new RegExp(
+  `^(?:类型|文章类型|判断文章类型)\\s*[：:>]\\s*(?:${CLASSIFICATION_LABELS.map((label) => escapeRegExp(label)).join("|")})\\s*$`,
+  "i",
+);
+const CLASSIFICATION_SECTION_MARKER_PATTERN = /^\s*<?\/?(?:类型|文章类型|判断文章类型)>?\s*$/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -25,6 +30,8 @@ function isFenceDelimiter(line: string): boolean {
 function normalizeSummaryLine(line: string): string {
   return line
     .trim()
+    .replace(FINAL_ANSWER_TAG_PATTERN, "")
+    .replace(CLASSIFICATION_SECTION_MARKER_PATTERN, "")
     .replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)/, "")
     .replace(/\*\*/g, "")
     .replace(/`/g, "")
@@ -38,9 +45,17 @@ export function isClassificationOnlySummary(markdown: string): boolean {
     .filter((line) => line.length > 0 && !/^-{3,}$/.test(line));
 
   if (lines.length === 0) return false;
-  if (lines.length === 1) return CLASSIFICATION_LABEL_PATTERN.test(lines[0]);
+  if (lines.length === 1) {
+    return (
+      CLASSIFICATION_LABEL_PATTERN.test(lines[0]) ||
+      CLASSIFICATION_TYPED_LABEL_PATTERN.test(lines[0])
+    );
+  }
 
-  const classificationLines = lines.filter((line) => CLASSIFICATION_LINE_PATTERN.test(line));
+  const classificationLines = lines.filter(
+    (line) =>
+      CLASSIFICATION_LINE_PATTERN.test(line) || CLASSIFICATION_TYPED_LABEL_PATTERN.test(line),
+  );
   return classificationLines.length >= 2 && classificationLines.length === lines.length;
 }
 

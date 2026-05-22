@@ -35,6 +35,20 @@ describe("summary sanitizer", () => {
     expect(() => assertUsableSummaryMarkdown(input)).toThrow(/classification labels/);
   });
 
+  it("detects classification-only outputs wrapped in final_answer tags", () => {
+    const input = ["<final_answer>", "系统/架构设计", "</final_answer>"].join("\n");
+
+    expect(isClassificationOnlySummary(input)).toBe(true);
+    expect(() => assertUsableSummaryMarkdown(input)).toThrow(/classification labels/);
+  });
+
+  it("detects classification-only custom prompt sections", () => {
+    expect(isClassificationOnlySummary("类型：工程实践/经验总结")).toBe(true);
+    expect(
+      isClassificationOnlySummary(["判断文章类型>", "系统/架构设计", "</判断文章类型>"].join("\n")),
+    ).toBe(true);
+  });
+
   it("allows real summaries that mention classifications", () => {
     const input = [
       "### 文章类型",
