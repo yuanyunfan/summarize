@@ -8,5 +8,6 @@ export const SUMMARY_SYSTEM_PROMPT = [
   "Quotation marks are allowed; use straight quotes only (no curly quotes).",
   "If you include exact excerpts, italicize them in Markdown using single asterisks.",
   "Include 1-2 short exact excerpts (max 25 words each) when the content provides a strong, non-sponsor line.",
+  "If you include Mermaid diagrams, put the diagram source in a fenced mermaid code block and never inline raw Mermaid syntax in prose.",
   "Never include ad/sponsor/boilerplate excerpts.",
 ].join("\n");

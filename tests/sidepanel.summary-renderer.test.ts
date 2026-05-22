@@ -15,6 +15,10 @@ import {
   setMermaidRuntimeLoaderForTest,
 } from "../apps/chrome-extension/src/entrypoints/sidepanel/summary-renderer.js";
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 describe("sidepanel summary renderer", () => {
   beforeEach(() => {
     mermaidMocks.initialize.mockClear();
@@ -125,6 +129,62 @@ describe("sidepanel summary renderer", () => {
       "flowchart TD\nA --> B",
     );
     expect(hostEl.querySelector("pre > code")).toBeNull();
+  });
+
+  it("normalizes inline Mermaid paragraphs before rendering previews", async () => {
+    const hostEl = document.createElement("div");
+    document.body.append(hostEl);
+    let renderedMarkdown = "";
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown:
+        "6. Mermaid 架构图： flowchart TD A[线上环境] --> B[OSS 文件系统 + 远程沙箱] C[本地环境] --> D[LocalStorageAdapter + LocalCommandExecutor]",
+      md: {
+        render: (value) => {
+          renderedMarkdown = value;
+          const source = value.match(/```mermaid\n([\s\S]*?)\n```/)?.[1] ?? "";
+          return `<p>6. Mermaid 架构图：</p><pre><code class="language-mermaid">${escapeHtml(
+            source,
+          )}</code></pre>`;
+        },
+      },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    await vi.waitFor(() => {
+      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+    });
+
+    expect(renderedMarkdown).toContain(
+      [
+        "```mermaid",
+        "flowchart TD",
+        "A[线上环境] --> B[OSS 文件系统 + 远程沙箱]",
+        "C[本地环境] --> D[LocalStorageAdapter + LocalCommandExecutor]",
+        "```",
+      ].join("\n"),
+    );
+    expect(mermaidMocks.render).toHaveBeenCalledWith(
+      expect.stringMatching(/^summary-mermaid-/),
+      [
+        "flowchart TD",
+        "A[线上环境] --> B[OSS 文件系统 + 远程沙箱]",
+        "C[本地环境] --> D[LocalStorageAdapter + LocalCommandExecutor]",
+      ].join("\n"),
+    );
   });
 
   it("leaves mermaid source visible when diagram rendering fails", async () => {

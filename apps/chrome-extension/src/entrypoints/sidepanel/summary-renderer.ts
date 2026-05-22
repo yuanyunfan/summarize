@@ -13,6 +13,12 @@ type MermaidRuntime = {
 };
 
 const MERMAID_MAX_CHARS = 50_000;
+const MERMAID_START_PATTERN =
+  /\b((?:flowchart|graph)\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|classDiagram(?:-v2)?|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|requirementDiagram)\b/i;
+const FLOWCHART_HEADER_PATTERN = /^((?:flowchart|graph)\s+(?:TD|TB|BT|RL|LR))\s+(.+)$/i;
+const FLOWCHART_EDGE_PATTERN =
+  /([A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)\s*[A-Za-z_][\w-]*(?:\[[^\]]+\])?)/g;
+const FLOWCHART_EDGE_START_PATTERN = /^[A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)/;
 const defaultMermaidLoader = () =>
   import("mermaid").then((module) => module.default as MermaidRuntime);
 let mermaidLoadPromise: Promise<MermaidRuntime> | null = null;
@@ -81,6 +87,106 @@ function isMermaidCodeBlock(code: Element): boolean {
     if (normalized === "language-mermaid" || normalized === "lang-mermaid") return true;
   }
   return false;
+}
+
+function isFenceDelimiter(line: string): boolean {
+  return /^\s{0,3}(`{3,}|~{3,})/.test(line);
+}
+
+function startsNewMarkdownBlock(line: string): boolean {
+  return /^\s{0,3}(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>)/.test(line);
+}
+
+function prefixLooksLikeMermaidLabel(prefix: string): boolean {
+  const trimmed = prefix.trim();
+  return (
+    trimmed.length === 0 ||
+    /(?:mermaid|架构图|流程图|时序图|关系图|diagram|flowchart|chart)\s*[:：]?\s*$/i.test(trimmed)
+  );
+}
+
+function looksLikeMermaidContinuation(line: string): boolean {
+  const trimmed = line.trim();
+  return (
+    FLOWCHART_EDGE_START_PATTERN.test(trimmed) ||
+    /^[A-Za-z_][\w-]*\[/.test(trimmed) ||
+    /(?:-->|---|-.->|==>)/.test(trimmed)
+  );
+}
+
+function normalizeFlowchartSource(source: string): string {
+  const compact = source.replace(/\s+/g, " ").trim();
+  const header = compact.match(FLOWCHART_HEADER_PATTERN);
+  if (!header) return compact.replace(/\s*;\s*/g, "\n");
+
+  const directive = header[1] ?? "";
+  const body = header[2]?.trim() ?? "";
+  const statements = Array.from(body.matchAll(FLOWCHART_EDGE_PATTERN), (match) => match[0].trim());
+  const leftover = statements
+    .reduce((remaining, statement) => remaining.replace(statement, " "), body)
+    .replace(/[;\s]+/g, "");
+
+  if (statements.length > 0 && leftover.length === 0) {
+    return [directive, ...statements].join("\n");
+  }
+
+  const bodyWithBreaks = body
+    .replace(/\s*;\s*/g, "\n")
+    .replace(/\s+(?=[A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==))/g, "\n");
+  return [directive, bodyWithBreaks.trim()].filter(Boolean).join("\n");
+}
+
+function normalizeMermaidSource(source: string): string {
+  const trimmed = source.trim();
+  if (/^(?:flowchart|graph)\s+/i.test(trimmed)) {
+    return normalizeFlowchartSource(trimmed);
+  }
+  return trimmed.replace(/\s*;\s*/g, "\n");
+}
+
+function normalizeInlineMermaidBlocks(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let inFence = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (isFenceDelimiter(line)) {
+      inFence = !inFence;
+      output.push(line);
+      continue;
+    }
+    if (inFence) {
+      output.push(line);
+      continue;
+    }
+
+    const match = line.match(MERMAID_START_PATTERN);
+    const startIndex = match?.index ?? -1;
+    const prefix = startIndex >= 0 ? line.slice(0, startIndex).trimEnd() : "";
+    if (startIndex < 0 || !prefixLooksLikeMermaidLabel(prefix)) {
+      output.push(line);
+      continue;
+    }
+
+    const chunks = [line.slice(startIndex).trim()];
+    while (index + 1 < lines.length) {
+      const next = lines[index + 1] ?? "";
+      if (!next.trim() || isFenceDelimiter(next) || startsNewMarkdownBlock(next)) break;
+      if (!looksLikeMermaidContinuation(next)) break;
+      chunks.push(next.trim());
+      index += 1;
+    }
+
+    const source = normalizeMermaidSource(chunks.join(" "));
+    if (prefix) {
+      output.push(prefix, "", "```mermaid", source, "```");
+    } else {
+      output.push("```mermaid", source, "```");
+    }
+  }
+
+  return output.join("\n");
 }
 
 function sanitizeMermaidSvg(container: HTMLElement) {
@@ -326,7 +432,9 @@ export function renderSummaryMarkdownDisplay({
     actions.append(createCopyButton({ text: displayMarkdown, headerSetStatus }));
     const markdownHost = document.createElement("div");
     markdownHost.className = "render__markdownBody";
-    markdownHost.innerHTML = md.render(linkifyTimestamps(displayMarkdown));
+    markdownHost.innerHTML = md.render(
+      linkifyTimestamps(normalizeInlineMermaidBlocks(displayMarkdown)),
+    );
     hostEl.append(actions, markdownHost);
     void renderMermaidPreviews(markdownHost);
   } catch (err) {
