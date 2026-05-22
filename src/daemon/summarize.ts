@@ -6,6 +6,7 @@ import { deriveExtractionUi } from "../run/flows/url/extract.js";
 import { runUrlFlow } from "../run/flows/url/flow.js";
 import { buildUrlPrompt, summarizeExtractedUrl } from "../run/flows/url/summary.js";
 import type { RunOverrides } from "../run/run-settings.js";
+import type { SseProgressData } from "../shared/sse-events.js";
 import type {
   SlideExtractionResult,
   SlideImage,
@@ -14,7 +15,7 @@ import type {
 } from "../slides/index.js";
 import { createDaemonUrlFlowContext } from "./flow-context.js";
 import { countWords, estimateDurationSecondsFromWords, formatInputSummary } from "./meta.js";
-import { formatProgress } from "./summarize-progress.js";
+import { createProgressStatus, formatProgressEvent } from "./summarize-progress.js";
 
 export type VisiblePageInput = {
   url: string;
@@ -33,6 +34,7 @@ export type StreamSink = {
   writeChunk: (text: string) => void;
   onModelChosen: (modelId: string) => void;
   writeStatus?: ((text: string) => void) | null;
+  writeProgress?: ((progress: SseProgressData) => void) | null;
   writeMeta?:
     | ((data: { inputSummary?: string | null; summaryFromCache?: boolean | null }) => void)
     | null;
@@ -136,6 +138,18 @@ function buildInputSummaryForExtracted(extracted: ExtractedLinkContent): string 
     characters: hasTranscript ? transcriptChars : extracted.totalCharacters,
     isDurationApproximate,
   });
+}
+
+function writeProgressOrStatus(
+  sink: StreamSink,
+  progress: SseProgressData,
+  writeStatus: ((text: string) => void) | null,
+) {
+  if (typeof sink.writeProgress === "function") {
+    sink.writeProgress(progress);
+    return;
+  }
+  writeStatus?.(progress.text);
 }
 
 export async function streamSummaryForVisiblePage({
@@ -251,7 +265,11 @@ export async function streamSummaryForVisiblePage({
       characters: extracted.totalCharacters,
     }),
   });
-  writeStatus?.("Summarizing…");
+  writeProgressOrStatus(
+    sink,
+    createProgressStatus("summarizing", "Summarizing…", "Summarizing"),
+    writeStatus,
+  );
 
   const extractionUi = deriveExtractionUi(extracted);
   const prompt = buildUrlPrompt({
@@ -374,7 +392,11 @@ export async function streamSummaryForUrl({
         extractedRef.value = content;
         hooks?.onExtracted?.(content);
         sink.writeMeta?.({ inputSummary: buildInputSummaryForExtracted(content) });
-        writeStatus?.("Summarizing…");
+        writeProgressOrStatus(
+          sink,
+          createProgressStatus("summarizing", "Summarizing…", "Summarizing"),
+          writeStatus,
+        );
       },
       onSlidesExtracted: (result) => {
         hooks?.onSlidesExtracted?.(result);
@@ -390,8 +412,8 @@ export async function streamSummaryForUrl({
         writeStatus?.(trimmed);
       },
       onLinkPreviewProgress: (event) => {
-        const msg = formatProgress(event);
-        if (msg) writeStatus?.(msg);
+        const progress = formatProgressEvent(event);
+        if (progress) writeProgressOrStatus(sink, progress, writeStatus);
       },
       onSummaryCached: (cached) => {
         summaryFromCache = cached;
@@ -402,7 +424,11 @@ export async function streamSummaryForUrl({
     stdoutSink: { writeChunk: sink.writeChunk },
   });
 
-  writeStatus?.("Extracting…");
+  writeProgressOrStatus(
+    sink,
+    createProgressStatus("extracting", "Extracting…", "Extracting content"),
+    writeStatus,
+  );
   await runUrlFlow({ ctx, url: input.url, isYoutubeUrl: isYouTubeUrl(input.url) });
 
   const extracted = extractedRef.value;

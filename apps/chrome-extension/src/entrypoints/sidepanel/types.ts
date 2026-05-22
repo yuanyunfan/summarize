@@ -1,6 +1,7 @@
 import type { Message } from "@earendil-works/pi-ai";
 import type { RunStart, UiState } from "../../lib/panel-contracts";
 import type { SseSlidesData } from "../../lib/runtime-contracts";
+import type { SummaryProgress } from "./summary-progress";
 export type { RunStart, UiState } from "../../lib/panel-contracts";
 
 export type PanelPhase = "idle" | "setup" | "connecting" | "streaming" | "error";
@@ -15,6 +16,7 @@ export type PanelState = {
   lastMeta: { inputSummary: string | null; model: string | null; modelLabel: string | null };
   summaryMarkdown: string | null;
   summaryFromCache: boolean | null;
+  summaryProgress: SummaryProgress | null;
   slides: SseSlidesData | null;
   phase: PanelPhase;
   error: string | null;

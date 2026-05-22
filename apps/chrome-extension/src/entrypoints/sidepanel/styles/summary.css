@@ -231,6 +231,64 @@ button.setup__pill.isActive {
   line-height: 1.4;
 }
 
+.renderEmpty__progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.renderEmpty__progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--empty-progress, 0%);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--ui-focus) 72%, transparent);
+}
+
+.renderEmpty__progress[data-indeterminate="true"] .renderEmpty__progressFill {
+  width: 42%;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--ui-focus) 85%, transparent) 45%,
+      transparent 100%
+    ),
+    color-mix(in srgb, var(--ui-focus) 35%, transparent);
+  animation: renderEmptyProgress 1.6s cubic-bezier(0.35, 0, 0.25, 1) infinite alternate;
+}
+
+.renderEmpty__progressText {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text);
+}
+
+@keyframes renderEmptyProgress {
+  from {
+    transform: translateX(-15%);
+  }
+  to {
+    transform: translateX(160%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .renderEmpty__progress[data-indeterminate="true"] .renderEmpty__progressFill {
+    animation: none;
+    transform: none;
+  }
+}
+
 .metrics {
   margin-top: 14px;
   padding-top: 12px;

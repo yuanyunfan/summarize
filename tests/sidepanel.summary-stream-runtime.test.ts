@@ -4,6 +4,15 @@ import type { PanelState } from "../apps/chrome-extension/src/entrypoints/sidepa
 
 type StreamControllerOptions = {
   onStatus?: (text: string) => void;
+  onProgress?: (data: {
+    phase: "downloading";
+    text: string;
+    label: string;
+    detail: null;
+    percent: number;
+    stepIndex: null;
+    stepTotal: null;
+  }) => void;
   onMeta?: (data: { model?: string; modelLabel?: string; inputSummary?: string }) => void;
   onSummaryFromCache?: (value: boolean | null) => void;
   onPhaseChange?: (phase: "idle" | "connecting" | "streaming" | "error") => void;
@@ -33,6 +42,7 @@ function createPanelState(): PanelState {
     lastMeta: { inputSummary: null, model: null, modelLabel: null },
     summaryMarkdown: null,
     summaryFromCache: null,
+    summaryProgress: null,
     slides: null,
     phase: "idle",
     error: null,
@@ -59,6 +69,8 @@ function buildRuntime() {
     schedulePanelCacheSync: vi.fn(),
     seedPlannedSlidesForPendingRun: vi.fn(),
     setSlidesBusy: vi.fn(),
+    setSummaryProgressFromSse: vi.fn(),
+    setSummaryProgressFromStatus: vi.fn(),
     setPhase: vi.fn(),
     syncWithActiveTab: vi.fn(async () => {}),
     handleSlides: vi.fn(),
@@ -87,6 +99,8 @@ function buildRuntime() {
     schedulePanelCacheSync: calls.schedulePanelCacheSync,
     seedPlannedSlidesForPendingRun: calls.seedPlannedSlidesForPendingRun,
     setSlidesBusy: calls.setSlidesBusy,
+    setSummaryProgressFromSse: calls.setSummaryProgressFromSse,
+    setSummaryProgressFromStatus: calls.setSummaryProgressFromStatus,
     setPhase: calls.setPhase,
     shouldRebuildSlideDescriptions: vi.fn(() => true),
     syncWithActiveTab: calls.syncWithActiveTab,
@@ -117,6 +131,26 @@ describe("sidepanel summary stream runtime", () => {
 
     expect(calls.headerSetStatus).toHaveBeenCalledWith("Summarizing this page");
     expect(calls.setSlidesBusy).not.toHaveBeenCalled();
+  });
+
+  it("forwards status and structured progress to the summary empty state", () => {
+    const { calls } = buildRuntime();
+    const progress = {
+      phase: "downloading" as const,
+      text: "youtube: downloading audio… 42%",
+      label: "Downloading audio",
+      detail: null,
+      percent: 42,
+      stepIndex: null,
+      stepTotal: null,
+    };
+
+    capturedOptions?.onStatus?.(progress.text);
+    capturedOptions?.onProgress?.(progress);
+
+    expect(calls.headerSetStatus).toHaveBeenCalledWith(progress.text);
+    expect(calls.setSummaryProgressFromStatus).toHaveBeenCalledWith(progress.text);
+    expect(calls.setSummaryProgressFromSse).toHaveBeenCalledWith(progress);
   });
 
   it("updates idle subtitle metadata and schedules cache sync", () => {
@@ -207,6 +241,8 @@ describe("sidepanel summary stream runtime", () => {
       schedulePanelCacheSync: vi.fn(),
       seedPlannedSlidesForPendingRun: vi.fn(),
       setSlidesBusy: vi.fn(),
+      setSummaryProgressFromSse: vi.fn(),
+      setSummaryProgressFromStatus: vi.fn(),
       setPhase,
       shouldRebuildSlideDescriptions: vi.fn(() => false),
       syncWithActiveTab: vi.fn(async () => {}),

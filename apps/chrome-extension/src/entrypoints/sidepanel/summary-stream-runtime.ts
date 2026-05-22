@@ -1,4 +1,5 @@
 import { buildIdleSubtitle } from "../../lib/header";
+import type { SseProgressData } from "../../lib/runtime-contracts";
 import { createStreamController } from "./stream-controller";
 import type { PanelPhase, PanelState } from "./types";
 
@@ -25,6 +26,8 @@ export function createSummaryStreamRuntime({
   schedulePanelCacheSync,
   seedPlannedSlidesForPendingRun,
   setSlidesBusy,
+  setSummaryProgressFromSse,
+  setSummaryProgressFromStatus,
   setPhase,
   shouldRebuildSlideDescriptions,
   syncWithActiveTab,
@@ -55,6 +58,8 @@ export function createSummaryStreamRuntime({
   schedulePanelCacheSync: () => void;
   seedPlannedSlidesForPendingRun: () => void;
   setSlidesBusy: (value: boolean) => void;
+  setSummaryProgressFromSse: (value: SseProgressData) => void;
+  setSummaryProgressFromStatus: (value: string) => void;
   setPhase: (phase: PanelPhase, opts?: { error?: string | null }) => void;
   shouldRebuildSlideDescriptions: () => boolean;
   syncWithActiveTab: () => Promise<void>;
@@ -84,9 +89,13 @@ export function createSummaryStreamRuntime({
       },
       onStatus: (text) => {
         headerSetStatus(text);
+        setSummaryProgressFromStatus(text);
         if (/^slides?/i.test(text.trim())) {
           setSlidesBusy(true);
         }
+      },
+      onProgress: (progress: SseProgressData) => {
+        setSummaryProgressFromSse(progress);
       },
       onBaseTitle: (text) => headerSetBaseTitle(text),
       onBaseSubtitle: (text) => headerSetBaseSubtitle(text),

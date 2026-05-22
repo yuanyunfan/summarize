@@ -1,4 +1,9 @@
-import { parseSseEvent, type SseMetaData, type SseSlidesData } from "../../lib/runtime-contracts";
+import {
+  parseSseEvent,
+  type SseMetaData,
+  type SseProgressData,
+  type SseSlidesData,
+} from "../../lib/runtime-contracts";
 import { parseSseStream, type SseMessage } from "../../lib/sse";
 import {
   accumulateChatChunk,
@@ -17,6 +22,7 @@ export type StreamController = {
 export type StreamControllerOptions = {
   getToken: () => Promise<string>;
   onStatus: (text: string) => void;
+  onProgress?: ((progress: SseProgressData) => void) | null;
   onPhaseChange: (phase: PanelPhase) => void;
   onMeta: (meta: SseMetaData) => void;
   onSlides?: ((slides: SseSlidesData) => void) | null;
@@ -45,6 +51,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
   const {
     getToken,
     onStatus,
+    onProgress,
     onPhaseChange,
     onMeta,
     onSlides,
@@ -217,6 +224,12 @@ export function createStreamController(options: StreamControllerOptions): Stream
           const raw = typeof event.data.text === "string" ? event.data.text : "";
           if (shouldSurfaceStreamingStatus({ streamedAnyNonWhitespace, statusText: raw })) {
             onStatus(raw);
+          }
+        } else if (event.event === "progress") {
+          const raw = typeof event.data.text === "string" ? event.data.text : "";
+          if (shouldSurfaceStreamingStatus({ streamedAnyNonWhitespace, statusText: raw })) {
+            onStatus(raw);
+            onProgress?.(event.data);
           }
         } else if (event.event === "metrics") {
           onMetrics?.(event.data.summary);

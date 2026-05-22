@@ -1,6 +1,8 @@
 import { selectMarkdownForLayout } from "./slides-state";
 import { buildSummaryEmptyState } from "./summary-empty-state";
+import type { SummaryProgress } from "./summary-progress";
 import { linkifyTimestamps } from "./timestamp-links";
+import type { PanelPhase } from "./types";
 
 type MermaidRuntime = {
   initialize: (config: Record<string, unknown>) => void;
@@ -233,6 +235,29 @@ export function renderSummaryEmptyState({
     detail.textContent = state.detail;
     wrapper.append(detail);
   }
+  if (state.progressActive) {
+    const progress = document.createElement("div");
+    progress.className = "renderEmpty__progress";
+    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("aria-label", "摘要进度");
+    const progressFill = document.createElement("div");
+    progressFill.className = "renderEmpty__progressFill";
+    if (state.progressPercent == null) {
+      progress.dataset.indeterminate = "true";
+    } else {
+      const percent = `${state.progressPercent}%`;
+      progress.style.setProperty("--empty-progress", percent);
+      progress.setAttribute("aria-valuemin", "0");
+      progress.setAttribute("aria-valuemax", "100");
+      progress.setAttribute("aria-valuenow", String(state.progressPercent));
+      const percentLabel = document.createElement("span");
+      percentLabel.className = "renderEmpty__progressText";
+      percentLabel.textContent = percent;
+      progress.append(percentLabel);
+    }
+    progress.prepend(progressFill);
+    wrapper.append(progress);
+  }
   hostEl.replaceChildren(wrapper);
 }
 
@@ -248,6 +273,7 @@ export function renderSummaryMarkdownDisplay({
   markdown,
   md,
   phase,
+  progress,
   renderInlineSlides,
   slidesEnabled,
   slidesLayout,
@@ -264,7 +290,8 @@ export function renderSummaryMarkdownDisplay({
   inputMode: "page" | "video";
   markdown: string;
   md: { render: (value: string) => string };
-  phase: string;
+  phase: PanelPhase;
+  progress: SummaryProgress | null;
   renderInlineSlides: (container: HTMLElement, opts?: { fallback?: boolean }) => void;
   slidesEnabled: boolean;
   slidesLayout: string;
@@ -287,6 +314,7 @@ export function renderSummaryMarkdownDisplay({
         autoSummarize,
         phase,
         hasSlides,
+        progress,
       }),
     });
     return;

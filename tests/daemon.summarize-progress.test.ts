@@ -1,6 +1,6 @@
 import { type LinkPreviewProgressEvent, ProgressKind } from "@steipete/summarize-core/content";
 import { describe, expect, it } from "vitest";
-import { formatProgress } from "../src/daemon/summarize-progress.js";
+import { formatProgress, formatProgressEvent } from "../src/daemon/summarize-progress.js";
 
 describe("daemon/summarize-progress", () => {
   it("formats link preview progress events", () => {
@@ -8,6 +8,15 @@ describe("daemon/summarize-progress", () => {
 
     const cases: Array<[LinkPreviewProgressEvent, string | null]> = [
       [{ kind: ProgressKind.FetchHtmlStart } as LinkPreviewProgressEvent, "Fetching…"],
+      [
+        {
+          kind: ProgressKind.FetchHtmlProgress,
+          downloadedBytes: 25,
+          totalBytes: 100,
+        } as LinkPreviewProgressEvent,
+        "Fetching… 25%",
+      ],
+      [{ kind: ProgressKind.FetchHtmlDone } as LinkPreviewProgressEvent, "Fetching: done"],
       [
         { kind: ProgressKind.FirecrawlStart, reason: "blocked" } as LinkPreviewProgressEvent,
         "Firecrawl… (blocked)",
@@ -92,5 +101,26 @@ describe("daemon/summarize-progress", () => {
     for (const [evt, expected] of cases) {
       expect(formatProgress(evt)).toBe(expected);
     }
+  });
+
+  it("formats structured progress data for determinate transcript steps", () => {
+    expect(
+      formatProgressEvent({
+        kind: ProgressKind.TranscriptWhisperProgress,
+        service: "youtube",
+        processedDurationSeconds: null,
+        totalDurationSeconds: null,
+        partIndex: 2,
+        parts: 4,
+      }),
+    ).toEqual({
+      phase: "transcribing",
+      text: "youtube: transcribing… 50%",
+      label: "Transcribing audio",
+      detail: null,
+      percent: 50,
+      stepIndex: 2,
+      stepTotal: 4,
+    });
   });
 });

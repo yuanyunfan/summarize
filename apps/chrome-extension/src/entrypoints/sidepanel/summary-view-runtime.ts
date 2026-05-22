@@ -94,6 +94,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
     opts.metricsController.clearForMode("summary");
     opts.panelState.summaryMarkdown = null;
     opts.panelState.summaryFromCache = null;
+    opts.panelState.summaryProgress = null;
     opts.panelState.slides = null;
     if (clearRunId) {
       opts.panelState.runId = null;

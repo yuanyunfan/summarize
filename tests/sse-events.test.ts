@@ -30,6 +30,18 @@ describe("sse events", () => {
         },
       },
       { event: "status", data: { text: "Working…" } },
+      {
+        event: "progress",
+        data: {
+          phase: "downloading",
+          text: "youtube: downloading audio… 42%",
+          label: "Downloading audio",
+          detail: null,
+          percent: 42,
+          stepIndex: null,
+          stepTotal: null,
+        },
+      },
       { event: "chunk", data: { text: "Hello" } },
       {
         event: "slides",

@@ -100,6 +100,44 @@ describe("sidepanel stream controller error handling", () => {
     expect(statuses.some((status) => status.includes("错误："))).toBe(true);
   });
 
+  it("forwards structured progress events before summary chunks", async () => {
+    const statuses: string[] = [];
+    const progress: string[] = [];
+
+    const controller = createStreamController({
+      getToken: async () => "token",
+      onStatus: (text) => statuses.push(text),
+      onProgress: (event) => progress.push(`${event.phase}:${event.percent ?? "?"}`),
+      onPhaseChange: () => {},
+      onMeta: () => {},
+      fetchImpl: async () =>
+        new Response(
+          streamFromEvents([
+            {
+              event: "progress",
+              data: {
+                phase: "downloading",
+                text: "youtube: downloading audio… 42%",
+                label: "Downloading audio",
+                detail: null,
+                percent: 42,
+                stepIndex: null,
+                stepTotal: null,
+              },
+            },
+            { event: "chunk", data: { text: "Hello" } },
+            { event: "done", data: {} },
+          ]),
+          { status: 200 },
+        ),
+    });
+
+    await controller.start(run);
+
+    expect(statuses).toContain("youtube: downloading audio… 42%");
+    expect(progress).toEqual(["downloading:42"]);
+  });
+
   it("keeps error phase when the fetch fails", async () => {
     const phases: string[] = [];
 

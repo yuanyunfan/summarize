@@ -13,6 +13,7 @@ function createPanelState(): PanelState {
     lastMeta: { inputSummary: null, model: null, modelLabel: null },
     summaryMarkdown: null,
     summaryFromCache: null,
+    summaryProgress: null,
     slides: null,
     phase: "idle",
     error: null,

@@ -3,7 +3,7 @@ import type { CacheState } from "../cache.js";
 import type { MediaCache } from "../content/index.js";
 import { runWithProcessContext } from "../processes.js";
 import { formatModelLabelForDisplay } from "../run/finish-line.js";
-import { encodeSseEvent, type SseSlidesData } from "../shared/sse-events.js";
+import { encodeSseEvent, type SseProgressData, type SseSlidesData } from "../shared/sse-events.js";
 import type { SlideExtractionResult, SlideSettings, SlideSourceKind } from "../slides/index.js";
 import { type DaemonRequestedMode, resolveAutoDaemonMode } from "./auto-mode.js";
 import {
@@ -284,6 +284,15 @@ export async function executeSummarizeSession({
         const clean = text.trim();
         if (!clean) return;
         pushToSession(session, { event: "status", data: { text: clean } }, onSessionEvent);
+      },
+      writeProgress: (progress: SseProgressData) => {
+        const clean = progress.text.trim();
+        if (!clean) return;
+        pushToSession(
+          session,
+          { event: "progress", data: { ...progress, text: clean } },
+          onSessionEvent,
+        );
       },
       writeMeta: (data: { inputSummary?: string | null; summaryFromCache?: boolean | null }) => {
         if (typeof data.inputSummary === "string") logInputSummary = data.inputSummary;

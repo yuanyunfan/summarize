@@ -29,10 +29,32 @@ export type SseMetricsData = {
   detailsDetailed: string | null;
 };
 
+export type SseProgressPhase =
+  | "connecting"
+  | "extracting"
+  | "fetching"
+  | "transcript"
+  | "downloading"
+  | "transcribing"
+  | "slides"
+  | "summarizing"
+  | "fallback";
+
+export type SseProgressData = {
+  phase: SseProgressPhase;
+  text: string;
+  label: string;
+  detail: string | null;
+  percent: number | null;
+  stepIndex: number | null;
+  stepTotal: number | null;
+};
+
 export type SseEvent =
   | { event: "meta"; data: SseMetaData }
   | { event: "slides"; data: SseSlidesData }
   | { event: "status"; data: { text: string } }
+  | { event: "progress"; data: SseProgressData }
   | { event: "chunk"; data: { text: string } }
   | { event: "assistant"; data: AssistantMessage }
   | { event: "metrics"; data: SseMetricsData }
@@ -53,6 +75,8 @@ export function parseSseEvent(message: RawSseMessage): SseEvent | null {
       return { event: "slides", data: JSON.parse(message.data) as SseSlidesData };
     case "status":
       return { event: "status", data: JSON.parse(message.data) as { text: string } };
+    case "progress":
+      return { event: "progress", data: JSON.parse(message.data) as SseProgressData };
     case "chunk":
       return { event: "chunk", data: JSON.parse(message.data) as { text: string } };
     case "assistant":

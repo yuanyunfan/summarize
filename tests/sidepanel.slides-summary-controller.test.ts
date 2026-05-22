@@ -57,6 +57,7 @@ function buildPanelState(): PanelState {
     lastMeta: { inputSummary: null, model: "auto", modelLabel: "auto" },
     summaryMarkdown: null,
     summaryFromCache: null,
+    summaryProgress: null,
     slides: null,
     phase: "idle",
     error: null,

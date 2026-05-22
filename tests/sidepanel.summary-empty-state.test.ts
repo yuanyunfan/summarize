@@ -10,11 +10,14 @@ describe("sidepanel summary empty state", () => {
         autoSummarize: false,
         phase: "idle",
         hasSlides: false,
+        progress: null,
       }),
     ).toEqual({
       label: "就绪",
       message: "点击摘要开始。",
       detail: "Example Video",
+      progressPercent: null,
+      progressActive: false,
     });
   });
 
@@ -26,11 +29,41 @@ describe("sidepanel summary empty state", () => {
         autoSummarize: true,
         phase: "idle",
         hasSlides: false,
+        progress: null,
       }),
     ).toEqual({
       label: "加载中",
       message: "正在准备摘要",
       detail: "Example Video",
+      progressPercent: null,
+      progressActive: true,
+    });
+  });
+
+  it("shows concrete progress when a running status is available", () => {
+    expect(
+      buildSummaryEmptyState({
+        tabTitle: "Example Video",
+        tabUrl: "https://www.youtube.com/watch?v=abc",
+        autoSummarize: true,
+        phase: "streaming",
+        hasSlides: false,
+        progress: {
+          phase: "downloading",
+          label: "下载音频",
+          message: "正在下载音频",
+          detail: "第 1/3 段",
+          percent: 42,
+          stepIndex: 1,
+          stepTotal: 3,
+        },
+      }),
+    ).toEqual({
+      label: "下载音频",
+      message: "正在下载音频",
+      detail: "第 1/3 段 · Example Video",
+      progressPercent: 42,
+      progressActive: true,
     });
   });
 
@@ -42,11 +75,14 @@ describe("sidepanel summary empty state", () => {
         autoSummarize: false,
         phase: "idle",
         hasSlides: false,
+        progress: null,
       }),
     ).toEqual({
       label: "没有页面",
       message: "打开一个页面后即可摘要。",
       detail: null,
+      progressPercent: null,
+      progressActive: false,
     });
   });
 
@@ -58,6 +94,7 @@ describe("sidepanel summary empty state", () => {
         autoSummarize: false,
         phase: "idle",
         hasSlides: true,
+        progress: null,
       }),
     ).toBeNull();
   });

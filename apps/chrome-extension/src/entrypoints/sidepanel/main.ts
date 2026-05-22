@@ -3,7 +3,7 @@ import { extractYouTubeVideoId } from "@steipete/summarize-core/content/url";
 import MarkdownIt from "markdown-it";
 import { executeToolCall, getAutomationToolNames } from "../../automation/tools";
 import type { BgToPanel, PanelToBg } from "../../lib/panel-contracts";
-import type { SseSlidesData } from "../../lib/runtime-contracts";
+import type { SseProgressData, SseSlidesData } from "../../lib/runtime-contracts";
 import {
   defaultSettings,
   loadSettings,
@@ -54,6 +54,7 @@ import { createSlidesTextController } from "./slides-text-controller";
 import { createSlidesViewRuntime } from "./slides-view-runtime";
 import { createSummarizeControlRuntime } from "./summarize-control-runtime";
 import { createSummaryLanguageRuntime } from "./summary-language-runtime";
+import { buildSummaryProgressFromSse, buildSummaryProgressFromStatus } from "./summary-progress";
 import { createSummaryPromptRuntime } from "./summary-prompt-runtime";
 import { createSummaryStreamRuntime } from "./summary-stream-runtime";
 import { createSummaryViewRuntime } from "./summary-view-runtime";
@@ -179,6 +180,7 @@ const panelState: PanelState = {
   lastMeta: { inputSummary: null, model: null, modelLabel: null },
   summaryMarkdown: null,
   summaryFromCache: null,
+  summaryProgress: null,
   slides: null,
   phase: "idle",
   error: null,
@@ -347,6 +349,7 @@ function maybeStartPendingSlidesForUrl(url: string | null) {
 function attachSummaryRun(run: RunStart) {
   stopSlidesStream();
   setPhase("connecting");
+  setSummaryProgressFromStatus("Connecting…");
   lastAction = "summarize";
   window.clearTimeout(autoKickTimer);
   if (panelState.chatStreaming) {
@@ -602,12 +605,37 @@ const setPhase = (phase: PanelPhase, opts?: { error?: string | null }) => {
   }
   if (phase !== "connecting" && phase !== "streaming") {
     headerController.stopProgress();
+    setSummaryProgress(null);
   }
   if (phase !== "connecting" && phase !== "streaming" && panelState.slides) {
     rebuildSlideDescriptions();
     queueSlidesRender();
   }
 };
+
+function shouldRefreshSummaryProgressView() {
+  return !panelState.summaryMarkdown?.trim();
+}
+
+function setSummaryProgress(next: PanelState["summaryProgress"]) {
+  panelState.summaryProgress = next;
+  if (shouldRefreshSummaryProgressView()) {
+    renderMarkdownDisplay();
+  }
+}
+
+function setSummaryProgressFromStatus(text: string) {
+  setSummaryProgress(buildSummaryProgressFromStatus(text, panelState.phase));
+}
+
+function setSummaryProgressFromSse(progress: SseProgressData) {
+  setSummaryProgress(buildSummaryProgressFromSse(progress));
+}
+
+function setSummaryStatus(text: string) {
+  headerController.setStatus(text);
+  setSummaryProgressFromStatus(text);
+}
 
 chrome.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
   if (!raw || typeof raw !== "object") return;
@@ -1163,6 +1191,8 @@ const summaryStreamRuntime = createSummaryStreamRuntime({
     }
   },
   setSlidesBusy,
+  setSummaryProgressFromSse,
+  setSummaryProgressFromStatus,
   setPhase,
   shouldRebuildSlideDescriptions: () => !slidesTextController.hasSummaryTitles(),
   syncWithActiveTab,
@@ -1176,7 +1206,11 @@ const uiStateRuntime = createUiStateRuntime({
   typographyController,
   navigationRuntime,
   panelCacheController,
-  headerController,
+  headerController: {
+    setBaseTitle: (value) => headerController.setBaseTitle(value),
+    setBaseSubtitle: (value) => headerController.setBaseSubtitle(value),
+    setStatus: (value) => setSummaryStatus(value),
+  },
   clearInlineError: () => {
     errorController.clearInlineError();
   },
@@ -1287,7 +1321,7 @@ const bgMessageRuntime = createSidepanelBgMessageRuntime({
   panelState,
   applyUiState: updateControls,
   setStatus: (text) => {
-    headerController.setStatus(text);
+    setSummaryStatus(text);
   },
   isStreaming,
   setPhase,
