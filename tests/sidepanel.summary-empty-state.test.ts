@@ -40,6 +40,25 @@ describe("sidepanel summary empty state", () => {
     });
   });
 
+  it("does not mask error phase as loading when auto summarize is enabled", () => {
+    expect(
+      buildSummaryEmptyState({
+        tabTitle: "Example Video",
+        tabUrl: "https://www.youtube.com/watch?v=abc",
+        autoSummarize: true,
+        phase: "error",
+        hasSlides: false,
+        progress: null,
+      }),
+    ).toEqual({
+      label: "就绪",
+      message: "点击摘要开始。",
+      detail: "Example Video",
+      progressPercent: null,
+      progressActive: false,
+    });
+  });
+
   it("shows concrete progress when a running status is available", () => {
     expect(
       buildSummaryEmptyState({
