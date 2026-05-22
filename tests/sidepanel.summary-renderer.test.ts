@@ -90,6 +90,50 @@ describe("sidepanel summary renderer", () => {
     expect(hostEl.querySelector(".render__copy")).not.toBeNull();
   });
 
+  it("strips leaked final_answer tags before rendering and copying", async () => {
+    const hostEl = document.createElement("div");
+    const setStatus = vi.fn();
+    const writeText = vi.fn(async () => {});
+    let renderedMarkdown = "";
+    Object.assign(navigator, {
+      clipboard: {
+        writeText,
+      },
+    });
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: setStatus,
+      hostEl,
+      inputMode: "video",
+      markdown: "<final_answer> <final_answer>\n### Key moments\n- [0:10] Intro\n</final_answer>",
+      md: {
+        render: (value) => {
+          renderedMarkdown = value;
+          return `<p>${value}</p>`;
+        },
+      },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    expect(renderedMarkdown).toBe("### Key moments\n- [0:10](timestamp:10) Intro");
+    expect(hostEl.textContent).not.toContain("final_answer");
+
+    hostEl.querySelector<HTMLButtonElement>(".render__copy")?.click();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith("### Key moments\n- [0:10] Intro");
+  });
+
   it("renders mermaid code fences as diagram previews", async () => {
     const hostEl = document.createElement("div");
     document.body.append(hostEl);

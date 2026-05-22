@@ -1,3 +1,4 @@
+import { sanitizeSummaryMarkdown } from "../../lib/runtime-contracts";
 import { selectMarkdownForLayout } from "./slides-state";
 import { buildSummaryEmptyState } from "./summary-empty-state";
 import type { SummaryProgress } from "./summary-progress";
@@ -404,13 +405,15 @@ export function renderSummaryMarkdownDisplay({
   tabTitle: string | null;
   tabUrl: string | null;
 }) {
-  const displayMarkdown = selectMarkdownForLayout({
-    markdown,
-    slidesEnabled,
-    inputMode,
-    hasSlides,
-    slidesLayout,
-  });
+  const displayMarkdown = sanitizeSummaryMarkdown(
+    selectMarkdownForLayout({
+      markdown,
+      slidesEnabled,
+      inputMode,
+      hasSlides,
+      slidesLayout,
+    }),
+  );
   if (!displayMarkdown.trim()) {
     renderSummaryEmptyState({
       hostEl,

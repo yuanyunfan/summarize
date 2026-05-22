@@ -242,6 +242,7 @@ export function buildLinkSummaryPrompt({
     "Do not use emojis, disclaimers, or speculation.",
     "Write in direct, factual language.",
     "Format the answer in Markdown and obey the length-specific formatting above.",
+    "Return only the Markdown summary; never wrap the answer in XML or protocol tags such as <final_answer>.",
     listGuidanceLine,
     quoteGuidanceLine,
     "Base everything strictly on the provided content and never invent details.",

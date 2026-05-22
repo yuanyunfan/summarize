@@ -8,6 +8,7 @@ import { parseGatewayStyleModelId } from "../llm/model-id.js";
 import { mergeModelRequestOptions } from "../llm/model-options.js";
 import type { ModelRequestOptions } from "../llm/model-options.js";
 import type { Prompt } from "../llm/prompt.js";
+import { sanitizeSummaryMarkdown } from "../shared/summary-sanitizer.js";
 import { formatCompactCount } from "../tty/format.js";
 import { createRetryLogger, writeVerbose } from "./logging.js";
 import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
@@ -613,7 +614,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       }
     }
 
-    summary = summary.trim();
+    summary = sanitizeSummaryMarkdown(summary.trim());
     if (summary.length === 0) {
       const last = getLastStreamError?.();
       if (last instanceof Error) {
