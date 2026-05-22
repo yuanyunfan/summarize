@@ -19,6 +19,7 @@ import type { ExecFileFn } from "../../../markitdown.js";
 import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
 import { SUMMARY_LENGTH_TARGET_CHARACTERS, SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
+import { isClassificationOnlySummary } from "../../../shared/summary-sanitizer.js";
 import { type AssetAttachment, isUnsupportedAttachmentError } from "../../attachments.js";
 import {
   readLastSuccessfulCliProvider,
@@ -482,7 +483,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       const cachedSummary =
         cached && typeof cached.summary === "string" ? cached.summary.trim() : null;
       const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
-      if (cachedSummary) {
+      if (cachedSummary && !isClassificationOnlySummary(cachedSummary)) {
         const cachedAttempt = cachedModelId
           ? (attempts.find((attempt) => attempt.userModelId === cachedModelId) ?? null)
           : null;
@@ -525,7 +526,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
           languageKey,
         });
         const cached = cacheStore.getText("summary", key);
-        if (!cached) continue;
+        if (!cached || isClassificationOnlySummary(cached)) continue;
         writeVerbose(ctx.stderr, ctx.verbose, "cache hit summary", ctx.verboseColor, ctx.envForRun);
         args.onModelChosen?.(attempt.userModelId);
         summaryResult = {

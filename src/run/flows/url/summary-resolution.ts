@@ -12,6 +12,7 @@ import { resolveGitHubModelsApiKey } from "../../../llm/github-models.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
 import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
+import { isClassificationOnlySummary } from "../../../shared/summary-sanitizer.js";
 import {
   readLastSuccessfulCliProvider,
   writeLastSuccessfulCliProvider,
@@ -241,7 +242,7 @@ export async function resolveUrlSummaryExecution({
       const cachedSummary =
         cached && typeof cached.summary === "string" ? cached.summary.trim() : null;
       const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
-      if (cachedSummary) {
+      if (cachedSummary && !isClassificationOnlySummary(cachedSummary)) {
         const cachedAttempt = cachedModelId
           ? (attempts.find((attempt) => attempt.userModelId === cachedModelId) ?? null)
           : null;
@@ -284,7 +285,7 @@ export async function resolveUrlSummaryExecution({
           languageKey,
         });
         const cached = cacheStore.getText("summary", key);
-        if (!cached) continue;
+        if (!cached || isClassificationOnlySummary(cached)) continue;
         writeVerbose(
           io.stderr,
           flags.verbose,

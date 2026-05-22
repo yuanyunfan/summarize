@@ -8,7 +8,10 @@ import { parseGatewayStyleModelId } from "../llm/model-id.js";
 import { mergeModelRequestOptions } from "../llm/model-options.js";
 import type { ModelRequestOptions } from "../llm/model-options.js";
 import type { Prompt } from "../llm/prompt.js";
-import { sanitizeSummaryMarkdown } from "../shared/summary-sanitizer.js";
+import {
+  assertUsableSummaryMarkdown,
+  sanitizeSummaryMarkdown,
+} from "../shared/summary-sanitizer.js";
 import { formatCompactCount } from "../tty/format.js";
 import { createRetryLogger, writeVerbose } from "./logging.js";
 import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
@@ -90,6 +93,21 @@ export type SummaryEngineDeps = {
   };
   perfTrace?: PerfTrace | null;
 };
+
+function normalizeGeneratedSummary({
+  text,
+  emptyMessage,
+  sourceLabel,
+}: {
+  text: string;
+  emptyMessage: string;
+  sourceLabel: string;
+}): string {
+  const summary = sanitizeSummaryMarkdown(text.trim());
+  if (!summary) throw new Error(emptyMessage);
+  assertUsableSummaryMarkdown(summary, sourceLabel);
+  return summary;
+}
 
 export type SummaryStreamHandler = {
   onChunk: (args: {
@@ -256,8 +274,11 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         cwd: cli?.cwd,
         extraArgs: cli?.extraArgsByProvider?.[attempt.cliProvider],
       });
-      const summary = result.text.trim();
-      if (!summary) throw new Error("CLI returned an empty summary");
+      const summary = normalizeGeneratedSummary({
+        text: result.text,
+        emptyMessage: "CLI returned an empty summary",
+        sourceLabel: "CLI",
+      });
       if (result.usage || typeof result.costUsd === "number") {
         deps.llmCalls.push({
           provider: "cli",
@@ -377,8 +398,11 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         usage: result.usage,
         purpose: "summary",
       });
-      const summary = result.text.trim();
-      if (!summary) throw new Error("LLM returned an empty summary");
+      const summary = normalizeGeneratedSummary({
+        text: result.text,
+        emptyMessage: "LLM returned an empty summary",
+        sourceLabel: "LLM",
+      });
       const displayCanonical = attempt.userModelId.toLowerCase().startsWith("openrouter/")
         ? attempt.userModelId
         : parsedModelEffective.canonical;
@@ -622,6 +646,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       }
       throw new Error("LLM returned an empty summary");
     }
+    assertUsableSummaryMarkdown(summary, "LLM");
 
     if (!streamResult && streamHandler) {
       const cleaned = summary.trim();

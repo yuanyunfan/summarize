@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeSummaryMarkdown } from "../src/shared/summary-sanitizer.js";
+import {
+  assertUsableSummaryMarkdown,
+  isClassificationOnlySummary,
+  sanitizeSummaryMarkdown,
+} from "../src/shared/summary-sanitizer.js";
 
 describe("summary sanitizer", () => {
   it("removes final_answer protocol tags from markdown", () => {
@@ -17,5 +21,29 @@ describe("summary sanitizer", () => {
     const input = ["```xml", "<final_answer>", "body", "</final_answer>", "```"].join("\n");
 
     expect(sanitizeSummaryMarkdown(input)).toBe(input);
+  });
+
+  it("detects classification-only outputs", () => {
+    const input = [
+      "系统/架构设计：否",
+      "算法/研究论文：否",
+      "工程实践/经验总结：是",
+      "概念综述/行业分析：是",
+    ].join("\n");
+
+    expect(isClassificationOnlySummary(input)).toBe(true);
+    expect(() => assertUsableSummaryMarkdown(input)).toThrow(/classification labels/);
+  });
+
+  it("allows real summaries that mention classifications", () => {
+    const input = [
+      "### 文章类型",
+      "工程实践/经验总结：是",
+      "",
+      "这篇文章分析 GitHub 可用性和容量规划问题，重点解释服务可靠性下降的原因。",
+    ].join("\n");
+
+    expect(isClassificationOnlySummary(input)).toBe(false);
+    expect(() => assertUsableSummaryMarkdown(input)).not.toThrow();
   });
 });
