@@ -79,6 +79,17 @@ describe("sidepanel session policy", () => {
     ).toBe(false);
   });
 
+  it("accepts explicit summary runs for the active tab even while an older summary is sticky", () => {
+    expect(
+      shouldAcceptRunForCurrentPage({
+        runUrl: "https://www.youtube.com/watch?v=bravo456",
+        activeTabUrl: "https://www.youtube.com/watch?v=bravo456",
+        currentSourceUrl: "https://www.youtube.com/watch?v=alpha123",
+        preferActiveTab: true,
+      }),
+    ).toBe(true);
+  });
+
   it("does not reject a real run when the only known active url is the extension page", () => {
     expect(
       shouldAcceptRunForCurrentPage({

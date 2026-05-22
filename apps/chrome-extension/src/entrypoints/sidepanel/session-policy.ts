@@ -119,12 +119,19 @@ export function shouldAcceptRunForCurrentPage({
   runUrl,
   activeTabUrl,
   currentSourceUrl,
+  preferActiveTab = false,
 }: {
   runUrl: string;
   activeTabUrl: string | null;
   currentSourceUrl: string | null;
+  preferActiveTab?: boolean;
 }) {
-  const expectedUrl = currentSourceUrl ?? (isMatchablePanelUrl(activeTabUrl) ? activeTabUrl : null);
+  const expectedUrl =
+    preferActiveTab || !currentSourceUrl
+      ? isMatchablePanelUrl(activeTabUrl)
+        ? activeTabUrl
+        : null
+      : currentSourceUrl;
   if (!expectedUrl) return true;
   return panelUrlsMatch(runUrl, expectedUrl);
 }

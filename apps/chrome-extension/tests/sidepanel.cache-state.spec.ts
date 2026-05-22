@@ -28,7 +28,7 @@ import {
   waitForSlidesRuntimeHooks,
 } from "./helpers/panel-hooks";
 
-test("sidepanel restores cached state when switching YouTube tabs", async ({
+test("sidepanel keeps cached state sticky across tab switches until an explicit run", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -157,7 +157,10 @@ test("sidepanel restores cached state when switching YouTube tabs", async ({
       status: "",
     });
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
-    await expect(page.locator("#title")).toHaveText("Bravo Tab");
+    await expect(page.locator("#title")).toHaveText("Alpha Tab");
+    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
+    expect((await getPanelSlideDescriptions(page))[0]?.[1] ?? "").toContain("Alpha");
+
     await sendBgMessage(harness, {
       type: "run:start",
       run: {
@@ -168,6 +171,7 @@ test("sidepanel restores cached state when switching YouTube tabs", async ({
         reason: "manual",
       },
     });
+    await expect(page.locator("#title")).toHaveText("Bravo Tab");
     await expect(page.locator("#render")).toContainText("Summary B");
 
     const slidesPayloadB = {
@@ -197,11 +201,11 @@ test("sidepanel restores cached state when switching YouTube tabs", async ({
     expect(slidesB[0]?.[1] ?? "").toContain("Bravo");
 
     await sendBgMessage(harness, { type: "ui:state", state: tabAState });
-    await expect(page.locator("#title")).toHaveText("Alpha Tab");
-    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
-    const restoredSlides = await getPanelSlideDescriptions(page);
-    expect(restoredSlides[0]?.[1] ?? "").toContain("Alpha");
-    expect(restoredSlides.some((entry) => entry[1].includes("Bravo"))).toBe(false);
+    await expect(page.locator("#title")).toHaveText("Bravo Tab");
+    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary B");
+    const stickySlides = await getPanelSlideDescriptions(page);
+    expect(stickySlides[0]?.[1] ?? "").toContain("Bravo");
+    expect(stickySlides.some((entry) => entry[1].includes("Alpha"))).toBe(false);
 
     assertNoErrors(harness);
   } finally {
@@ -209,7 +213,7 @@ test("sidepanel restores cached state when switching YouTube tabs", async ({
   }
 });
 
-test("sidepanel clears cached slides when switching from a cached YouTube video to an uncached one", async ({
+test("sidepanel keeps cached slides sticky when switching from a cached YouTube video to an uncached one", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -296,12 +300,11 @@ test("sidepanel clears cached slides when switching from a cached YouTube video 
     expect((await getPanelSlideDescriptions(page))[0]?.[1] ?? "").toContain("Alpha");
 
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
-    await expect(page.locator("#title")).toHaveText("Bravo Tab");
-    const emptyState = page.locator('#render [data-empty-state="true"]');
-    await expect(emptyState).toContainText("点击摘要开始。");
-    await expect(emptyState).toContainText("Bravo Tab");
-    await expect(page.locator("#render")).not.toContainText("Summary A");
-    await expect.poll(async () => (await getPanelSlideDescriptions(page)).length).toBe(0);
+    await expect(page.locator("#title")).toHaveText("Alpha Tab");
+    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
+    const stickySlidesOnB = await getPanelSlideDescriptions(page);
+    expect(stickySlidesOnB).toHaveLength(2);
+    expect(stickySlidesOnB.every(([, text]) => text.includes("Alpha"))).toBe(true);
 
     await sendBgMessage(harness, { type: "ui:state", state: tabAState });
     await expect(page.locator("#title")).toHaveText("Alpha Tab");
@@ -432,7 +435,9 @@ test("sidepanel keeps cached slides isolated while a different YouTube video res
     await expect(page.locator("#render")).toContainText("Summary A");
 
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
-    await expect(page.locator("#title")).toHaveText("Bravo Tab");
+    await expect(page.locator("#title")).toHaveText("Alpha Tab");
+    await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
+
     await sendBgMessage(harness, {
       type: "run:start",
       run: {
@@ -443,6 +448,7 @@ test("sidepanel keeps cached slides isolated while a different YouTube video res
         reason: "manual",
       },
     });
+    await expect(page.locator("#title")).toHaveText("Bravo Tab");
     await expect(page.locator("#render")).toContainText("Summary B");
     await waitForApplySlidesHook(page);
     await applySlidesPayload(

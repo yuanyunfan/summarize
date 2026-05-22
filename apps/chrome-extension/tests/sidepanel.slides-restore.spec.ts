@@ -318,7 +318,7 @@ test("sidepanel replaces stale slides when rerunning the same video", async ({
   }
 });
 
-test("sidepanel starts pending slides after returning to a tab with seeded placeholders", async ({
+test("sidepanel keeps pending slides connected while the summary is sticky across tab switches", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -440,7 +440,7 @@ test("sidepanel starts pending slides after returning to a tab with seeded place
       .toBeGreaterThan(1);
 
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
-    await expect(page.locator("#title")).toHaveText("Bravo Tab");
+    await expect(page.locator("#title")).toHaveText("Alpha Video");
     const waitForSlidesEvents = page.waitForResponse(
       (response) =>
         response.url().includes("/v1/summarize/slides-a/slides/events") &&
@@ -453,9 +453,9 @@ test("sidepanel starts pending slides after returning to a tab with seeded place
       runId: "slides-a",
       url: targetUrl,
     });
+    await waitForSlidesEvents;
     await sendBgMessage(harness, { type: "ui:state", state: tabAState });
     await expect(page.locator("#title")).toHaveText("Alpha Video");
-    await waitForSlidesEvents;
 
     await expect.poll(async () => (await getPanelSlidesTimeline(page)).length).toBe(1);
     const slides = await getPanelSlideDescriptions(page);

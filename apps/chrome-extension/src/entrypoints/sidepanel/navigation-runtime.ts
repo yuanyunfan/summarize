@@ -23,13 +23,7 @@ type NavigationRuntimeOptions = {
 type AgentNavigation = { url: string; tabId: number | null; at: number };
 
 export function createNavigationRuntime(options: NavigationRuntimeOptions): NavigationRuntime {
-  const {
-    ttlMs = 20_000,
-    getCurrentSource,
-    setCurrentSource,
-    resetForNavigation,
-    setBaseTitle,
-  } = options;
+  const { ttlMs = 20_000, getCurrentSource, setCurrentSource, setBaseTitle } = options;
   let lastAgentNavigation: AgentNavigation | null = null;
   let pendingPreserveChatForUrl: { url: string; at: number } | null = null;
 
@@ -79,11 +73,6 @@ export function createNavigationRuntime(options: NavigationRuntimeOptions): Navi
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url || !canSyncTabUrl(tab.url)) return;
       if (!panelUrlsMatch(tab.url, currentSource.url)) {
-        const preserveChat = isRecentAgentNavigation(tab.id ?? null, tab.url);
-        if (preserveChat) notePreserveChatForUrl(tab.url);
-        setCurrentSource(null);
-        resetForNavigation(preserveChat);
-        setBaseTitle(tab.title || tab.url || "Summarize");
         return;
       }
       if (tab.title && tab.title !== currentSource.title) {

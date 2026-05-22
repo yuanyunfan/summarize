@@ -84,7 +84,7 @@ test("manifest excludes Meta sites from always-on content scripts", () => {
   }
 });
 
-test("sidepanel shows a ready state instead of going blank when switching tabs manually", async ({
+test("sidepanel keeps the current summary sticky when switching tabs manually", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -139,9 +139,9 @@ test("sidepanel shows a ready state instead of going blank when switching tabs m
       }),
     });
 
-    await expect(page.locator("#render")).toContainText("点击摘要开始。");
-    await expect(page.locator("#render")).toContainText("Bravo Tab");
-    await expect(page.locator("#render")).not.toContainText("Summary A");
+    await expect(page.locator("#render")).toContainText("Summary A");
+    await expect(page.locator("#title")).toHaveText("Alpha Tab");
+    await expect(page.locator("#render")).not.toContainText("Bravo Tab");
 
     assertNoErrors(harness);
   } finally {

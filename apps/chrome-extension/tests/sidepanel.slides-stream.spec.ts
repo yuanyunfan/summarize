@@ -25,7 +25,7 @@ test.skip(
   "Firefox extension tests are blocked by Playwright limitations. Set ALLOW_FIREFOX_EXTENSION_TESTS=1 to run.",
 );
 
-test("sidepanel reconnects cached slide runs after tab restore", async ({
+test("sidepanel keeps cached slide runs connected across tab switches", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -160,12 +160,12 @@ test("sidepanel reconnects cached slide runs after tab restore", async ({
     await expect.poll(async () => slidesEventsRequests).toBe(1);
 
     await sendBgMessage(harness, { type: "ui:state", state: tabBState });
-    await expect(page.locator("#title")).toHaveText("Other Tab");
-    await expect.poll(async () => (await getPanelSlideDescriptions(page)).length).toBe(0);
+    await expect(page.locator("#title")).toHaveText("Cached Video");
 
     await sendBgMessage(harness, { type: "ui:state", state: tabAState });
     await expect.poll(async () => await getPanelSummaryMarkdown(page)).toContain("Summary A");
-    await expect.poll(async () => slidesEventsRequests).toBe(2);
+    await expect.poll(async () => (await getPanelSlideDescriptions(page)).length).toBe(1);
+    expect(slidesEventsRequests).toBe(1);
 
     assertNoErrors(harness);
   } finally {

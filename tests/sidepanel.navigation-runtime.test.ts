@@ -11,7 +11,7 @@ describe("sidepanel navigation runtime", () => {
     });
   });
 
-  it("preserves chat when the active tab matches a recent agent navigation", async () => {
+  it("keeps the current summary sticky when the active tab differs", async () => {
     const resetForNavigation = vi.fn();
     const setBaseTitle = vi.fn();
     let currentSource = { url: "https://example.com/a", title: "A" };
@@ -32,9 +32,9 @@ describe("sidepanel navigation runtime", () => {
 
     await runtime.syncWithActiveTab();
 
-    expect(currentSource).toBeNull();
-    expect(resetForNavigation).toHaveBeenCalledWith(true);
-    expect(setBaseTitle).toHaveBeenCalledWith("B");
+    expect(currentSource).toEqual({ url: "https://example.com/a", title: "A" });
+    expect(resetForNavigation).not.toHaveBeenCalled();
+    expect(setBaseTitle).not.toHaveBeenCalled();
     expect(runtime.shouldPreserveChatForRun("https://example.com/b")).toBe(true);
   });
 
@@ -140,7 +140,7 @@ describe("sidepanel navigation runtime", () => {
     expect(setBaseTitle).not.toHaveBeenCalled();
   });
 
-  it("falls back to non-preserved reset when there is no recent navigation", async () => {
+  it("does not reset the summary when the active tab changes without agent navigation", async () => {
     const resetForNavigation = vi.fn();
     const setBaseTitle = vi.fn();
     let currentSource = { url: "https://example.com/a", title: "A" };
@@ -160,9 +160,9 @@ describe("sidepanel navigation runtime", () => {
 
     await runtime.syncWithActiveTab();
 
-    expect(currentSource).toBeNull();
-    expect(resetForNavigation).toHaveBeenCalledWith(false);
-    expect(setBaseTitle).toHaveBeenCalledWith("https://example.com/b");
+    expect(currentSource).toEqual({ url: "https://example.com/a", title: "A" });
+    expect(resetForNavigation).not.toHaveBeenCalled();
+    expect(setBaseTitle).not.toHaveBeenCalled();
   });
 
   it("swallows tab-query failures", async () => {

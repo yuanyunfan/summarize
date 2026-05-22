@@ -427,7 +427,14 @@ export async function summarizeActiveTab({
 
   send({
     type: "run:start",
-    run: { id, url: resolvedPayload.url, title: resolvedTitle, model: settings.model, reason },
+    run: {
+      id,
+      tabId: tab.id,
+      url: resolvedPayload.url,
+      title: resolvedTitle,
+      model: settings.model,
+      reason,
+    },
   });
 
   if (!wantsParallelSlides) return;

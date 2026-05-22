@@ -1,6 +1,7 @@
 import { shouldPreferUrlMode } from "@steipete/summarize-core/content/url";
 import type { PanelCachePayload } from "./panel-cache";
 import {
+  panelUrlsMatch,
   resolvePanelNavigationDecision,
   shouldIgnoreTransientPanelTabState,
   shouldInvalidateCurrentSource,
@@ -158,6 +159,7 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
 
     const activeTabId = opts.getActiveTabId();
     const activeTabUrl = opts.getActiveTabUrl();
+    const currentRunTabId = opts.getCurrentRunTabId();
     const currentSource = opts.panelState.currentSource;
     const inputModeOverride = opts.getInputModeOverride();
     const inputMode = opts.getInputMode();
@@ -199,6 +201,13 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
       preferUrlMode,
       inputModeOverride,
     });
+    const keepSummaryForTabSwitch =
+      navigation.kind === "tab" &&
+      Boolean(
+        opts.panelState.currentSource ||
+        opts.panelState.summaryMarkdown?.trim() ||
+        opts.panelState.runId,
+      );
     const nextMediaAvailable = hasMediaInfo
       ? mediaFromState || preferUrlMode
       : navigation.kind !== "none"
@@ -230,7 +239,7 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
       if (navigation.resetInputModeOverride) {
         opts.setInputModeOverride(null);
       }
-      if (!opts.maybeStartPendingSummaryRunForUrl(nextTabUrl)) {
+      if (!keepSummaryForTabSwitch && !opts.maybeStartPendingSummaryRunForUrl(nextTabUrl)) {
         applyCachedOrReset(opts, nextTabId, nextTabUrl, navigation.preserveChat);
       }
     } else if (navigation.kind === "url") {
@@ -286,8 +295,10 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
       (opts.getInputModeOverride() ?? opts.getInputMode()) === "video"
     ) {
       opts.maybeApplyPendingSlidesSummary();
-      opts.maybeStartPendingSummaryRunForUrl(nextTabUrl ?? null);
-      opts.maybeStartPendingSlidesForUrl(nextTabUrl ?? null);
+      if (!keepSummaryForTabSwitch) {
+        opts.maybeStartPendingSummaryRunForUrl(nextTabUrl ?? null);
+        opts.maybeStartPendingSlidesForUrl(nextTabUrl ?? null);
+      }
     }
     opts.applyChatEnabled();
     if (
@@ -321,7 +332,14 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
     opts.updateModelRowUI();
     opts.setModelRefreshDisabled(!state.settings.tokenPresent || opts.isRefreshFreeRunning());
     if (opts.panelState.currentSource) {
+      const currentSourceMatchesActiveTab = Boolean(
+        nextTabUrl && panelUrlsMatch(nextTabUrl, opts.panelState.currentSource.url),
+      );
+      const currentSourceBelongsToActiveTab =
+        currentRunTabId === null || nextTabId === null || currentRunTabId === nextTabId;
       if (
+        !keepSummaryForTabSwitch &&
+        currentSourceBelongsToActiveTab &&
         shouldInvalidateCurrentSource({
           stateTabUrl: nextTabUrl,
           currentSourceUrl: opts.panelState.currentSource.url,
@@ -337,7 +355,11 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
         opts.panelState.currentSource = null;
         opts.setCurrentRunTabId(null);
         opts.resetSummaryView({ preserveChat });
-      } else if (nextTabTitle && nextTabTitle !== opts.panelState.currentSource.title) {
+      } else if (
+        currentSourceMatchesActiveTab &&
+        nextTabTitle &&
+        nextTabTitle !== opts.panelState.currentSource.title
+      ) {
         opts.panelState.currentSource = {
           ...opts.panelState.currentSource,
           title: nextTabTitle,

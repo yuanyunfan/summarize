@@ -27,6 +27,7 @@ export type UiState = {
 
 export type RunStart = {
   id: string;
+  tabId?: number | null;
   url: string;
   title: string | null;
   model: string;

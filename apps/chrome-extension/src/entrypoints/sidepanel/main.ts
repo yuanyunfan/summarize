@@ -366,7 +366,11 @@ function attachSummaryRun(run: RunStart) {
   panelState.runId = run.id;
   panelState.slidesRunId = slidesState.slidesParallel ? null : run.id;
   panelState.currentSource = { url: run.url, title: run.title };
-  currentRunTabId = activeTabId;
+  if (typeof run.tabId === "number") {
+    activeTabId = run.tabId;
+    activeTabUrl = run.url;
+  }
+  currentRunTabId = typeof run.tabId === "number" ? run.tabId : activeTabId;
   headerController.setBaseTitle(run.title || run.url || "Summarize");
   headerController.setBaseSubtitle("");
   {
@@ -936,7 +940,11 @@ registerSidepanelTestHooks({
     panelState.runId = payload.run.id;
     panelState.slidesRunId = slidesState.slidesParallel ? null : payload.run.id;
     panelState.currentSource = { url: payload.run.url, title: payload.run.title };
-    currentRunTabId = activeTabId;
+    if (typeof payload.run.tabId === "number") {
+      activeTabId = payload.run.tabId;
+      activeTabUrl = payload.run.url;
+    }
+    currentRunTabId = typeof payload.run.tabId === "number" ? payload.run.tabId : activeTabId;
     headerController.setBaseTitle(payload.run.title || payload.run.url || "Summarize");
     headerController.setBaseSubtitle("");
     renderMarkdown(payload.markdown);
@@ -1385,7 +1393,7 @@ function scheduleAutoKick() {
   autoKickTimer = window.setTimeout(() => {
     if (!autoValue) return;
     if (panelState.phase !== "idle") return;
-    if (panelState.summaryMarkdown) return;
+    if (panelState.currentSource || panelState.runId || panelState.summaryMarkdown?.trim()) return;
     sendSummarize();
   }, 350);
 }

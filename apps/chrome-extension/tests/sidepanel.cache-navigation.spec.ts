@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   getSummarizeBodies,
-  getSummarizeCallTimes,
   getSummarizeCalls,
   mockDaemonSummarize,
 } from "./helpers/daemon-fixtures";
@@ -21,7 +20,7 @@ import {
   waitForPanelPort,
 } from "./helpers/extension-harness";
 
-test("sidepanel auto summarizes quickly when switching YouTube tabs", async ({
+test("sidepanel keeps the current summary sticky when switching YouTube tabs", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -55,15 +54,10 @@ test("sidepanel auto summarizes quickly when switching YouTube tabs", async ({
         "\n",
       );
     await harness.context.route("http://127.0.0.1:8787/v1/summarize/**/events", async (route) => {
-      const url = route.request().url();
-      const match = url.match(/summarize\/([^/]+)\/events/);
-      const runId = match ? (match[1] ?? "") : "";
-      const runIndex = Number.parseInt(runId.replace("run-", ""), 10);
-      const summaryText = runIndex % 2 === 1 ? "Video A summary" : "Video B summary";
       await route.fulfill({
         status: 200,
         headers: { "content-type": "text/event-stream" },
-        body: sseBody(summaryText),
+        body: sseBody("Video A summary"),
       });
     });
     const panel = await openExtensionPage(harness, "sidepanel.html", "#title");
@@ -73,49 +67,41 @@ test("sidepanel auto summarizes quickly when switching YouTube tabs", async ({
     await waitForActiveTabUrl(harness, videoA);
     await mockDaemonSummarize(harness);
 
-    const waitForSummarizeCall = async (sinceCount: number, startedAt: number) => {
+    const waitForSummarizeCall = async (sinceCount: number) => {
       await expect
         .poll(async () => await getSummarizeCalls(harness), { timeout: 5_000 })
         .toBeGreaterThan(sinceCount);
-      const callTimes = await getSummarizeCallTimes(harness);
-      const callTime = callTimes[sinceCount] ?? callTimes.at(-1) ?? Date.now();
-      expect(callTime - startedAt).toBeLessThan(4_000);
+    };
+    const getSummaryRequestCount = async () => {
+      const bodies = (await getSummarizeBodies(harness)) as Array<Record<string, unknown>>;
+      return bodies.filter((body) => body?.extractOnly !== true).length;
     };
 
     const callsBeforeReady = await getSummarizeCalls(harness);
-    const startA = Date.now();
     await sendPanelMessage(panel, { type: "panel:ready" });
-    await waitForSummarizeCall(callsBeforeReady, startA);
+    await waitForSummarizeCall(callsBeforeReady);
     await expect
       .poll(async () => {
         const bodies = (await getSummarizeBodies(harness)) as Array<Record<string, unknown>>;
-        return bodies.some((body) => body?.url === videoA);
+        return bodies.some((body) => body?.url === videoA && body?.extractOnly !== true);
       })
       .toBe(true);
+    await expect(panel.locator("#render")).toContainText("Video A summary");
 
-    const callsBeforeB = await getSummarizeCalls(harness);
-    const startB = Date.now();
+    const summaryRequestsBeforeB = await getSummaryRequestCount();
     await activateTabByUrl(harness, videoB);
     await waitForActiveTabUrl(harness, videoB);
-    await waitForSummarizeCall(callsBeforeB, startB);
-    await expect
-      .poll(async () => {
-        const bodies = (await getSummarizeBodies(harness)) as Array<Record<string, unknown>>;
-        return bodies.some((body) => body?.url === videoB);
-      })
-      .toBe(true);
+    await panel.waitForTimeout(1_000);
+    expect(await getSummaryRequestCount()).toBe(summaryRequestsBeforeB);
+    await expect(panel.locator("#render")).toContainText("Video A summary");
+    await expect(panel.locator("#render")).not.toContainText("Video B summary");
 
-    const callsBeforeReturn = await getSummarizeCalls(harness);
-    const startA2 = Date.now();
+    const summaryRequestsBeforeReturn = await getSummaryRequestCount();
     await activateTabByUrl(harness, videoA);
     await waitForActiveTabUrl(harness, videoA);
-
-    const callsAfterReturn = await getSummarizeCalls(harness);
-    if (callsAfterReturn > callsBeforeReturn) {
-      const callTimes = await getSummarizeCallTimes(harness);
-      const callTime = callTimes[callsAfterReturn - 1] ?? callTimes.at(-1) ?? Date.now();
-      expect(callTime - startA2).toBeLessThan(4_000);
-    }
+    await panel.waitForTimeout(1_000);
+    expect(await getSummaryRequestCount()).toBe(summaryRequestsBeforeReturn);
+    await expect(panel.locator("#render")).toContainText("Video A summary");
 
     assertNoErrors(harness);
   } finally {

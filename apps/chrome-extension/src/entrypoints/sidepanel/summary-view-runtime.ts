@@ -87,7 +87,9 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
     clearRunId?: boolean;
     stopSlides?: boolean;
   } = {}) {
-    opts.setCurrentRunTabId(null);
+    if (clearRunId) {
+      opts.setCurrentRunTabId(null);
+    }
     opts.renderEl.replaceChildren(opts.renderSlidesHostEl, opts.renderMarkdownHostEl);
     opts.renderMarkdownHostEl.innerHTML = "";
     opts.getSlidesRenderer().clear();

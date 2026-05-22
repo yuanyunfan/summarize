@@ -5,6 +5,15 @@ import {
   shouldAcceptSlidesForCurrentPage,
 } from "./session-policy";
 
+function isExplicitSummaryRun(reason: string): boolean {
+  return (
+    reason === "manual" ||
+    reason === "refresh" ||
+    reason === "length-change" ||
+    reason === "auto-enabled"
+  );
+}
+
 export function handleSidepanelBgMessage(options: {
   msg: BgToPanel;
   applyUiState: (state: UiState) => void;
@@ -198,6 +207,7 @@ export function createSidepanelBgMessageRuntime(options: {
               runUrl: run.url,
               activeTabUrl: options.getActiveTabUrl(),
               currentSourceUrl: options.panelState.currentSource?.url ?? null,
+              preferActiveTab: isExplicitSummaryRun(run.reason),
             })
           ) {
             options.rememberPendingSummaryRun(run);
