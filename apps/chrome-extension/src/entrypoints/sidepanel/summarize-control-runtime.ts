@@ -177,7 +177,7 @@ export function createSummarizeControlRuntime(options: SummarizeControlRuntimeOp
     slidesTextToggleVisible: options.slidesTextController.getTextToggleVisible(),
     onSlidesTextModeChange: handleSlidesTextModeChange,
     onChange: handleSummarizeControlChange,
-    onSummarize: () => options.sendSummarize(),
+    onSummarize: () => options.sendSummarize({ refresh: true }),
   });
 
   function refreshSummarizeControl() {
@@ -194,7 +194,7 @@ export function createSummarizeControlRuntime(options: SummarizeControlRuntimeOp
       slidesTextToggleVisible: options.slidesTextController.getTextToggleVisible(),
       onSlidesTextModeChange: handleSlidesTextModeChange,
       onChange: handleSummarizeControlChange,
-      onSummarize: () => options.sendSummarize(),
+      onSummarize: () => options.sendSummarize({ refresh: true }),
     });
   }
 

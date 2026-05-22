@@ -228,6 +228,14 @@ describe("sidepanel summarize control runtime", () => {
     expect(calls.startSlidesStreamForRunId).not.toHaveBeenCalled();
   });
 
+  it("bypasses summary cache when the summarize button is clicked", () => {
+    const { calls } = buildRuntime();
+
+    currentProps?.onSummarize();
+
+    expect(calls.sendSummarize).toHaveBeenCalledWith({ refresh: true });
+  });
+
   it("switches slide text mode through fallback rendering when summary markdown exists", () => {
     const { calls, slidesTextController } = buildRuntime({
       state: { hasSummaryMarkdown: true },
