@@ -306,21 +306,25 @@ button.setup__pill.isActive {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 86%, white);
+  background: #ffffff;
   overflow: hidden;
 }
 
 .renderMermaid__viewport {
   width: 100%;
+  max-height: min(680px, 72vh);
   overflow-x: auto;
+  overflow-y: auto;
+  color: #111827;
 }
 
 .renderMermaid__viewport svg {
   display: block;
+  width: auto;
   max-width: 100%;
   height: auto;
-  min-width: min(100%, 360px);
   margin: 0 auto;
+  background: #ffffff;
 }
 
 .renderMermaid__fallback {

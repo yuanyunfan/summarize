@@ -37,7 +37,27 @@ function loadMermaid(): Promise<MermaidRuntime> {
       ],
       maxTextSize: MERMAID_MAX_CHARS,
       suppressErrorRendering: true,
-      theme: "neutral",
+      theme: "base",
+      themeVariables: {
+        background: "#ffffff",
+        primaryColor: "#eef2ff",
+        primaryBorderColor: "#4f46e5",
+        primaryTextColor: "#111827",
+        secondaryColor: "#ecfeff",
+        secondaryBorderColor: "#0891b2",
+        secondaryTextColor: "#111827",
+        tertiaryColor: "#f8fafc",
+        tertiaryBorderColor: "#64748b",
+        tertiaryTextColor: "#111827",
+        lineColor: "#475569",
+        textColor: "#111827",
+        mainBkg: "#f8fafc",
+        nodeBorder: "#64748b",
+        clusterBkg: "#f8fafc",
+        clusterBorder: "#94a3b8",
+        titleColor: "#111827",
+        edgeLabelBackground: "#ffffff",
+      },
       htmlLabels: false,
       flowchart: {
         htmlLabels: false,
@@ -50,15 +70,21 @@ function loadMermaid(): Promise<MermaidRuntime> {
 }
 
 function isMermaidCodeBlock(code: Element): boolean {
-  return (
-    code.classList.contains("language-mermaid") ||
-    code.classList.contains("lang-mermaid") ||
-    code.getAttribute("data-language")?.toLowerCase() === "mermaid"
-  );
+  const dataLanguage = code.getAttribute("data-language")?.trim().toLowerCase();
+  if (dataLanguage === "mermaid") return true;
+
+  for (const className of Array.from(code.classList)) {
+    const normalized = className.toLowerCase().replace(/[{}]/g, "");
+    if (normalized === "mermaid") return true;
+    if (normalized === "language-mermaid" || normalized === "lang-mermaid") return true;
+  }
+  return false;
 }
 
 function sanitizeMermaidSvg(container: HTMLElement) {
-  container.querySelectorAll("script, foreignObject").forEach((node) => node.remove());
+  container.querySelectorAll("script, iframe, object, embed, link, meta").forEach((node) => {
+    node.remove();
+  });
   for (const element of Array.from(container.querySelectorAll("*"))) {
     for (const attr of Array.from(element.attributes)) {
       const name = attr.name.toLowerCase();
@@ -67,7 +93,12 @@ function sanitizeMermaidSvg(container: HTMLElement) {
         element.removeAttribute(attr.name);
         continue;
       }
-      if ((name === "href" || name === "xlink:href") && value.startsWith("javascript:")) {
+      if (
+        (name === "href" || name === "xlink:href" || name === "src") &&
+        (value.startsWith("javascript:") ||
+          value.startsWith("vbscript:") ||
+          value.startsWith("data:text/html"))
+      ) {
         element.removeAttribute(attr.name);
       }
     }

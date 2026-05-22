@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { mockDaemonSummarize } from "./helpers/daemon-fixtures";
 import {
   assertNoErrors,
@@ -26,6 +26,53 @@ test.skip(
   ({ browserName }) => browserName === "firefox" && !allowFirefoxExtensionTests,
   "Firefox extension tests are blocked by Playwright limitations. Set ALLOW_FIREFOX_EXTENSION_TESTS=1 to run.",
 );
+
+async function hasVisibleMermaidPixels(page: Page): Promise<boolean> {
+  return await page.evaluate(async () => {
+    const svg = document.querySelector("#render .renderMermaid svg") as SVGSVGElement | null;
+    if (!svg) return false;
+
+    const rect = svg.getBoundingClientRect();
+    const width = Math.max(1, Math.min(800, Math.ceil(rect.width)));
+    const height = Math.max(1, Math.min(800, Math.ceil(rect.height)));
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("width", String(width));
+    clone.setAttribute("height", String(height));
+
+    const markup = new XMLSerializer().serializeToString(clone);
+    const image = new Image();
+    const loaded = new Promise<boolean>((resolve) => {
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+    });
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
+    if (!(await loaded)) return false;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const data = ctx.getImageData(0, 0, width, height).data;
+    let nonWhitePixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const alpha = data[i + 3] ?? 0;
+      if (alpha === 0) continue;
+      const red = data[i] ?? 255;
+      const green = data[i + 1] ?? 255;
+      const blue = data[i + 2] ?? 255;
+      if (Math.abs(red - 255) > 12 || Math.abs(green - 255) > 12 || Math.abs(blue - 255) > 12) {
+        nonWhitePixels += 1;
+      }
+      if (nonWhitePixels > 64) return true;
+    }
+    return false;
+  });
+}
 
 test("sidepanel loads without runtime errors", async ({ browserName: _browserName }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -445,16 +492,17 @@ test("sidepanel renders mermaid summary code fences as diagrams", async ({
         }
       ).__summarizeTestHooks;
       hooks?.applySummaryMarkdown?.(
-        ["```mermaid", "flowchart TD", "A[Start] --> B[Preview]", "```"].join("\n"),
+        ["```Mermaid", "flowchart TD", "A[Start] --> B[Preview]", "```"].join("\n"),
       );
     });
 
     const diagram = page.locator("#render .renderMermaid svg");
     await expect(diagram).toBeVisible();
-    await expect(page.locator("#render pre > code.language-mermaid")).toHaveCount(0);
+    await expect(page.locator("#render pre > code")).toHaveCount(0);
     const box = await diagram.boundingBox();
     expect((box?.width ?? 0) > 0).toBe(true);
     expect((box?.height ?? 0) > 0).toBe(true);
+    await expect.poll(() => hasVisibleMermaidPixels(page)).toBe(true);
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);

@@ -98,9 +98,9 @@ describe("sidepanel summary renderer", () => {
       headerSetStatus: vi.fn(),
       hostEl,
       inputMode: "video",
-      markdown: "```mermaid\nflowchart TD\nA --> B\n```",
+      markdown: "```Mermaid\nflowchart TD\nA --> B\n```",
       md: {
-        render: () => '<pre><code class="language-mermaid">flowchart TD\nA --&gt; B</code></pre>',
+        render: () => '<pre><code class="language-Mermaid">flowchart TD\nA --&gt; B</code></pre>',
       },
       phase: "done",
       renderInlineSlides: vi.fn(),
@@ -124,7 +124,7 @@ describe("sidepanel summary renderer", () => {
       expect.stringMatching(/^summary-mermaid-/),
       "flowchart TD\nA --> B",
     );
-    expect(hostEl.querySelector("pre > code.language-mermaid")).toBeNull();
+    expect(hostEl.querySelector("pre > code")).toBeNull();
   });
 
   it("leaves mermaid source visible when diagram rendering fails", async () => {
@@ -168,7 +168,7 @@ describe("sidepanel summary renderer", () => {
         '<svg role="img" onclick="alert(1)">',
         "<script>alert(1)</script>",
         '<a href="javascript:alert(1)"><text>Unsafe</text></a>',
-        "<foreignObject>html</foreignObject>",
+        '<foreignObject><div onclick="alert(1)">html</div></foreignObject>',
         "</svg>",
       ].join(""),
     });
@@ -199,9 +199,10 @@ describe("sidepanel summary renderer", () => {
     });
 
     expect(hostEl.querySelector("script")).toBeNull();
-    expect(hostEl.querySelector("foreignObject")).toBeNull();
+    expect(hostEl.querySelector("foreignObject")).not.toBeNull();
     expect(hostEl.querySelector("svg")?.getAttribute("onclick")).toBeNull();
     expect(hostEl.querySelector("a")?.getAttribute("href")).toBeNull();
+    expect(hostEl.querySelector("foreignObject div")?.getAttribute("onclick")).toBeNull();
   });
 
   it("copies rendered markdown text to the clipboard", async () => {
