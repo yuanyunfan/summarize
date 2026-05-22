@@ -26,6 +26,9 @@ describe("prompt overrides", () => {
 
     expect(prompt).toContain("<instructions>");
     expect(prompt).toContain("Custom instruction.");
+    expect(prompt).toContain("Markdown output contract");
+    expect(prompt).toContain("return valid GitHub-Flavored Markdown");
+    expect(prompt).toContain("```mermaid");
     expect(prompt).toContain("Output is 120 characters.");
     expect(prompt).toContain("Output should be English.");
     expect(prompt).toContain("<context>");
@@ -96,8 +99,35 @@ describe("prompt overrides", () => {
     });
 
     expect(prompt).toContain("Custom prompt only.");
+    expect(prompt).toContain("Markdown output contract");
     expect(prompt).not.toContain("Output is");
     expect(prompt).not.toContain("Output should be");
+  });
+
+  it("adds structured Markdown requirements to custom link prompts", () => {
+    const prompt = buildLinkSummaryPrompt({
+      url: "https://example.com/structured",
+      title: "Structured",
+      siteName: "Example",
+      description: null,
+      content: "Body",
+      truncated: false,
+      hasTranscript: false,
+      outputLanguage: parseOutputLanguage("en"),
+      summaryLength: "xl",
+      shares: [],
+      promptOverride: "Explain the architecture.",
+      lengthInstruction: null,
+      languageInstruction: null,
+    });
+
+    expect(prompt).toContain("Explain the architecture.");
+    expect(prompt).toContain("Markdown output contract");
+    expect(prompt).toContain('start with a "## " heading');
+    expect(prompt).toContain('add "### " subsections');
+    expect(prompt).toContain("avoid wall-of-text paragraphs");
+    expect(prompt).toContain("```mermaid");
+    expect(prompt).not.toContain("You summarize online articles");
   });
 
   it("keeps file metadata in context with custom instructions", () => {

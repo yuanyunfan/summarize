@@ -9,8 +9,6 @@ import {
   SUMMARY_LENGTH_TO_TOKENS,
 } from "./summary-lengths.js";
 
-const HEADING_LENGTH_CHAR_THRESHOLD = 6000;
-
 export { SUMMARY_LENGTH_TO_TOKENS };
 
 export type SummaryLengthTarget = SummaryLength | { maxCharacters: number };
@@ -29,6 +27,27 @@ export function estimateMaxCompletionTokensForCharacters(maxCharacters: number):
 }
 
 const formatCount = (value: number): string => value.toLocaleString();
+
+function formatMarkdownStructureContract({
+  needsHeadings,
+  hasSlides,
+}: {
+  needsHeadings: boolean;
+  hasSlides: boolean;
+}): string {
+  const lines = [
+    "Markdown output contract: return valid GitHub-Flavored Markdown.",
+    hasSlides
+      ? "Follow the slide format for Markdown headings; do not add extra sections beyond the required slide blocks."
+      : needsHeadings
+        ? 'For medium and longer summaries, organize the answer with Markdown section headings: start with a "## " heading, use multiple "## " sections, and add "### " subsections when a section has nested details.'
+        : "For short summaries, keep the response Markdown-compatible even if it is plain text.",
+    "Use bullet lists for grouped facts, steps, tradeoffs, or evidence; avoid wall-of-text paragraphs.",
+    "Never simulate headings with bold text; use # heading syntax.",
+    "If including Mermaid diagrams, put the diagram source in a fenced code block that starts with ```mermaid and never inline raw Mermaid syntax in prose.",
+  ];
+  return lines.join("\n");
+}
 
 export type ShareContextEntry = {
   author: string;
@@ -122,16 +141,16 @@ export function buildLinkSummaryPrompt({
       : directive.formatting;
   const presetLengthLine =
     typeof effectiveSummaryLength === "string" ? formatPresetLengthGuidance(preset) : "";
-  const needsHeadings =
-    preset === "xl" ||
-    preset === "xxl" ||
-    (typeof effectiveSummaryLength !== "string" &&
-      effectiveSummaryLength.maxCharacters >= HEADING_LENGTH_CHAR_THRESHOLD);
+  const needsHeadings = preset !== "short";
+  const markdownStructureContract = formatMarkdownStructureContract({
+    needsHeadings,
+    hasSlides: Boolean(slides && slides.count > 0),
+  });
   const headingInstruction =
     slides && slides.count > 0
       ? "Do not create a dedicated Slides section or list."
       : needsHeadings
-        ? 'Use Markdown headings with the "### " prefix to break sections. Include at least 3 headings and start with a heading. Do not use bold for headings.'
+        ? 'Use Markdown section headings to break the summary. Start with a "## " heading. Use additional "## " headings for main sections and "### " headings for nested details when useful. Include at least 2 headings for medium summaries and at least 3 headings for long-form summaries. Do not use bold for headings.'
         : "";
   const maxCharactersLine =
     typeof effectiveSummaryLength === "string"
@@ -202,16 +221,17 @@ export function buildLinkSummaryPrompt({
           `Required markers (use each exactly once, in order): ${slideMarkers}`,
         ].join("\n")
       : "";
-  const listGuidanceLine =
-    "Use short paragraphs; use bullet lists only when they improve scanability; avoid rigid templates.";
+  const listGuidanceLine = needsHeadings
+    ? "Use concise bullet lists for grouped facts, steps, tradeoffs, and evidence; keep paragraphs to 1-3 sentences and avoid wall-of-text output."
+    : "Use short paragraphs; use bullet lists when they improve scanability; avoid wall-of-text output.";
   const quoteGuidanceLine =
     "Include 1-2 short exact excerpts (max 25 words each) formatted as Markdown italics using single asterisks when there is a strong, non-sponsor line. Use straight quotation marks (no curly) as needed. If no suitable line exists, omit excerpts. Never include ad/sponsor/boilerplate excerpts and do not mention them.";
   const sponsorInstruction =
     hasTranscript || (slides && slides.count > 0)
       ? 'Omit sponsor messages, ads, promos, and calls-to-action (including podcast ad reads), even if they appear in the transcript or slide timeline. Do not mention or acknowledge them, and do not say you skipped or ignored anything. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code. Treat them as if they do not exist. If a slide segment contains only excluded content, keep its marker and add exactly "## Interlude" with no body.'
       : "";
-  const requiredOverrideInstructions =
-    promptOverride && slides && slides.count > 0
+  const slideRequiredOverrideInstructions =
+    slides && slides.count > 0
       ? [
           sponsorInstruction,
           formattingLine,
@@ -225,6 +245,12 @@ export function buildLinkSummaryPrompt({
           'Final check for slides: every [slide:N] must be immediately followed by a line that starts with "## ". Remove any "Title:" or "Slide" label lines.',
         ].filter((line) => typeof line === "string" && line.trim().length > 0)
       : [];
+  const requiredOverrideInstructions = promptOverride
+    ? [
+        markdownStructureContract,
+        ...(slides && slides.count > 0 ? slideRequiredOverrideInstructions : [headingInstruction]),
+      ].filter((line) => typeof line === "string" && line.trim().length > 0)
+    : [];
 
   const baseInstructions = [
     "Hard rules: never mention sponsor/ads; use straight quotation marks only (no curly quotes).",
@@ -233,6 +259,7 @@ export function buildLinkSummaryPrompt({
     sponsorInstruction,
     directive.guidance,
     formattingLine,
+    markdownStructureContract,
     headingInstruction,
     presetLengthLine,
     maxCharactersLine,

@@ -24,7 +24,7 @@ export const SUMMARY_LENGTH_SPECS: Record<SummaryLength, SummaryLengthSpec> = {
     guidance:
       "Write a clear summary that covers the core claim plus the most important supporting evidence or data points.",
     formatting:
-      "Use 1-3 short paragraphs (2 is typical, but a single paragraph is okay if the content is simple). Aim for 2-3 sentences per paragraph.",
+      'Use structured Markdown: start with a "## " heading, then use 2-4 concise bullets or short paragraphs under 1-2 sections. Avoid a single wall-of-text paragraph.',
     targetCharacters: 1800,
     minCharacters: 1200,
     maxCharacters: 2500,
@@ -34,7 +34,7 @@ export const SUMMARY_LENGTH_SPECS: Record<SummaryLength, SummaryLengthSpec> = {
     guidance:
       "Write a detailed summary that prioritizes the most important points first, followed by key supporting facts or events, then secondary details or conclusions stated in the source.",
     formatting:
-      "Paragraphs are optional; use up to 3 short paragraphs. Aim for 2-4 sentences per paragraph when you split into paragraphs.",
+      'Use structured Markdown with multiple "## " sections and concise bullet lists for grouped evidence, steps, or tradeoffs. Use "### " subsections when useful; keep paragraphs to 1-3 sentences.',
     targetCharacters: 4200,
     minCharacters: 2500,
     maxCharacters: 6000,
@@ -43,7 +43,8 @@ export const SUMMARY_LENGTH_SPECS: Record<SummaryLength, SummaryLengthSpec> = {
   xl: {
     guidance:
       "Write a detailed summary that captures the main points, supporting facts, and concrete numbers or quotes when present.",
-    formatting: "Use 2-5 short paragraphs. Aim for 2-4 sentences per paragraph.",
+    formatting:
+      'Use multiple "## " Markdown sections and "### " subsections when useful. Prefer bullets for grouped evidence, steps, comparisons, and examples; keep paragraphs to 1-3 sentences.',
     targetCharacters: 9000,
     minCharacters: 6000,
     maxCharacters: 14000,
@@ -52,7 +53,8 @@ export const SUMMARY_LENGTH_SPECS: Record<SummaryLength, SummaryLengthSpec> = {
   xxl: {
     guidance:
       "Write a comprehensive summary that covers background, main points, evidence, and stated outcomes in the source text; avoid adding implications or recommendations unless explicitly stated.",
-    formatting: "Use 3-7 short paragraphs. Aim for 2-4 sentences per paragraph.",
+    formatting:
+      'Use multiple "## " Markdown sections and "### " subsections for nested topics. Prefer bullets for grouped evidence, steps, comparisons, and examples; keep paragraphs to 1-3 sentences.',
     targetCharacters: 17000,
     minCharacters: 14000,
     maxCharacters: 22000,
