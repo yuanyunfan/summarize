@@ -408,9 +408,6 @@ export default defineBackground(() => {
     emitState: (session, status) => {
       void emitState(session, status);
     },
-    summarizeActiveTab: (session, reason) => {
-      void summarizeActiveTab(session, reason);
-    },
     onTabRemoved: (tabId) => {
       hoverController.abortHoverForTab(tabId);
       nativeInputArmedTabs.delete(tabId);

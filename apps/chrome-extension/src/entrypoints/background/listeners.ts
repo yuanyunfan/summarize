@@ -22,7 +22,6 @@ export function bindBackgroundListeners<Session extends SessionWithNavAt>(option
   runtimeActionsHandler: RuntimeMessageHandler;
   hoverRuntimeHandler: RuntimeMessageHandler;
   emitState: (session: Session, status: string) => void;
-  summarizeActiveTab: (session: Session, reason: string) => void;
   onTabRemoved: (tabId: number) => void;
 }) {
   const {
@@ -32,7 +31,6 @@ export function bindBackgroundListeners<Session extends SessionWithNavAt>(option
     runtimeActionsHandler,
     hoverRuntimeHandler,
     emitState,
-    summarizeActiveTab,
     onTabRemoved,
   } = options;
 
@@ -79,7 +77,6 @@ export function bindBackgroundListeners<Session extends SessionWithNavAt>(option
       if (now - session.lastNavAt < 700) return;
       session.lastNavAt = now;
       void emitState(session, "");
-      void summarizeActiveTab(session, "spa-nav");
     })();
   });
 
@@ -87,7 +84,6 @@ export function bindBackgroundListeners<Session extends SessionWithNavAt>(option
     const session = panelSessionStore.getPanelSession(info.windowId);
     if (!session) return;
     void emitState(session, "");
-    void summarizeActiveTab(session, "tab-activated");
   });
 
   chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
@@ -95,15 +91,12 @@ export function bindBackgroundListeners<Session extends SessionWithNavAt>(option
     if (typeof windowId !== "number") return;
     const session = panelSessionStore.getPanelSession(windowId);
     if (!session) return;
-    if (typeof changeInfo.title === "string" || typeof changeInfo.url === "string") {
+    if (
+      typeof changeInfo.title === "string" ||
+      typeof changeInfo.url === "string" ||
+      changeInfo.status === "complete"
+    ) {
       void emitState(session, "");
-    }
-    if (typeof changeInfo.url === "string") {
-      void summarizeActiveTab(session, "tab-url-change");
-    }
-    if (changeInfo.status === "complete") {
-      void emitState(session, "");
-      void summarizeActiveTab(session, "tab-updated");
     }
   });
 
