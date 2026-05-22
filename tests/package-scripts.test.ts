@@ -31,6 +31,16 @@ describe("package scripts", () => {
     expect(rootPackage.scripts.check).toContain("pnpm test:coverage");
   });
 
+  it("keeps extension browser gates reachable from the root package", () => {
+    expect(rootPackage.scripts["check:extension"]).toBe("pnpm check && pnpm test:extension-e2e");
+    expect(rootPackage.scripts["check:extension:real"]).toBe(
+      "pnpm check:extension && pnpm extension:real-smoke -- --strict",
+    );
+    expect(rootPackage.scripts["extension:real-smoke"]).toBe(
+      "node scripts/extension-real-smoke.mjs",
+    );
+  });
+
   it("keeps the lint script type-aware", () => {
     expect(rootPackage.scripts.lint).toBe(
       "oxlint --type-aware --tsconfig tsconfig.build.json --config .oxlintrc.json .",

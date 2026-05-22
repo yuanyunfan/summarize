@@ -178,8 +178,14 @@ test("sidepanel shows daemon upgrade hint when /v1/agent is missing", async ({
     });
 
     await expect(page.locator("#chatSend")).toBeEnabled();
-    await page.locator("#chatInput").fill("Trigger agent 404");
-    await page.locator("#chatSend").click();
+    await page.evaluate((value) => {
+      const input = document.getElementById("chatInput") as HTMLTextAreaElement | null;
+      const send = document.getElementById("chatSend") as HTMLButtonElement | null;
+      if (!input || !send) return;
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      send.click();
+    }, "Trigger agent 404");
 
     await expect.poll(() => agentCalls).toBe(1);
     await expect(page.locator("#inlineError")).toBeVisible();

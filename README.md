@@ -78,6 +78,9 @@ More:
    - Chrome: `pnpm -C apps/chrome-extension build`
      - `chrome://extensions` → Developer mode → Load unpacked
      - Pick: `apps/chrome-extension/.output/chrome-mv3`
+   - Edge: `pnpm -C apps/chrome-extension build`
+     - `edge://extensions` → Developer mode → Load unpacked
+     - Pick: `apps/chrome-extension/.output/chrome-mv3`
    - Firefox: `pnpm -C apps/chrome-extension build:firefox`
      - `about:debugging#/runtime/this-firefox` → Load Temporary Add-on
      - Pick: `apps/chrome-extension/.output/firefox-mv3/manifest.json`

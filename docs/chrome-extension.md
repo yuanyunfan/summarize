@@ -6,9 +6,9 @@ read_when:
   - "When working on the extension, daemon, or side panel UX."
 ---
 
-# Browser Side Panel (Chrome + Firefox Extension + Daemon)
+# Browser Side Panel (Chrome/Edge + Firefox Extension + Daemon)
 
-Goal: Chrome **Side Panel** (“real sidebar”) summarizes **what you see** on the current tab. Panel open → navigation → auto summarize (optional) → **streaming** Markdown rendered in-panel.
+Goal: Chrome/Edge **Side Panel** (“real sidebar”) summarizes **what you see** on the current tab. Panel open → navigation → auto summarize (optional) → **streaming** Markdown rendered in-panel.
 
 Quickstart:
 
@@ -32,10 +32,15 @@ Firefox notes:
 Dev (repo checkout):
 
 - Use: `pnpm summarize daemon install --token <TOKEN> --dev` (autostart service runs `src/cli.ts` via `tsx`, no `dist/` build required).
-- E2E (Playwright): `pnpm -C apps/chrome-extension test:e2e`
+- CI E2E (Playwright bundled Chromium): `pnpm -C apps/chrome-extension test:e2e`
   - First run: `pnpm -C apps/chrome-extension exec playwright install chromium`
   - Chromium runs headless by default.
   - Visible debugging: `SHOW_UI=1 pnpm -C apps/chrome-extension test:e2e` or `HEADLESS=0 pnpm -C apps/chrome-extension test:e2e`
+- Extension change gates:
+  - CI-equivalent local gate: `pnpm check:extension`
+  - Real Chrome/Edge profile smoke: `pnpm extension:real-smoke`
+  - Strict real-browser gate: `pnpm check:extension:real`
+- Chrome/Edge stable-channel note: Playwright can side-load extensions reliably only in its bundled Chromium path. For real Chrome/Edge, use the smoke script plus manual reload in `chrome://extensions` and `edge://extensions`.
 
 ## Troubleshooting
 

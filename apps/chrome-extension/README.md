@@ -5,6 +5,7 @@ Browser extension for Chrome and Firefox that streams AI-powered summaries direc
 **Supported browsers**:
 
 - Chrome (Side Panel) - Auto-opens on toolbar icon click
+- Microsoft Edge (Side Panel) - Load the Chrome MV3 build from `edge://extensions`
 - Firefox 131+ (Sidebar) - Toggle with toolbar icon or `Ctrl+Shift+U`
 
 Docs + setup: `https://summarize.sh`
@@ -33,6 +34,29 @@ Step-by-step:
 7. (Optional) Pin the extension (puzzle icon → pin), then click it to open the Side Panel.
 
 Developer mode is required for loading unpacked extensions.
+
+## Install in Edge (Unpacked)
+
+Step-by-step:
+
+1. Build the extension:
+   - `pnpm -C apps/chrome-extension build`
+2. Open Edge → go to `edge://extensions`
+3. Turn on **Developer mode**.
+4. Click **Load unpacked**.
+5. Select the folder: `apps/chrome-extension/.output/chrome-mv3`
+6. You should now see “Summarize” in the extensions list.
+
+Edge uses the same `chrome-mv3` build as Chrome.
+
+## Browser E2E Gates
+
+- CI Chromium: `pnpm -C apps/chrome-extension test:e2e`
+- Extension gate: `pnpm check:extension`
+- Real Chrome/Edge profile smoke: `pnpm extension:real-smoke`
+- Strict real-browser gate: `pnpm check:extension:real`
+
+Playwright extension automation uses bundled Chromium. For real Chrome/Edge, reload the unpacked extension in `chrome://extensions` and `edge://extensions`, then run the smoke script to check the daemon and profile path.
 
 ## Install in Firefox (Temporary Add-on)
 
