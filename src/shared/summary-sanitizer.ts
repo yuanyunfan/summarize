@@ -1,4 +1,5 @@
-const FINAL_ANSWER_TAG_PATTERN = /<\/?\s*final[_-]?answer\s*>/gi;
+const FINAL_ANSWER_TAG_PATTERN =
+  /(?:<\s*\/?\s*final[_-]?answer\s*>|<\/?\s*final[_-]?answer\s*>?|final[_-]?answer\s*>)/gi;
 const CLASSIFICATION_LABELS = [
   "系统/架构设计",
   "算法/研究论文",

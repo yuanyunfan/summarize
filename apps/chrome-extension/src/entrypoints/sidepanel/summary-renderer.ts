@@ -1,4 +1,4 @@
-import { sanitizeSummaryMarkdown } from "../../lib/runtime-contracts";
+import { isClassificationOnlySummary, sanitizeSummaryMarkdown } from "../../lib/runtime-contracts";
 import { selectMarkdownForLayout } from "./slides-state";
 import { buildSummaryEmptyState } from "./summary-empty-state";
 import type { SummaryProgress } from "./summary-progress";
@@ -414,7 +414,7 @@ export function renderSummaryMarkdownDisplay({
       slidesLayout,
     }),
   );
-  if (!displayMarkdown.trim()) {
+  if (!displayMarkdown.trim() || isClassificationOnlySummary(displayMarkdown)) {
     renderSummaryEmptyState({
       hostEl,
       state: buildSummaryEmptyState({

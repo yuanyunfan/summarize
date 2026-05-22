@@ -110,7 +110,8 @@ describe("sidepanel summary renderer", () => {
       headerSetStatus: setStatus,
       hostEl,
       inputMode: "video",
-      markdown: "<final_answer> <final_answer>\n### Key moments\n- [0:10] Intro\n</final_answer>",
+      markdown:
+        "<final_answer> final_answer> <final_answer>\n### Key moments\n- [0:10] Intro\n</final_answer>",
       md: {
         render: (value) => {
           renderedMarkdown = value;
@@ -132,6 +133,34 @@ describe("sidepanel summary renderer", () => {
     await Promise.resolve();
 
     expect(writeText).toHaveBeenCalledWith("### Key moments\n- [0:10] Intro");
+  });
+
+  it("shows the empty streaming state instead of classification-only output", () => {
+    const hostEl = document.createElement("div");
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown: "系统/架构设计：否\n算法/研究论文：否\n工程实践/经验总结：是",
+      md: {
+        render: (value) => `<p>${value}</p>`,
+      },
+      phase: "streaming",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    expect(hostEl.textContent).not.toContain("系统/架构设计");
+    expect(hostEl.textContent).not.toContain("工程实践/经验总结");
   });
 
   it("renders mermaid code fences as diagram previews", async () => {

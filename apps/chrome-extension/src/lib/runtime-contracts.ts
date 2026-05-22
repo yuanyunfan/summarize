@@ -9,4 +9,7 @@ export {
   type SseSlidesData,
 } from "../../../../src/shared/sse-events.js";
 export { mergeStreamingChunk } from "../../../../src/shared/streaming-merge.js";
-export { sanitizeSummaryMarkdown } from "../../../../src/shared/summary-sanitizer.js";
+export {
+  isClassificationOnlySummary,
+  sanitizeSummaryMarkdown,
+} from "../../../../src/shared/summary-sanitizer.js";

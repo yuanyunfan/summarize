@@ -1,5 +1,9 @@
 import type MarkdownIt from "markdown-it";
-import type { SseSlidesData } from "../../lib/runtime-contracts";
+import {
+  isClassificationOnlySummary,
+  sanitizeSummaryMarkdown,
+  type SseSlidesData,
+} from "../../lib/runtime-contracts";
 import type { SlidesLayout } from "../../lib/settings";
 import { createSlideImageLoader, normalizeSlideImageUrl } from "./slide-images";
 import {
@@ -233,8 +237,10 @@ export function createSlidesViewRuntime({
 
   const renderMarkdown = (markdown: string) => {
     const state = getState();
-    state.panelState.summaryMarkdown = markdown;
-    updateSlideSummaryFromMarkdown(markdown, {
+    const cleanedMarkdown = sanitizeSummaryMarkdown(markdown);
+    const nextMarkdown = isClassificationOnlySummary(cleanedMarkdown) ? "" : cleanedMarkdown;
+    state.panelState.summaryMarkdown = nextMarkdown;
+    updateSlideSummaryFromMarkdown(nextMarkdown, {
       preserveIfEmpty: slidesTextController.hasSummaryTitles(),
       source: "summary",
     });
