@@ -64,6 +64,31 @@ describe("daemon URL fetch guard", () => {
     );
   });
 
+  it("uses undici fetch for bound native fetch implementations when pinning DNS", async () => {
+    const nativeBoundFetch = globalThis.fetch.bind(globalThis);
+    const undiciFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const Agent = vi.fn(function FakeAgent() {
+      return {};
+    });
+    const guarded = createDaemonUrlFetchGuard(nativeBoundFetch as unknown as typeof fetch, {
+      lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+      undici: {
+        Agent: Agent as unknown as new (options: { connect: { lookup: unknown } }) => unknown,
+        fetch: undiciFetch as unknown as typeof fetch,
+      },
+    });
+
+    await expect(guarded("https://public.example/article")).resolves.toBeInstanceOf(Response);
+
+    expect(undiciFetch).toHaveBeenCalledWith(
+      "https://public.example/article",
+      expect.objectContaining({
+        redirect: "manual",
+        dispatcher: expect.any(Object),
+      }),
+    );
+  });
+
   it("revalidates redirect targets instead of auto-following to private hosts", async () => {
     const fetchImpl = vi.fn(async () => {
       return new Response(null, {

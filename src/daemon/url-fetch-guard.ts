@@ -181,9 +181,18 @@ function getRedirectMode(
 
 export function createDaemonUrlFetchGuard(
   fetchImpl: typeof fetch,
-  { lookup = defaultLookup }: { lookup?: LookupFn } = {},
+  { lookup = defaultLookup, undici }: { lookup?: LookupFn; undici?: UndiciModule } = {},
 ): typeof fetch {
-  const loadUndici = (): UndiciModule => require("undici") as UndiciModule;
+  const loadUndici = (): UndiciModule => undici ?? (require("undici") as UndiciModule);
+  const isNodeNativeFetch = () => {
+    if (fetchImpl === globalThis.fetch) return true;
+    if (fetchImpl.name !== "bound fetch") return false;
+    try {
+      return Function.prototype.toString.call(fetchImpl).includes("[native code]");
+    } catch {
+      return false;
+    }
+  };
   const createPinnedDispatcher = (addresses: LookupAddress[]) => {
     const { Agent } = loadUndici();
     const pinnedAddresses = addresses.map((address) => ({
@@ -222,9 +231,7 @@ export function createDaemonUrlFetchGuard(
           } as Parameters<typeof fetch>[1] & { dispatcher: unknown })
         : init;
     const pinnedFetchImpl =
-      target.addresses.length > 0 && fetchImpl === globalThis.fetch
-        ? loadUndici().fetch
-        : fetchImpl;
+      target.addresses.length > 0 && isNodeNativeFetch() ? loadUndici().fetch : fetchImpl;
     if (redirectMode !== "follow") {
       return await pinnedFetchImpl(input, pinnedInit);
     }
