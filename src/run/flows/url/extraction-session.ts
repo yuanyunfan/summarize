@@ -168,8 +168,20 @@ export function createUrlExtractionSession({
           ? urlUtils.shouldPreferUrlMode(targetUrl)
           : false;
       const isTwitter = urlUtils.isTwitterStatusUrl?.(targetUrl) ?? false;
+      const isTwitterBroadcast = urlUtils.isTwitterBroadcastUrl?.(targetUrl) ?? false;
       const isPodcast = urlUtils.isPodcastHost?.(targetUrl) ?? false;
-      if (!preferUrlMode || isTwitter || isPodcast) throw err;
+      const isYouTube = urlUtils.isYouTubeUrl?.(targetUrl) ?? false;
+      const isDirectMedia = urlUtils.isDirectMediaUrl?.(targetUrl) ?? false;
+      if (
+        !preferUrlMode ||
+        isTwitter ||
+        isTwitterBroadcast ||
+        isPodcast ||
+        isYouTube ||
+        !isDirectMedia
+      ) {
+        throw err;
+      }
       writeVerbose(
         io.stderr,
         flags.verbose,
@@ -187,7 +199,7 @@ export function createUrlExtractionSession({
         totalCharacters: 0,
         truncated: false,
         mediaDurationSeconds: null,
-        video: null,
+        video: { kind: "direct", url: targetUrl },
         isVideoOnly: true,
         transcriptSource: null,
         transcriptCharacters: null,

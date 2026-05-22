@@ -1,3 +1,5 @@
+import { isYouTubeUrl } from "@steipete/summarize-core/content/url";
+import type { ExtractedLinkContent } from "../../../content/index.js";
 import { type SlideExtractionResult } from "../../../slides/index.js";
 import {
   createThemeRenderer,
@@ -21,6 +23,34 @@ import { createUrlSlidesSession } from "./slides-session.js";
 import { buildUrlPrompt, outputExtractedUrl, summarizeExtractedUrl } from "./summary.js";
 import type { UrlFlowContext } from "./types.js";
 import { handleVideoOnlyExtractedContent } from "./video-only.js";
+
+export function assertSummarizableExtractedContent({
+  extracted,
+  slides,
+}: {
+  extracted: ExtractedLinkContent;
+  slides?: SlideExtractionResult | null;
+}): void {
+  if (extracted.content.trim().length > 0) return;
+  if (extracted.transcriptTimedText?.trim()) return;
+  if (slides?.slides.some((slide) => (slide.ocrText ?? "").trim().length > 0)) return;
+
+  const transcript = extracted.diagnostics.transcript;
+  const notes = transcript.notes?.trim() || null;
+  const attempted =
+    transcript.attemptedProviders.length > 0
+      ? `attempted providers: ${transcript.attemptedProviders.join(", ")}`
+      : null;
+  const detail = [notes, attempted].filter(Boolean).join("; ");
+  const suffix = detail ? ` (${detail})` : "";
+
+  if (extracted.siteName === "YouTube" || isYouTubeUrl(extracted.url)) {
+    throw new Error(`No YouTube transcript or page text was available for this video${suffix}.`);
+  }
+
+  const source = extracted.siteName || extracted.title || extracted.url;
+  throw new Error(`No summarizable text was extracted from ${source}${suffix}.`);
+}
 
 export async function runUrlFlow({
   ctx,
@@ -237,6 +267,10 @@ export async function runUrlFlow({
     if (slidesSession.slidesTimelinePromise) {
       slidesForPrompt = await slidesSession.slidesTimelinePromise;
     }
+    const promptSlides = slidesForPrompt ?? slidesSession.getSlidesExtracted() ?? null;
+    if (!flags.extractMode) {
+      assertSummarizableExtractedContent({ extracted, slides: promptSlides });
+    }
 
     const prompt = buildUrlPrompt({
       extracted,
@@ -245,7 +279,7 @@ export async function runUrlFlow({
       promptOverride: flags.promptOverride ?? null,
       lengthInstruction: flags.lengthInstruction ?? null,
       languageInstruction: flags.languageInstruction ?? null,
-      slides: slidesForPrompt ?? slidesSession.getSlidesExtracted() ?? null,
+      slides: promptSlides,
     });
     ctx.perfTrace?.mark("url:prompt");
 

@@ -275,4 +275,42 @@ describe("createUrlExtractionSession", () => {
       /transcript failed/,
     );
   });
+
+  it("surfaces YouTube extraction errors instead of falling back to empty URL-only content", async () => {
+    const ctx = createCtx();
+    const session = createUrlExtractionSession({
+      ctx: ctx as never,
+      markdown: {
+        convertHtmlToMarkdown: vi.fn(),
+        effectiveMarkdownMode: "off",
+        markdownRequested: false,
+      },
+      onProgress: null,
+    });
+    fetchLinkContentWithBirdTip.mockRejectedValueOnce(new Error("youtube transcript failed"));
+
+    await expect(
+      session.fetchWithCache("https://www.youtube.com/watch?v=abcdefghijk"),
+    ).rejects.toThrow(/youtube transcript failed/);
+  });
+
+  it("keeps direct media extraction fallback actionable for video understanding", async () => {
+    const ctx = createCtx();
+    const session = createUrlExtractionSession({
+      ctx: ctx as never,
+      markdown: {
+        convertHtmlToMarkdown: vi.fn(),
+        effectiveMarkdownMode: "off",
+        markdownRequested: false,
+      },
+      onProgress: null,
+    });
+    fetchLinkContentWithBirdTip.mockRejectedValueOnce(new Error("media transcript failed"));
+
+    const result = await session.fetchWithCache("https://cdn.example.com/video.mp4");
+
+    expect(result.content).toBe("");
+    expect(result.isVideoOnly).toBe(true);
+    expect(result.video).toEqual({ kind: "direct", url: "https://cdn.example.com/video.mp4" });
+  });
 });
