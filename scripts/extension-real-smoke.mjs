@@ -80,16 +80,37 @@ function extensionPathMatches(entryPath, profileDir, expectedDir) {
   return canonical(candidate) === expectedDir;
 }
 
+function readExtensionSettings(profileDir) {
+  const stores = [
+    readJson(path.join(profileDir, "Preferences"))?.extensions?.settings,
+    readJson(path.join(profileDir, "Secure Preferences"))?.extensions?.settings,
+  ];
+  const settings = new Map();
+  for (const store of stores) {
+    if (!store || typeof store !== "object") continue;
+    for (const [id, entry] of Object.entries(store)) {
+      if (!entry || typeof entry !== "object") continue;
+      settings.set(id, { ...(settings.get(id) ?? {}), ...entry });
+    }
+  }
+  return settings;
+}
+
+function isExtensionEnabled(entry) {
+  if (entry.state === 0) return false;
+  if (Array.isArray(entry.disable_reasons) && entry.disable_reasons.length > 0) return false;
+  return true;
+}
+
 function scanBrowser(browser, expectedDir) {
   const profiles = listProfileDirs(browser.profileRoot);
   const matches = [];
 
   for (const profileDir of profiles) {
-    const preferences = readJson(path.join(profileDir, "Preferences"));
-    const settings = preferences?.extensions?.settings;
-    if (!settings || typeof settings !== "object") continue;
+    const settings = readExtensionSettings(profileDir);
+    if (settings.size === 0) continue;
 
-    for (const [id, entry] of Object.entries(settings)) {
+    for (const [id, entry] of settings) {
       if (!entry || typeof entry !== "object") continue;
       const manifest = entry.manifest && typeof entry.manifest === "object" ? entry.manifest : {};
       const name = typeof manifest.name === "string" ? manifest.name : "";
@@ -105,7 +126,7 @@ function scanBrowser(browser, expectedDir) {
         name,
         version,
         path: extensionPath || "(missing path)",
-        enabled: entry.state === 1,
+        enabled: isExtensionEnabled(entry),
         expectedPath: isExpectedPath,
       });
     }
