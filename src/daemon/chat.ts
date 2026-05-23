@@ -9,6 +9,7 @@ import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
 import { parseBooleanEnv, parseCliUserModelId } from "../run/env.js";
 import { resolveEnvState } from "../run/run-env.js";
 import { resolveModelSelection } from "../run/run-models.js";
+import { isUnsupportedResponsesApiError } from "./openai-api-errors.js";
 
 type ChatSession = {
   id: string;
@@ -113,6 +114,43 @@ function resolveOpenAiUseChatCompletions({
   return configForCli?.openai?.useChatCompletions === true;
 }
 
+async function streamNativeChatResponse({
+  args,
+  pushToSession,
+}: {
+  args: Parameters<typeof streamTextWithContext>[0];
+  pushToSession: (event: ChatEvent) => void;
+}) {
+  let emittedContent = false;
+
+  const run = async (forceChatCompletions: boolean | undefined) => {
+    const result = await streamTextWithContext({
+      ...args,
+      forceChatCompletions,
+    });
+    for await (const chunk of result.textStream) {
+      emittedContent = true;
+      pushToSession({ event: "content", data: chunk });
+    }
+  };
+
+  try {
+    await run(args.forceChatCompletions);
+  } catch (error) {
+    if (
+      !emittedContent &&
+      args.forceChatCompletions !== true &&
+      isUnsupportedResponsesApiError(error)
+    ) {
+      await run(true);
+    } else {
+      throw error;
+    }
+  }
+
+  pushToSession({ event: "metrics" });
+}
+
 export async function streamChatResponse({
   env,
   fetchImpl,
@@ -143,6 +181,20 @@ export async function streamChatResponse({
   const openaiUseChatCompletions = resolveOpenAiUseChatCompletions({ env, configForCli });
   const openaiRequestOptions = mergeModelRequestOptions(configForCli?.openai);
   const context = buildContext({ pageUrl, pageTitle, pageContent, messages });
+  const resolveOpenAiCompatibleBaseUrlOverride = ({
+    requiredEnv,
+    provider,
+    openaiBaseUrlOverride = null,
+  }: {
+    requiredEnv: string;
+    provider: string | null;
+    openaiBaseUrlOverride?: string | null;
+  }): string | null => {
+    if (requiredEnv === "Z_AI_API_KEY") return openaiBaseUrlOverride ?? envState.zaiBaseUrl;
+    if (requiredEnv === "NVIDIA_API_KEY") return openaiBaseUrlOverride ?? envState.nvidiaBaseUrl;
+    if (provider === "openai") return openaiBaseUrlOverride ?? envState.providerBaseUrls.openai;
+    return openaiBaseUrlOverride;
+  };
 
   const resolveModel = () => {
     if (modelOverride && modelOverride.trim().length > 0) {
@@ -178,7 +230,11 @@ export async function streamChatResponse({
           transport: "native" as const,
           openaiApiKeyOverride: null,
           openaiBaseUrlOverride: null,
+          anthropicBaseUrlOverride: null,
+          googleBaseUrlOverride: null,
+          xaiBaseUrlOverride: null,
           forceChatCompletions: false,
+          requestOptions: undefined,
         };
       }
       return {
@@ -194,12 +250,16 @@ export async function streamChatResponse({
               : requested.requiredEnv === "GITHUB_TOKEN"
                 ? resolveGitHubModelsApiKey(env)
                 : null,
-        openaiBaseUrlOverride:
-          requested.requiredEnv === "Z_AI_API_KEY"
-            ? envState.zaiBaseUrl
-            : requested.requiredEnv === "NVIDIA_API_KEY"
-              ? envState.nvidiaBaseUrl
-              : (requested.openaiBaseUrlOverride ?? null),
+        openaiBaseUrlOverride: resolveOpenAiCompatibleBaseUrlOverride({
+          requiredEnv: requested.requiredEnv,
+          provider: requested.provider,
+          openaiBaseUrlOverride: requested.openaiBaseUrlOverride ?? null,
+        }),
+        anthropicBaseUrlOverride:
+          requested.provider === "anthropic" ? envState.providerBaseUrls.anthropic : null,
+        googleBaseUrlOverride:
+          requested.provider === "google" ? envState.providerBaseUrls.google : null,
+        xaiBaseUrlOverride: requested.provider === "xai" ? envState.providerBaseUrls.xai : null,
         forceChatCompletions:
           Boolean(requested.forceChatCompletions) ||
           (requested.provider === "openai" && openaiUseChatCompletions),
@@ -230,24 +290,26 @@ export async function streamChatResponse({
       pushToSession({ event: "metrics" });
       return;
     }
-    const result = await streamTextWithContext({
-      modelId: resolved.modelId!,
-      apiKeys: {
-        ...apiKeys,
-        openaiApiKey: resolved.openaiApiKeyOverride ?? apiKeys.openaiApiKey,
+    await streamNativeChatResponse({
+      args: {
+        modelId: resolved.modelId!,
+        apiKeys: {
+          ...apiKeys,
+          openaiApiKey: resolved.openaiApiKeyOverride ?? apiKeys.openaiApiKey,
+        },
+        context,
+        timeoutMs: 30_000,
+        fetchImpl,
+        forceOpenRouter: resolved.forceOpenRouter,
+        openaiBaseUrlOverride: resolved.openaiBaseUrlOverride,
+        anthropicBaseUrlOverride: resolved.anthropicBaseUrlOverride,
+        googleBaseUrlOverride: resolved.googleBaseUrlOverride,
+        xaiBaseUrlOverride: resolved.xaiBaseUrlOverride,
+        forceChatCompletions: resolved.forceChatCompletions,
+        requestOptions: mergeModelRequestOptions(openaiRequestOptions, resolved.requestOptions),
       },
-      context,
-      timeoutMs: 30_000,
-      fetchImpl,
-      forceOpenRouter: resolved.forceOpenRouter,
-      openaiBaseUrlOverride: resolved.openaiBaseUrlOverride,
-      forceChatCompletions: resolved.forceChatCompletions,
-      requestOptions: mergeModelRequestOptions(openaiRequestOptions, resolved.requestOptions),
+      pushToSession,
     });
-    for await (const chunk of result.textStream) {
-      pushToSession({ event: "content", data: chunk });
-    }
-    pushToSession({ event: "metrics" });
     return;
   }
 
@@ -298,19 +360,25 @@ export async function streamChatResponse({
     return;
   }
 
-  const result = await streamTextWithContext({
-    modelId: attempt.llmModelId!,
-    apiKeys,
-    context,
-    timeoutMs: 30_000,
-    fetchImpl,
-    forceOpenRouter: attempt.forceOpenRouter,
-    forceChatCompletions: attempt.requiredEnv === "OPENAI_API_KEY" && openaiUseChatCompletions,
-    requestOptions: mergeModelRequestOptions(openaiRequestOptions, attempt.requestOptions),
+  await streamNativeChatResponse({
+    args: {
+      modelId: attempt.llmModelId!,
+      apiKeys,
+      context,
+      timeoutMs: 30_000,
+      fetchImpl,
+      forceOpenRouter: attempt.forceOpenRouter,
+      openaiBaseUrlOverride: resolveOpenAiCompatibleBaseUrlOverride({
+        requiredEnv: attempt.requiredEnv,
+        provider: attempt.llmModelId?.split("/", 1)[0] ?? null,
+      }),
+      anthropicBaseUrlOverride: envState.providerBaseUrls.anthropic,
+      googleBaseUrlOverride: envState.providerBaseUrls.google,
+      xaiBaseUrlOverride: envState.providerBaseUrls.xai,
+      forceChatCompletions: attempt.requiredEnv === "OPENAI_API_KEY" && openaiUseChatCompletions,
+      requestOptions: mergeModelRequestOptions(openaiRequestOptions, attempt.requestOptions),
+    },
+    pushToSession,
   });
-  for await (const chunk of result.textStream) {
-    pushToSession({ event: "content", data: chunk });
-  }
-  pushToSession({ event: "metrics" });
   void _session;
 }

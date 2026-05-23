@@ -44,6 +44,31 @@ beforeEach(() => {
   vi.mocked(runCliModel).mockResolvedValue({ text: "cli hello", usage: null, costUsd: null });
 });
 
+function makeStreamTextResult(textStream: AsyncIterable<string>) {
+  return {
+    textStream,
+    canonicalModelId: "openai/accounts/msft/routers/fmfeto88",
+    provider: "openai" as const,
+    usage: Promise.resolve(null),
+    lastError: () => null,
+  };
+}
+
+function createUnsupportedResponsesApiError(): Error {
+  const error = new Error("OpenAI API error (400).");
+  (
+    error as {
+      responseBody?: string;
+    }
+  ).responseBody = JSON.stringify({
+    error: {
+      message: "model accounts/msft/routers/fmfeto88 does not support Responses API.",
+      code: "unsupported_api_for_model",
+    },
+  });
+  return error;
+}
+
 describe("daemon/chat", () => {
   it("uses native model ids when fixed model override is provided", async () => {
     const home = mkdtempSync(join(tmpdir(), "summarize-daemon-chat-"));
@@ -98,6 +123,121 @@ describe("daemon/chat", () => {
     const calls = (streamTextWithContext as unknown as { mock: { calls: unknown[][] } }).mock.calls;
     const args = calls[0]?.[0] as { forceChatCompletions?: boolean };
     expect(args.forceChatCompletions).toBe(true);
+  });
+
+  it("passes configured OpenAI base URLs to fixed sidepanel chat models", async () => {
+    const home = mkdtempSync(join(tmpdir(), "summarize-daemon-chat-openai-base-url-"));
+
+    await streamChatResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      fetchImpl: fetch,
+      configForCli: {
+        openai: {
+          baseUrl: "http://127.0.0.1:7024/v1",
+          useChatCompletions: false,
+        },
+      },
+      session: {
+        id: "s-openai-base-url",
+        lastMeta: { model: null, modelLabel: null, inputSummary: null, summaryFromCache: null },
+      },
+      pageUrl: "https://example.com",
+      pageTitle: "Example",
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/accounts/msft/routers/fmfeto88",
+      pushToSession: () => {},
+      emitMeta: () => {},
+    });
+
+    const calls = (streamTextWithContext as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const args = calls[0]?.[0] as {
+      openaiBaseUrlOverride?: string | null;
+      forceChatCompletions?: boolean;
+    };
+    expect(args.openaiBaseUrlOverride).toBe("http://127.0.0.1:7024/v1");
+    expect(args.forceChatCompletions).toBe(false);
+  });
+
+  it("retries fixed OpenAI sidepanel chat with Chat Completions when Responses API is unsupported", async () => {
+    const home = mkdtempSync(join(tmpdir(), "summarize-daemon-chat-responses-retry-"));
+    const events: Array<{ event: string; data?: unknown }> = [];
+    const unsupportedError = createUnsupportedResponsesApiError();
+
+    vi.mocked(streamTextWithContext)
+      .mockResolvedValueOnce(
+        makeStreamTextResult(
+          (async function* () {
+            throw unsupportedError;
+          })(),
+        ),
+      )
+      .mockResolvedValueOnce(
+        makeStreamTextResult(
+          (async function* () {
+            yield "chat ok";
+          })(),
+        ),
+      );
+
+    await streamChatResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      fetchImpl: fetch,
+      session: {
+        id: "s-openai-retry",
+        lastMeta: { model: null, modelLabel: null, inputSummary: null, summaryFromCache: null },
+      },
+      pageUrl: "https://example.com",
+      pageTitle: "Example",
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/accounts/msft/routers/fmfeto88",
+      pushToSession: (evt) => events.push(evt),
+      emitMeta: () => {},
+    });
+
+    const calls = (streamTextWithContext as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(calls.length).toBe(2);
+    expect((calls[0]?.[0] as { forceChatCompletions?: boolean }).forceChatCompletions).toBe(false);
+    expect((calls[1]?.[0] as { forceChatCompletions?: boolean }).forceChatCompletions).toBe(true);
+    expect(events).toEqual([{ event: "content", data: "chat ok" }, { event: "metrics" }]);
+  });
+
+  it("does not retry unsupported Responses API errors after content was streamed", async () => {
+    const home = mkdtempSync(join(tmpdir(), "summarize-daemon-chat-responses-partial-"));
+    const events: Array<{ event: string; data?: unknown }> = [];
+    const unsupportedError = createUnsupportedResponsesApiError();
+
+    vi.mocked(streamTextWithContext).mockResolvedValueOnce(
+      makeStreamTextResult(
+        (async function* () {
+          yield "partial";
+          throw unsupportedError;
+        })(),
+      ),
+    );
+
+    await expect(
+      streamChatResponse({
+        env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+        fetchImpl: fetch,
+        session: {
+          id: "s-openai-no-retry-after-content",
+          lastMeta: { model: null, modelLabel: null, inputSummary: null, summaryFromCache: null },
+        },
+        pageUrl: "https://example.com",
+        pageTitle: "Example",
+        pageContent: "Hello world",
+        messages: [{ role: "user", content: "Hi" }],
+        modelOverride: "openai/accounts/msft/routers/fmfeto88",
+        pushToSession: (evt) => events.push(evt),
+        emitMeta: () => {},
+      }),
+    ).rejects.toThrow(/OpenAI API error/);
+
+    const calls = (streamTextWithContext as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(calls.length).toBe(1);
+    expect(events).toEqual([{ event: "content", data: "partial" }]);
   });
 
   it("routes github-copilot overrides through the GitHub Models gateway", async () => {

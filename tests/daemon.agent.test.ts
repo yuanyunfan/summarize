@@ -3,13 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AssistantMessage, Tool } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { completeAgentResponse } from "../src/daemon/agent.js";
+import { completeAgentResponse, streamAgentResponse } from "../src/daemon/agent.js";
 import { runCliModel } from "../src/llm/cli.js";
 import * as modelAuto from "../src/model-auto.js";
 
-const { mockCompleteSimple, mockGetModel } = vi.hoisted(() => ({
+const { mockCompleteSimple, mockGetModel, mockStreamSimple } = vi.hoisted(() => ({
   mockCompleteSimple: vi.fn(),
   mockGetModel: vi.fn(),
+  mockStreamSimple: vi.fn(),
 }));
 
 vi.mock("../src/llm/cli.js", async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock("@earendil-works/pi-ai", () => {
   return {
     completeSimple: mockCompleteSimple,
     getModel: mockGetModel,
+    streamSimple: mockStreamSimple,
   };
 });
 
@@ -58,6 +60,41 @@ const makeModel = (provider: string, modelId: string) => ({
   maxTokens: 2048,
 });
 
+type AgentStreamEvent =
+  | { type: "text_delta"; delta: string }
+  | { type: "done"; message: AssistantMessage }
+  | { type: "error"; error: unknown };
+
+function makeAgentStream(events: AgentStreamEvent[], result?: AssistantMessage | Error | null) {
+  const doneMessage = events.find(
+    (event): event is Extract<AgentStreamEvent, { type: "done" }> => event.type === "done",
+  )?.message;
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const event of events) yield event;
+    },
+    result: vi.fn(async () => {
+      if (result instanceof Error) throw result;
+      return result ?? doneMessage ?? null;
+    }),
+  };
+}
+
+function createUnsupportedResponsesApiError(): Error {
+  const error = new Error("OpenAI API error (400).");
+  (
+    error as {
+      responseBody?: string;
+    }
+  ).responseBody = JSON.stringify({
+    error: {
+      message: "model accounts/msft/routers/fmfeto88 does not support Responses API.",
+      code: "unsupported_api_for_model",
+    },
+  });
+  return error;
+}
+
 const makeTempHome = () => mkdtempSync(join(tmpdir(), "summarize-daemon-agent-"));
 
 const writeHomeConfig = (home: string, config: unknown) => {
@@ -77,6 +114,7 @@ const makeFakeCliBin = (binary: string) => {
 beforeEach(() => {
   mockCompleteSimple.mockReset();
   mockGetModel.mockReset();
+  mockStreamSimple.mockReset();
   vi.mocked(runCliModel).mockReset();
   vi.mocked(runCliModel).mockResolvedValue({ text: "cli agent", usage: null, costUsd: null });
   mockGetModel.mockImplementation((provider: string, modelId: string) =>
@@ -84,6 +122,9 @@ beforeEach(() => {
   );
   mockCompleteSimple.mockImplementation(async (model: { provider: string; id: string }) =>
     buildAssistant(model.provider, model.id),
+  );
+  mockStreamSimple.mockImplementation((model: { provider: string; id: string }) =>
+    makeAgentStream([{ type: "done", message: buildAssistant(model.provider, model.id) }]),
   );
 });
 
@@ -211,6 +252,146 @@ describe("daemon/agent", () => {
     };
     expect(model.baseUrl).toBe("http://127.0.0.1:7024/v1");
     expect(model.api).toBe("openai-responses");
+  });
+
+  it("retries agent responses with Chat Completions when the model rejects the Responses API", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/accounts/msft/routers/fmfeto88" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    const unsupportedError = createUnsupportedResponsesApiError();
+    mockCompleteSimple
+      .mockRejectedValueOnce(unsupportedError)
+      .mockImplementationOnce(async (model: { provider: string; id: string }) =>
+        buildAssistant(model.provider, model.id),
+      );
+
+    await completeAgentResponse({
+      env: {
+        HOME: home,
+        OPENAI_API_KEY: "sk-openai",
+      },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/accounts/msft/routers/fmfeto88",
+      tools: [],
+      automationEnabled: false,
+    });
+
+    expect(mockCompleteSimple).toHaveBeenCalledTimes(2);
+    const firstModel = mockCompleteSimple.mock.calls[0]?.[0] as {
+      api: string;
+      baseUrl?: string;
+    };
+    const retryModel = mockCompleteSimple.mock.calls[1]?.[0] as {
+      api: string;
+      baseUrl?: string;
+    };
+    expect(firstModel.api).toBe("openai-responses");
+    expect(retryModel.api).toBe("openai-completions");
+    expect(retryModel.baseUrl).toBe("http://127.0.0.1:7024/v1");
+  });
+
+  it("retries streaming agent responses with Chat Completions before content is emitted", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/accounts/msft/routers/fmfeto88" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    const assistant = buildAssistant("openai", "accounts/msft/routers/fmfeto88");
+    const chunks: string[] = [];
+    const assistants: AssistantMessage[] = [];
+
+    mockStreamSimple
+      .mockReturnValueOnce(
+        makeAgentStream([{ type: "error", error: createUnsupportedResponsesApiError() }]),
+      )
+      .mockReturnValueOnce(
+        makeAgentStream([
+          { type: "text_delta", delta: "chat ok" },
+          { type: "done", message: assistant },
+        ]),
+      );
+
+    await streamAgentResponse({
+      env: {
+        HOME: home,
+        OPENAI_API_KEY: "sk-openai",
+      },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/accounts/msft/routers/fmfeto88",
+      tools: [],
+      automationEnabled: false,
+      onChunk: (text) => chunks.push(text),
+      onAssistant: (message) => assistants.push(message),
+    });
+
+    expect(mockStreamSimple).toHaveBeenCalledTimes(2);
+    const firstModel = mockStreamSimple.mock.calls[0]?.[0] as {
+      api: string;
+      baseUrl?: string;
+    };
+    const retryModel = mockStreamSimple.mock.calls[1]?.[0] as {
+      api: string;
+      baseUrl?: string;
+    };
+    expect(firstModel.api).toBe("openai-responses");
+    expect(retryModel.api).toBe("openai-completions");
+    expect(retryModel.baseUrl).toBe("http://127.0.0.1:7024/v1");
+    expect(chunks).toEqual(["chat ok"]);
+    expect(assistants).toEqual([assistant]);
+  });
+
+  it("does not retry streaming agent responses after content is emitted", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/accounts/msft/routers/fmfeto88" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    const chunks: string[] = [];
+
+    mockStreamSimple.mockReturnValueOnce(
+      makeAgentStream([
+        { type: "text_delta", delta: "partial" },
+        { type: "error", error: createUnsupportedResponsesApiError() },
+      ]),
+    );
+
+    await expect(
+      streamAgentResponse({
+        env: {
+          HOME: home,
+          OPENAI_API_KEY: "sk-openai",
+        },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [{ role: "user", content: "Hi" }],
+        modelOverride: "openai/accounts/msft/routers/fmfeto88",
+        tools: [],
+        automationEnabled: false,
+        onChunk: (text) => chunks.push(text),
+        onAssistant: () => {},
+      }),
+    ).rejects.toThrow(/OpenAI API error/);
+
+    expect(mockStreamSimple).toHaveBeenCalledTimes(1);
+    expect(chunks).toEqual(["partial"]);
   });
 
   it("uses chat completions for known openai models when config enables them", async () => {

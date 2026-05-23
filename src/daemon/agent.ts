@@ -9,6 +9,7 @@ import {
   normalizeMessages,
   resolveToolList,
 } from "./agent-request.js";
+import { isUnsupportedResponsesApiError } from "./openai-api-errors.js";
 
 export function buildAgentPromptHash(automationEnabled: boolean): string {
   return buildPromptHash(getAgentPrompt(automationEnabled));
@@ -263,6 +264,40 @@ const TOOL_DEFINITIONS: Record<string, Tool> = {
   },
 };
 
+function isOpenAiResponsesModel(model: unknown): boolean {
+  return (
+    typeof model === "object" &&
+    model !== null &&
+    (model as { api?: unknown }).api === "openai-responses"
+  );
+}
+
+function withOpenAiChatCompletionsModel<T>(model: T): T {
+  if (typeof model !== "object" || model === null) return model;
+  return {
+    ...model,
+    api: "openai-completions",
+  } as T;
+}
+
+function normalizeAgentStreamError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  const record =
+    typeof error === "object" && error !== null ? (error as Record<string, unknown>) : {};
+  const message =
+    typeof record.errorMessage === "string" && record.errorMessage.trim().length > 0
+      ? record.errorMessage
+      : "Agent stream failed.";
+  const next = new Error(message);
+  if (typeof record.responseBody === "string") {
+    (next as { responseBody?: string }).responseBody = record.responseBody;
+  }
+  if (typeof record.code === "string") {
+    (next as { code?: string }).code = record.code;
+  }
+  return next;
+}
+
 export async function streamAgentResponse({
   env,
   pageUrl,
@@ -325,39 +360,57 @@ export async function streamAgentResponse({
   const { provider, model, maxOutputTokens, apiKeys } = resolved;
   const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
-  const stream = streamSimple(
-    model,
-    {
-      systemPrompt,
-      messages: normalizedMessages,
-      tools: toolList,
-    },
-    {
-      maxTokens: maxOutputTokens,
-      apiKey,
-      signal,
-    },
-  );
+  let emittedContent = false;
+  const run = async (modelForRun: typeof model): Promise<AssistantMessage> => {
+    const stream = streamSimple(
+      modelForRun,
+      {
+        systemPrompt,
+        messages: normalizedMessages,
+        tools: toolList,
+      },
+      {
+        maxTokens: maxOutputTokens,
+        apiKey,
+        signal,
+      },
+    );
 
-  let assistant: AssistantMessage | null = null;
-  for await (const event of stream) {
-    if (event.type === "text_delta") {
-      onChunk(event.delta);
-    } else if (event.type === "done") {
-      assistant = event.message;
-      break;
-    } else if (event.type === "error") {
-      const message = event.error?.errorMessage || "Agent stream failed.";
-      throw new Error(message);
+    let assistant: AssistantMessage | null = null;
+    for await (const event of stream) {
+      if (event.type === "text_delta") {
+        emittedContent = true;
+        onChunk(event.delta);
+      } else if (event.type === "done") {
+        assistant = event.message;
+        break;
+      } else if (event.type === "error") {
+        throw normalizeAgentStreamError(event.error);
+      }
     }
-  }
 
-  if (!assistant) {
-    assistant = await stream.result().catch(() => null);
-  }
+    if (!assistant) {
+      assistant = await stream.result().catch((error: unknown) => {
+        throw normalizeAgentStreamError(error);
+      });
+    }
 
-  if (!assistant) {
-    throw new Error("Agent stream ended without a result.");
+    if (!assistant) {
+      throw new Error("Agent stream ended without a result.");
+    }
+
+    return assistant;
+  };
+
+  let assistant: AssistantMessage;
+  try {
+    assistant = await run(model);
+  } catch (error) {
+    if (!emittedContent && isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
+      assistant = await run(withOpenAiChatCompletionsModel(model));
+    } else {
+      throw error;
+    }
   }
 
   onAssistant(assistant);
@@ -417,18 +470,26 @@ export async function completeAgentResponse({
   const { provider, model, maxOutputTokens, apiKeys } = resolved;
   const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
-  const assistant = await completeSimple(
-    model,
-    {
-      systemPrompt,
-      messages: normalizedMessages,
-      tools: toolList,
-    },
-    {
-      maxTokens: maxOutputTokens,
-      apiKey,
-    },
-  );
+  const run = (modelForRun: typeof model) =>
+    completeSimple(
+      modelForRun,
+      {
+        systemPrompt,
+        messages: normalizedMessages,
+        tools: toolList,
+      },
+      {
+        maxTokens: maxOutputTokens,
+        apiKey,
+      },
+    );
 
-  return assistant;
+  try {
+    return await run(model);
+  } catch (error) {
+    if (isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
+      return await run(withOpenAiChatCompletionsModel(model));
+    }
+    throw error;
+  }
 }
