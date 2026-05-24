@@ -28,6 +28,7 @@ import type { ModelAttempt } from "../../types.js";
 import type { SlidesTerminalOutput } from "./slides-output.js";
 import { normalizeSummarySlideHeadings } from "./slides-text.js";
 import { buildModelMetaFromAttempt } from "./summary-finish.js";
+import { assertUrlSummaryQuality, isUrlSummaryLanguageMismatchError } from "./summary-guards.js";
 import { shouldBypassShortContentSummary } from "./summary-prompt.js";
 import {
   ensureSummaryKeyMoments,
@@ -58,6 +59,68 @@ type SummaryResolutionSummary = {
 };
 
 export type UrlSummaryResolution = SummaryResolutionUseExtracted | SummaryResolutionSummary;
+type SummaryAttemptResult = Awaited<
+  ReturnType<UrlFlowContext["model"]["summaryEngine"]["runSummaryAttempt"]>
+>;
+
+function buildLanguageRepairPrompt({
+  markdown,
+  languageLabel,
+}: {
+  markdown: string;
+  languageLabel: string;
+}): string {
+  return [
+    "<instructions>",
+    `The Markdown summary below violated the requested output language. Rewrite it entirely in ${languageLabel}.`,
+    "Preserve the same facts, Markdown structure, headings, bullets, links, and timestamps.",
+    "Do not add new information, disclaimers, or commentary.",
+    "Return only the corrected Markdown summary.",
+    "</instructions>",
+    "<summary>",
+    markdown,
+    "</summary>",
+  ].join("\n");
+}
+
+async function repairSummaryLanguageIfPossible({
+  error,
+  summary,
+  summaryAlreadyPrinted,
+  summaryFromCache,
+  outputLanguage,
+  usedAttempt,
+  model,
+  onModelChosen,
+}: {
+  error: unknown;
+  summary: string;
+  summaryAlreadyPrinted: boolean;
+  summaryFromCache: boolean;
+  outputLanguage: UrlFlowContext["flags"]["outputLanguage"];
+  usedAttempt: ModelAttempt;
+  model: UrlFlowContext["model"];
+  onModelChosen?: ((modelId: string) => void) | null;
+}): Promise<SummaryAttemptResult | null> {
+  if (!isUrlSummaryLanguageMismatchError(error)) return null;
+  if (summaryAlreadyPrinted || summaryFromCache || outputLanguage.kind !== "fixed") return null;
+
+  const repairPrompt: Prompt = {
+    system: SUMMARY_SYSTEM_PROMPT,
+    userText: buildLanguageRepairPrompt({
+      markdown: summary,
+      languageLabel: outputLanguage.label,
+    }),
+  };
+
+  return await model.summaryEngine.runSummaryAttempt({
+    attempt: usedAttempt,
+    prompt: repairPrompt,
+    allowStreaming: false,
+    onModelChosen: onModelChosen ?? null,
+    streamHandler: null,
+  });
+}
 
 export async function resolveUrlSummaryExecution({
   ctx,
@@ -91,6 +154,31 @@ export async function resolveUrlSummaryExecution({
   const timestampUpperBound = sanitizeKeyMoments
     ? resolveSummaryTimestampUpperBound(extracted)
     : null;
+  const assertSummaryQuality = (markdown: string, sourceLabel: string) =>
+    assertUrlSummaryQuality({
+      markdown,
+      outputLanguage: flags.outputLanguage,
+      lengthArg: flags.lengthArg,
+      hasSlides,
+      promptOverride: flags.promptOverride,
+      sourceLabel,
+    });
+  const isUsableCachedSummary = (markdown: string): boolean => {
+    if (isClassificationOnlySummary(markdown)) return false;
+    try {
+      assertSummaryQuality(markdown, "Cached summary");
+      return true;
+    } catch (error) {
+      writeVerbose(
+        io.stderr,
+        flags.verbose,
+        `cache skip summary: ${error instanceof Error ? error.message : String(error)}`,
+        flags.verboseColor,
+        io.envForRun,
+      );
+      return false;
+    }
+  };
 
   const attempts: ModelAttempt[] = await (async () => {
     if (model.isFallbackModel) {
@@ -247,7 +335,7 @@ export async function resolveUrlSummaryExecution({
           ? sanitizeSummaryMarkdown(cached.summary)
           : null;
       const cachedModelId = cached && typeof cached.model === "string" ? cached.model.trim() : null;
-      if (cachedSummary && !isClassificationOnlySummary(cachedSummary)) {
+      if (cachedSummary && isUsableCachedSummary(cachedSummary)) {
         const cachedAttempt = cachedModelId
           ? (attempts.find((attempt) => attempt.userModelId === cachedModelId) ?? null)
           : null;
@@ -291,7 +379,7 @@ export async function resolveUrlSummaryExecution({
         });
         const cachedRaw = cacheStore.getText("summary", key);
         const cached = cachedRaw ? sanitizeSummaryMarkdown(cachedRaw) : null;
-        if (!cached || isClassificationOnlySummary(cached)) continue;
+        if (!cached || !isUsableCachedSummary(cached)) continue;
         writeVerbose(
           io.stderr,
           flags.verbose,
@@ -406,9 +494,31 @@ export async function resolveUrlSummaryExecution({
     };
   }
 
-  const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
-  const normalizedSummaryBase =
+  let { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
+  let normalizedSummaryBase =
     slides && slides.slides.length > 0 ? normalizeSummarySlideHeadings(summary) : summary;
+  try {
+    assertSummaryQuality(normalizedSummaryBase, "LLM");
+  } catch (error) {
+    const repaired = await repairSummaryLanguageIfPossible({
+      error,
+      summary: normalizedSummaryBase,
+      summaryAlreadyPrinted,
+      summaryFromCache,
+      outputLanguage: flags.outputLanguage,
+      usedAttempt,
+      model,
+      onModelChosen,
+    });
+    if (!repaired) throw error;
+    summary = repaired.summary;
+    summaryAlreadyPrinted = repaired.summaryAlreadyPrinted;
+    modelMeta = repaired.modelMeta;
+    maxOutputTokensForCall = repaired.maxOutputTokensForCall;
+    normalizedSummaryBase =
+      slides && slides.slides.length > 0 ? normalizeSummarySlideHeadings(summary) : summary;
+    assertSummaryQuality(normalizedSummaryBase, "LLM language repair");
+  }
   const sanitizedSummary = sanitizeSummaryKeyMoments({
     markdown: normalizedSummaryBase,
     maxSeconds: timestampUpperBound,
@@ -417,6 +527,7 @@ export async function resolveUrlSummaryExecution({
     markdown: sanitizedSummary,
     extracted,
     maxSeconds: timestampUpperBound,
+    outputLanguage: flags.outputLanguage,
   });
 
   if (!summaryFromCache && cacheStore && contentHash && promptHash) {

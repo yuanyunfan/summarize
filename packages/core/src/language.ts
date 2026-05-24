@@ -158,7 +158,7 @@ export function formatOutputLanguageInstruction(language: OutputLanguage): strin
   if (language.kind === "auto") {
     return "Match the dominant source language. If you can't confidently detect it, use English.";
   }
-  return `Write the answer in ${language.label}.`;
+  return `Write the answer in ${language.label}. The entire answer must use ${language.label}, even if the source or transcript is in another language; translate headings and bullets instead of copying the source language.`;
 }
 
 export function formatOutputLanguageForJson(

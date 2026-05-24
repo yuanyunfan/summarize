@@ -63,9 +63,13 @@ describe("output language", () => {
 
   it("formats prompt instruction", () => {
     expect(formatOutputLanguageInstruction({ kind: "auto" })).toMatch(/dominant source language/i);
-    expect(formatOutputLanguageInstruction({ kind: "fixed", tag: "en", label: "English" })).toBe(
-      "Write the answer in English.",
-    );
+    const fixedInstruction = formatOutputLanguageInstruction({
+      kind: "fixed",
+      tag: "en",
+      label: "English",
+    });
+    expect(fixedInstruction).toContain("Write the answer in English.");
+    expect(fixedInstruction).toContain("even if the source or transcript is in another language");
   });
 
   it("formats JSON output language", () => {

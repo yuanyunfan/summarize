@@ -147,4 +147,31 @@ describe("url summary timestamp sanitization", () => {
       ].join("\n"),
     );
   });
+
+  it("uses localized fallback labels for Chinese summaries", () => {
+    expect(
+      ensureSummaryKeyMoments({
+        markdown: "## 摘要\n这是中文摘要。",
+        extracted: {
+          transcriptTimedText: [
+            "[0:01] Opening context",
+            "[9:46] Middle explanation",
+            "[19:32] Final wrap",
+          ].join("\n"),
+        },
+        maxSeconds: 1173,
+        outputLanguage: { kind: "fixed", tag: "zh-CN", label: "Chinese (Simplified)" },
+      }),
+    ).toBe(
+      [
+        "## 摘要",
+        "这是中文摘要。",
+        "",
+        "### Key moments",
+        "- [0:01] 开场片段",
+        "- [9:46] 中段片段",
+        "- [19:32] 结尾片段",
+      ].join("\n"),
+    );
+  });
 });

@@ -245,3 +245,200 @@ describe("summarizeExtractedUrl timestamp guard", () => {
     expect(stderr.getText()).toBe("");
   });
 });
+
+describe("summarizeExtractedUrl language guard", () => {
+  it("repairs English-looking output when Simplified Chinese was requested", async () => {
+    const stdout = collectStream();
+    const stderr = collectStream();
+    const writes = { text: [] as string[], json: [] as unknown[] };
+    const fixedModel = parseRequestedModelId("openai/gpt-5.2");
+    if (fixedModel.kind !== "fixed" || fixedModel.transport !== "native") {
+      throw new Error("expected fixed native model");
+    }
+
+    const attempts: Array<{ prompt: string; allowStreaming: boolean }> = [];
+    const cacheStore: CacheStore = {
+      getText: () => null,
+      getJson: () => null,
+      setText: (_kind, _key, value) => {
+        writes.text.push(value);
+      },
+      setJson: (_kind, _key, value) => {
+        writes.json.push(value);
+      },
+      clear: () => {},
+      close: () => {},
+      transcriptCache: {
+        get: () => null,
+        set: () => {},
+      },
+    };
+
+    const ctx: UrlFlowContext = {
+      io: {
+        env: {},
+        envForRun: {},
+        stdout: stdout.stream,
+        stderr: stderr.stream,
+        execFileImpl: ((_file, _args, _options, callback) =>
+          callback(null, "", "")) as unknown as UrlFlowContext["io"]["execFileImpl"],
+        fetch: globalThis.fetch.bind(globalThis),
+      },
+      flags: {
+        timeoutMs: 2_000,
+        retries: 1,
+        format: "text",
+        markdownMode: "off",
+        preprocessMode: "auto",
+        youtubeMode: "auto",
+        firecrawlMode: "off",
+        videoMode: "transcript",
+        transcriptTimestamps: true,
+        outputLanguage: { kind: "fixed", tag: "zh-CN", label: "Chinese (Simplified)" },
+        lengthArg: { kind: "preset", preset: "long" },
+        forceSummary: false,
+        promptOverride: null,
+        lengthInstruction: null,
+        languageInstruction: null,
+        summaryCacheBypass: false,
+        maxOutputTokensArg: null,
+        json: true,
+        extractMode: false,
+        metricsEnabled: false,
+        metricsDetailed: false,
+        shouldComputeReport: false,
+        runStartedAtMs: Date.now(),
+        verbose: false,
+        verboseColor: false,
+        progressEnabled: false,
+        streamMode: "on",
+        streamingEnabled: true,
+        plain: true,
+        configPath: null,
+        configModelLabel: null,
+        slides: null,
+        slidesDebug: false,
+        slidesOutput: false,
+      },
+      model: {
+        requestedModel: fixedModel,
+        requestedModelInput: "openai/gpt-5.2",
+        requestedModelLabel: "openai/gpt-5.2",
+        fixedModelSpec: fixedModel,
+        isFallbackModel: false,
+        isImplicitAutoSelection: false,
+        allowAutoCliFallback: false,
+        isNamedModelSelection: true,
+        wantsFreeNamedModel: false,
+        desiredOutputTokens: null,
+        configForModelSelection: null,
+        envForAuto: {},
+        cliAvailability: {},
+        openaiUseChatCompletions: false,
+        openaiWhisperUsdPerMinute: 0,
+        apiStatus: {
+          xaiApiKey: null,
+          apiKey: "key",
+          nvidiaApiKey: null,
+          openrouterApiKey: null,
+          openrouterConfigured: false,
+          googleApiKey: null,
+          googleConfigured: false,
+          anthropicApiKey: null,
+          anthropicConfigured: false,
+          providerBaseUrls: {
+            openai: null,
+            nvidia: null,
+            anthropic: null,
+            google: null,
+            xai: null,
+          },
+          zaiApiKey: null,
+          zaiBaseUrl: "",
+          nvidiaBaseUrl: "",
+          firecrawlConfigured: false,
+          firecrawlApiKey: null,
+          apifyToken: null,
+          ytDlpPath: null,
+          ytDlpCookiesFromBrowser: null,
+          falApiKey: null,
+          groqApiKey: null,
+          assemblyaiApiKey: null,
+          openaiApiKey: null,
+        },
+        summaryEngine: {
+          applyOpenAiGatewayOverrides: (attempt) => attempt,
+          envHasKeyFor: () => true,
+          formatMissingModelError: () => "missing",
+          runSummaryAttempt: async ({ prompt, allowStreaming }) => {
+            attempts.push({ prompt: prompt.userText, allowStreaming });
+            if (attempts.length === 1) {
+              return {
+                summary:
+                  "This is an English summary that keeps the requested answer in the source language. ".repeat(
+                    8,
+                  ),
+                summaryAlreadyPrinted: false,
+                modelMeta: { provider: "openai", canonical: "openai/gpt-5.2" },
+                maxOutputTokensForCall: null,
+              };
+            }
+            return {
+              summary: "## 概览\n[00:00] 开场介绍\n\n这是一段中文摘要，说明访谈主题和核心观点。",
+              summaryAlreadyPrinted: false,
+              modelMeta: { provider: "openai", canonical: "openai/gpt-5.2" },
+              maxOutputTokensForCall: null,
+            };
+          },
+        } as UrlFlowContext["model"]["summaryEngine"],
+        getLiteLlmCatalog: async () => ({ catalog: [] }),
+        llmCalls: [],
+      },
+      cache: { mode: "default", store: cacheStore, ttlMs: 60_000, maxBytes: 1_000_000, path: null },
+      mediaCache: null,
+      hooks: {
+        onModelChosen: null,
+        onExtracted: null,
+        onSlidesExtracted: null,
+        onSlidesProgress: null,
+        onSlidesDone: null,
+        onLinkPreviewProgress: null,
+        onSummaryCached: null,
+        setTranscriptionCost: () => {},
+        summarizeAsset: async () => {},
+        writeViaFooter: () => {},
+        clearProgressForStdout: () => {},
+        restoreProgressAfterStdout: null,
+        setClearProgressBeforeStdout: () => {},
+        clearProgressIfCurrent: () => {},
+        buildReport: async () => ({ tokens: 0, calls: 0, durationMs: 0 }),
+        estimateCostUsd: async () => null,
+      },
+    };
+
+    await summarizeExtractedUrl({
+      ctx,
+      url: extracted.url,
+      extracted,
+      extractionUi: {
+        contentSizeLabel: "1 KB",
+        viaSourceLabel: "",
+        footerParts: [],
+        finishSourceLabel: "YouTube",
+      },
+      prompt: "Prompt",
+      effectiveMarkdownMode: "off",
+      transcriptionCostLabel: null,
+      onModelChosen: null,
+    });
+
+    const payload = JSON.parse(stdout.getText()) as { summary: string };
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]?.allowStreaming).toBe(false);
+    expect(attempts[1]?.allowStreaming).toBe(false);
+    expect(attempts[1]?.prompt).toContain("Rewrite it entirely in Chinese (Simplified).");
+    expect(payload.summary).toContain("中文摘要");
+    expect(writes.text[0]).toContain("中文摘要");
+    expect(stderr.getText()).toBe("");
+  });
+});

@@ -1,4 +1,5 @@
 import type { ExtractedLinkContent } from "../../../content/index.js";
+import type { OutputLanguage } from "../../../language.js";
 
 const TIMED_TRANSCRIPT_LINE_RE = /^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s+/;
 const KEY_MOMENTS_HEADING_RE = /^\s{0,3}(?:#{1,6}\s*)?Key moments\s*:?\s*$/i;
@@ -146,6 +147,31 @@ function pickFallbackKeyMoments(
     .filter((moment): moment is { seconds: number; text: string } => Boolean(moment));
 }
 
+function isChineseOutputLanguage(language: OutputLanguage | null | undefined): boolean {
+  if (!language || language.kind !== "fixed") return false;
+  const tag = language.tag.toLowerCase();
+  const label = language.label.toLowerCase();
+  return tag === "zh" || tag.startsWith("zh-") || label.includes("chinese");
+}
+
+function formatFallbackMomentText({
+  moment,
+  index,
+  total,
+  outputLanguage,
+}: {
+  moment: { text: string };
+  index: number;
+  total: number;
+  outputLanguage?: OutputLanguage | null;
+}): string {
+  if (!isChineseOutputLanguage(outputLanguage)) return moment.text;
+  if (total <= 1) return "关键片段";
+  if (index === 0) return "开场片段";
+  if (index === total - 1) return "结尾片段";
+  return total === 3 ? "中段片段" : `中段片段 ${index}`;
+}
+
 export function buildSummaryTimestampLimitInstruction(
   extracted: Pick<
     ExtractedLinkContent,
@@ -250,17 +276,27 @@ export function ensureSummaryKeyMoments({
   markdown,
   extracted,
   maxSeconds,
+  outputLanguage,
 }: {
   markdown: string;
   extracted: Pick<ExtractedLinkContent, "transcriptTimedText">;
   maxSeconds: number | null;
+  outputLanguage?: OutputLanguage | null;
 }): string {
   if (!markdown || maxSeconds == null || hasKeyMomentsSection(markdown)) return markdown;
   const moments = pickFallbackKeyMoments(readTimedTranscriptMoments({ extracted, maxSeconds }));
   if (moments.length === 0) return markdown;
   const section = [
     "### Key moments",
-    ...moments.map((moment) => `- [${formatTimestamp(moment.seconds)}] ${moment.text}`),
+    ...moments.map(
+      (moment, index) =>
+        `- [${formatTimestamp(moment.seconds)}] ${formatFallbackMomentText({
+          moment,
+          index,
+          total: moments.length,
+          outputLanguage,
+        })}`,
+    ),
   ].join("\n");
   return `${markdown.trim()}\n\n${section}`;
 }
