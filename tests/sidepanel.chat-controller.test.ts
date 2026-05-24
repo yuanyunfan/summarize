@@ -86,6 +86,28 @@ describe("sidepanel chat controller", () => {
     expect(messagesEl.querySelector("pre > code")).toBeNull();
   });
 
+  it("keeps Mermaid init directives out of visible chat text", async () => {
+    const { controller, messagesEl } = createController();
+    const message: ChatMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      content: "%%{init: {'theme': 'default'}}%%\nflowchart TD\nA --> B",
+      timestamp: Date.now(),
+    } as ChatMessage;
+
+    controller.addMessage(message);
+
+    await vi.waitFor(() => {
+      expect(messagesEl.querySelector(".renderMermaid svg")).not.toBeNull();
+    });
+
+    expect(messagesEl.textContent).not.toContain("%%{init");
+    expect(mermaidMocks.render).toHaveBeenCalledWith(
+      expect.stringMatching(/^summary-mermaid-/),
+      "%%{init: {'theme': 'default'}}%%\nflowchart TD\nA --> B",
+    );
+  });
+
   it("renders user image attachments as thumbnails", () => {
     const { controller, messagesEl } = createController();
     const message: ChatMessage = {

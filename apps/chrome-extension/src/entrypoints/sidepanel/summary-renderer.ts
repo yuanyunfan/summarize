@@ -20,6 +20,7 @@ const FLOWCHART_HEADER_PATTERN = /^((?:flowchart|graph)\s+(?:TD|TB|BT|RL|LR))\s+
 const FLOWCHART_EDGE_PATTERN =
   /([A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)\s*[A-Za-z_][\w-]*(?:\[[^\]]+\])?)/g;
 const FLOWCHART_EDGE_START_PATTERN = /^[A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)/;
+const MERMAID_DIRECTIVE_PREFIX_PATTERN = /^\s*(%%\{.*?\}%%)\s*/;
 const defaultMermaidLoader = () =>
   import("mermaid").then((module) => module.default as MermaidRuntime);
 let mermaidLoadPromise: Promise<MermaidRuntime> | null = null;
@@ -116,6 +117,18 @@ function looksLikeMermaidContinuation(line: string): boolean {
   );
 }
 
+function consumeMermaidDirectivePrefix(line: string): { directives: string[]; rest: string } {
+  const directives: string[] = [];
+  let rest = line;
+  while (true) {
+    const match = rest.match(MERMAID_DIRECTIVE_PREFIX_PATTERN);
+    if (!match?.[1]) break;
+    directives.push(match[1].trim());
+    rest = rest.slice(match[0].length);
+  }
+  return { directives, rest };
+}
+
 function normalizeFlowchartSource(source: string): string {
   const compact = source.replace(/\s+/g, " ").trim();
   const header = compact.match(FLOWCHART_HEADER_PATTERN);
@@ -140,10 +153,19 @@ function normalizeFlowchartSource(source: string): string {
 
 function normalizeMermaidSource(source: string): string {
   const trimmed = source.trim();
-  if (/^(?:flowchart|graph)\s+/i.test(trimmed)) {
-    return normalizeFlowchartSource(trimmed);
+  const lines = trimmed.split(/\r?\n/);
+  const directives: string[] = [];
+  while (lines.length > 0) {
+    const parsed = consumeMermaidDirectivePrefix(lines[0] ?? "");
+    if (parsed.directives.length === 0 || parsed.rest.trim()) break;
+    directives.push(...parsed.directives);
+    lines.shift();
   }
-  return trimmed.replace(/\s*;\s*/g, "\n");
+  const body = lines.join("\n").trim();
+  const normalizedBody = /^(?:flowchart|graph)\s+/i.test(body)
+    ? normalizeFlowchartSource(body)
+    : body.replace(/\s*;\s*/g, "\n");
+  return [...directives, normalizedBody].filter(Boolean).join("\n");
 }
 
 export function normalizeInlineMermaidBlocks(markdown: string): string {
@@ -163,15 +185,30 @@ export function normalizeInlineMermaidBlocks(markdown: string): string {
       continue;
     }
 
-    const match = line.match(MERMAID_START_PATTERN);
+    const directivePrefix = consumeMermaidDirectivePrefix(line);
+    const directives = [...directivePrefix.directives];
+    let candidateLine = directives.length > 0 ? directivePrefix.rest : line;
+    let candidateIndex = index;
+    while (!candidateLine.trim() && candidateIndex + 1 < lines.length) {
+      const next = lines[candidateIndex + 1] ?? "";
+      candidateIndex += 1;
+      if (!next.trim()) continue;
+      const parsedNext = consumeMermaidDirectivePrefix(next);
+      directives.push(...parsedNext.directives);
+      candidateLine = parsedNext.rest;
+      break;
+    }
+
+    const match = candidateLine.match(MERMAID_START_PATTERN);
     const startIndex = match?.index ?? -1;
-    const prefix = startIndex >= 0 ? line.slice(0, startIndex).trimEnd() : "";
+    const prefix = startIndex >= 0 ? candidateLine.slice(0, startIndex).trimEnd() : "";
     if (startIndex < 0 || !prefixLooksLikeMermaidLabel(prefix)) {
       output.push(line);
       continue;
     }
 
-    const chunks = [line.slice(startIndex).trim()];
+    index = candidateIndex;
+    const chunks = [...directives, candidateLine.slice(startIndex).trim()];
     while (index + 1 < lines.length) {
       const next = lines[index + 1] ?? "";
       if (!next.trim() || isFenceDelimiter(next) || startsNewMarkdownBlock(next)) break;
@@ -180,7 +217,7 @@ export function normalizeInlineMermaidBlocks(markdown: string): string {
       index += 1;
     }
 
-    const source = normalizeMermaidSource(chunks.join(" "));
+    const source = normalizeMermaidSource(chunks.join("\n"));
     if (prefix) {
       output.push(prefix, "", "```mermaid", source, "```");
     } else {
@@ -228,7 +265,7 @@ export async function renderMermaidPreviews(markdownHost: HTMLElement) {
 
   for (const code of blocks) {
     const pre = code.parentElement;
-    const source = code.textContent?.trim() ?? "";
+    const source = normalizeMermaidSource(code.textContent?.trim() ?? "");
     if (
       !pre ||
       !markdownHost.contains(pre) ||

@@ -10,6 +10,7 @@ const mermaidMocks = vi.hoisted(() => ({
 }));
 
 import {
+  normalizeInlineMermaidBlocks,
   renderSummaryEmptyState,
   renderSummaryMarkdownDisplay,
   setMermaidRuntimeLoaderForTest,
@@ -256,6 +257,22 @@ describe("sidepanel summary renderer", () => {
         "flowchart TD",
         "A[线上环境] --> B[OSS 文件系统 + 远程沙箱]",
         "C[本地环境] --> D[LocalStorageAdapter + LocalCommandExecutor]",
+      ].join("\n"),
+    );
+  });
+
+  it("moves Mermaid init directives into the generated diagram fence", () => {
+    expect(
+      normalizeInlineMermaidBlocks(
+        "%%{init: {'theme': 'default'}}%%\nflowchart TD\nA[Start] --> B[End]",
+      ),
+    ).toBe(
+      [
+        "```mermaid",
+        "%%{init: {'theme': 'default'}}%%",
+        "flowchart TD",
+        "A[Start] --> B[End]",
+        "```",
       ].join("\n"),
     );
   });
