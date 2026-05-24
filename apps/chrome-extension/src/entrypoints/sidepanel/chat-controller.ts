@@ -9,6 +9,7 @@ import {
   computeChatContextUsage,
   hasUserChatMessage,
 } from "./chat-state";
+import { normalizeInlineMermaidBlocks, renderMermaidPreviews } from "./summary-renderer";
 import { parseTimestampSeconds } from "./timestamp-links";
 import type { ChatMessage } from "./types";
 
@@ -133,14 +134,13 @@ export class ChatController {
       const msgEl = this.messagesEl.querySelector(`[data-id="${lastMsg.id}"]`);
       if (msgEl) {
         if (displayContent.trim()) {
-          msgEl.innerHTML = this.markdown.render(this.linkifyTimestamps(displayContent));
+          this.renderAssistantMarkdown(msgEl as HTMLElement, displayContent);
           msgEl.removeAttribute("data-placeholder");
         } else {
           msgEl.innerHTML = this.typingIndicatorHtml;
           msgEl.setAttribute("data-placeholder", "true");
         }
         msgEl.classList.add("streaming");
-        this.decorateAnchors(msgEl);
         this.onNewContent?.();
         this.scrollToBottom?.();
       }
@@ -213,13 +213,12 @@ export class ChatController {
       const { text, toolCalls } = splitAssistantMessage(sanitizeChatAssistantMessage(message));
       const rendered = buildAssistantMarkdown(text, toolCalls);
       if (rendered.trim()) {
-        msgEl.innerHTML = this.markdown.render(this.linkifyTimestamps(rendered));
+        this.renderAssistantMarkdown(msgEl, rendered);
       } else {
         msgEl.innerHTML = this.typingIndicatorHtml;
         msgEl.classList.add("streaming");
         msgEl.setAttribute("data-placeholder", "true");
       }
-      this.decorateAnchors(msgEl);
     } else if (message.role === "toolResult") {
       msgEl.classList.add("tool");
       if (message.isError) msgEl.classList.add("error");
@@ -250,10 +249,42 @@ export class ChatController {
         msgEl.appendChild(list);
       }
     } else {
-      msgEl.textContent = extractText(message);
+      this.renderUserMessage(msgEl, message);
     }
 
     return msgEl;
+  }
+
+  private renderUserMessage(root: HTMLElement, message: ChatMessage) {
+    const text = extractText(message);
+    const images = extractImageParts(message);
+    root.replaceChildren();
+    if (text.trim()) {
+      const textEl = document.createElement("div");
+      textEl.className = "chatMessageText";
+      textEl.textContent = text;
+      root.append(textEl);
+    }
+    if (images.length > 0) {
+      const grid = document.createElement("div");
+      grid.className = "chatImageGrid";
+      for (const image of images) {
+        const img = document.createElement("img");
+        img.className = "chatImageThumb";
+        img.src = `data:${image.mimeType};base64,${image.data}`;
+        img.alt = "Attached image";
+        grid.append(img);
+      }
+      root.append(grid);
+    }
+  }
+
+  private renderAssistantMarkdown(root: HTMLElement, content: string) {
+    root.innerHTML = this.markdown.render(
+      this.linkifyTimestamps(normalizeInlineMermaidBlocks(content)),
+    );
+    void renderMermaidPreviews(root);
+    this.decorateAnchors(root);
   }
 
   private decorateAnchors(root: HTMLElement) {
@@ -282,6 +313,22 @@ function extractText(message: ChatMessage): string {
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
+}
+
+function extractImageParts(message: ChatMessage): Array<{ data: string; mimeType: string }> {
+  if (message.role !== "user" && message.role !== "toolResult") return [];
+  const { content } = message;
+  if (!Array.isArray(content)) return [];
+  return content
+    .map((part) => {
+      if (part.type !== "image") return null;
+      const record = part as { data?: unknown; mimeType?: unknown };
+      const data = typeof record.data === "string" ? record.data : "";
+      const mimeType = typeof record.mimeType === "string" ? record.mimeType : "image/png";
+      if (!data) return null;
+      return { data, mimeType };
+    })
+    .filter((part): part is { data: string; mimeType: string } => Boolean(part));
 }
 
 type ToolAttachment = { fileName: string; mimeType: string; contentBase64: string };

@@ -87,6 +87,7 @@ function isMermaidCodeBlock(code: Element): boolean {
     if (normalized === "mermaid") return true;
     if (normalized === "language-mermaid" || normalized === "lang-mermaid") return true;
   }
+  if (MERMAID_START_PATTERN.test(code.textContent?.trim() ?? "")) return true;
   return false;
 }
 
@@ -145,7 +146,7 @@ function normalizeMermaidSource(source: string): string {
   return trimmed.replace(/\s*;\s*/g, "\n");
 }
 
-function normalizeInlineMermaidBlocks(markdown: string): string {
+export function normalizeInlineMermaidBlocks(markdown: string): string {
   const lines = markdown.split(/\r?\n/);
   const output: string[] = [];
   let inFence = false;
@@ -214,7 +215,7 @@ function sanitizeMermaidSvg(container: HTMLElement) {
   }
 }
 
-async function renderMermaidPreviews(markdownHost: HTMLElement) {
+export async function renderMermaidPreviews(markdownHost: HTMLElement) {
   const blocks = Array.from(markdownHost.querySelectorAll("pre > code")).filter(isMermaidCodeBlock);
   if (blocks.length === 0) return;
 
