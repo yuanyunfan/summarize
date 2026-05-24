@@ -19,10 +19,14 @@ function messageTextLength(message: ChatMessage): number {
   const { content } = message;
   if (typeof content === "string") return content.length;
   if (!Array.isArray(content)) return 0;
-  return content
-    .filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("").length;
+  return content.reduce((sum, part) => {
+    if (part.type === "text") return sum + part.text.length;
+    if (part.type === "image") {
+      const data = typeof (part as { data?: unknown }).data === "string" ? part.data : "";
+      return sum + data.length;
+    }
+    return sum;
+  }, 0);
 }
 
 export function compactChatHistory(

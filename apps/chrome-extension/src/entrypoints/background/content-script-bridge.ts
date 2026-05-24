@@ -1,5 +1,6 @@
 export type ExtractRequest = { type: "extract"; maxChars: number };
 export type SeekRequest = { type: "seek"; seconds: number };
+export type SelectionRequest = { type: "selection:get"; maxChars: number };
 
 export type ExtractResponse =
   | {
@@ -14,6 +15,16 @@ export type ExtractResponse =
   | { ok: false; error: string };
 
 export type SeekResponse = { ok: true } | { ok: false; error: string };
+
+export type SelectionResponse =
+  | {
+      ok: true;
+      url: string;
+      title: string | null;
+      text: string;
+      truncated: boolean;
+    }
+  | { ok: false; error: string };
 
 function contentAccessError(message: string) {
   return (
@@ -165,6 +176,83 @@ export async function seekInTab(
         };
       }
       await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+  }
+
+  return { ok: false, error: "Content script not ready" };
+}
+
+export async function getSelectionFromTab(
+  tabId: number,
+  maxChars: number,
+  opts?: {
+    timeoutMs?: number;
+    log?: (event: string, detail?: Record<string, unknown>) => void;
+  },
+): Promise<{ ok: true; data: SelectionResponse & { ok: true } } | { ok: false; error: string }> {
+  const req = { type: "selection:get", maxChars } satisfies SelectionRequest;
+  const timeoutMs = opts?.timeoutMs ?? 1_800;
+
+  const sendMessageWithTimeout = async (): Promise<SelectionResponse> => {
+    const start = Date.now();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const res = (await Promise.race([
+        chrome.tabs.sendMessage(tabId, req) as Promise<SelectionResponse>,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`selection timed out after ${timeoutMs}ms`)),
+            timeoutMs,
+          );
+        }),
+      ])) as SelectionResponse;
+      if (timer) clearTimeout(timer);
+      opts?.log?.("selection:message:ok", { elapsedMs: Date.now() - start });
+      return res;
+    } catch (err) {
+      if (timer) clearTimeout(timer);
+      opts?.log?.("selection:message:error", {
+        elapsedMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  };
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      opts?.log?.("selection:attempt", { attempt: attempt + 1, timeoutMs });
+      const res = await sendMessageWithTimeout();
+      if (!res.ok) return { ok: false, error: res.error };
+      return { ok: true, data: res };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const noReceiver =
+        message.includes("Receiving end does not exist") ||
+        message.includes("Could not establish connection");
+      const didTimeout = message.includes("selection timed out");
+      if (noReceiver || didTimeout) {
+        const injected = await injectExtractScript(tabId, opts);
+        if (!injected.ok) return injected;
+        if (didTimeout && attempt === 2) {
+          return {
+            ok: false,
+            error: "Page selection check timed out. Reload the tab, then retry.",
+          };
+        }
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        continue;
+      }
+
+      if (attempt === 2) {
+        return {
+          ok: false,
+          error: noReceiver
+            ? "Content script not ready. Check extension “Site access” → “On all sites”, then reload the tab."
+            : message,
+        };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
 

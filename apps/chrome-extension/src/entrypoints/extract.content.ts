@@ -6,6 +6,7 @@ import { type SeekResponse, seekToSecondsInDocument } from "../lib/seek";
 
 type ExtractRequest = { type: "extract"; maxChars: number };
 type SeekRequest = { type: "seek"; seconds: number };
+type SelectionRequest = { type: "selection:get"; maxChars: number };
 type ExtractResponse =
   | {
       ok: true;
@@ -21,11 +22,57 @@ type ExtractResponse =
       };
     }
   | { ok: false; error: string };
+type SelectionResponse =
+  | {
+      ok: true;
+      url: string;
+      title: string | null;
+      text: string;
+      truncated: boolean;
+    }
+  | { ok: false; error: string };
 
 function clampText(text: string, maxChars: number): { text: string; truncated: boolean } {
   if (text.length <= maxChars) return { text, truncated: false };
   const sliced = text.slice(0, Math.max(0, maxChars - 24));
   return { text: `${sliced}\n\n[TRUNCATED]`, truncated: true };
+}
+
+function normalizeSelectedText(text: string): string {
+  return text
+    .replace(/\u00a0/g, " ")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getFormControlSelection(): string {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement)) return "";
+  if (typeof el.selectionStart !== "number" || typeof el.selectionEnd !== "number") return "";
+  if (el.selectionEnd <= el.selectionStart) return "";
+  return el.value.slice(el.selectionStart, el.selectionEnd);
+}
+
+function getSelectionText(maxChars: number): SelectionResponse {
+  try {
+    const windowSelection = window.getSelection();
+    const raw = windowSelection?.toString() || getFormControlSelection();
+    const normalized = normalizeSelectedText(raw);
+    const clamped = clampText(normalized, maxChars);
+    return {
+      ok: true,
+      url: location.href,
+      title: document.title || null,
+      text: clamped.text,
+      truncated: clamped.truncated,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Selection read failed" };
+  }
 }
 
 function resolveMediaDurationSeconds(): number | null {
@@ -153,12 +200,16 @@ export default defineContentScript({
 
     chrome.runtime.onMessage.addListener(
       (
-        message: ExtractRequest | SeekRequest,
+        message: ExtractRequest | SeekRequest | SelectionRequest,
         _sender,
-        sendResponse: (response: ExtractResponse | SeekResponse) => void,
+        sendResponse: (response: ExtractResponse | SeekResponse | SelectionResponse) => void,
       ) => {
         if (message?.type === "extract") {
           sendResponse(extract(message.maxChars));
+          return true;
+        }
+        if (message?.type === "selection:get") {
+          sendResponse(getSelectionText(message.maxChars));
           return true;
         }
         if (message?.type === "seek") {

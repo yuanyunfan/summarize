@@ -61,7 +61,7 @@ describe("sidepanel/chat-state", () => {
     ]);
   });
 
-  it("counts array text parts, keeps tool results, and ignores unsupported roles", () => {
+  it("counts array text and image parts, keeps tool results, and ignores unsupported roles", () => {
     const messages: ChatMessage[] = [
       {
         id: "1",
@@ -74,7 +74,7 @@ describe("sidepanel/chat-state", () => {
         role: "user",
         content: [
           { type: "text", text: "hello " },
-          { type: "image", image: "ignored" },
+          { type: "image", data: "image-data", mimeType: "image/png" },
           { type: "text", text: "world" },
         ],
         timestamp: 2,
@@ -88,7 +88,7 @@ describe("sidepanel/chat-state", () => {
     ];
 
     const usage = computeChatContextUsage(messages, { maxMessages: 10, maxChars: 5 });
-    expect(usage.totalChars).toBe(11);
+    expect(usage.totalChars).toBe(21);
     expect(usage.percent).toBe(100);
     expect(hasUserChatMessage(messages)).toBe(true);
     expect(buildChatRequestMessages(messages)).toEqual([
@@ -96,7 +96,7 @@ describe("sidepanel/chat-state", () => {
         role: "user",
         content: [
           { type: "text", text: "hello " },
-          { type: "image", image: "ignored" },
+          { type: "image", data: "image-data", mimeType: "image/png" },
           { type: "text", text: "world" },
         ],
       },

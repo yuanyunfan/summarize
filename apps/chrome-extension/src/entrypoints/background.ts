@@ -12,7 +12,12 @@ import {
 import { logExtensionEvent } from "../lib/extension-logs";
 import type { BgToPanel, PanelCachePayload, PanelToBg } from "../lib/panel-contracts";
 import { loadSettings, patchSettings } from "../lib/settings";
-import { canSummarizeUrl, extractFromTab, seekInTab } from "./background/content-script-bridge";
+import {
+  canSummarizeUrl,
+  extractFromTab,
+  getSelectionFromTab,
+  seekInTab,
+} from "./background/content-script-bridge";
 import { daemonHealth, daemonPing, friendlyFetchError } from "./background/daemon-client";
 import { ensureChatExtract, primeMediaHint, type CachedExtract } from "./background/extract-cache";
 import { createHoverController, type HoverToBg } from "./background/hover-controller";
@@ -207,6 +212,48 @@ export default defineBackground(() => {
           ok: Boolean(cached),
           cache: cached ?? undefined,
         });
+        break;
+      }
+      case "panel:get-selection": {
+        const payload = raw as { requestId: string; maxChars?: number };
+        if (!payload.requestId) return;
+        void (async () => {
+          const tab = await getActiveTab(session.windowId);
+          if (!tab?.id || !canSummarizeUrl(tab.url)) {
+            void send(session, {
+              type: "selection:state",
+              requestId: payload.requestId,
+              ok: false,
+              error: "Cannot read selection on this page",
+            });
+            return;
+          }
+          const maxChars =
+            typeof payload.maxChars === "number" && Number.isFinite(payload.maxChars)
+              ? Math.max(0, Math.min(20_000, Math.floor(payload.maxChars)))
+              : 8_000;
+          const result = await getSelectionFromTab(tab.id, maxChars, {
+            log: logExtract(session.windowId),
+          });
+          if (!result.ok) {
+            void send(session, {
+              type: "selection:state",
+              requestId: payload.requestId,
+              ok: false,
+              error: result.error,
+            });
+            return;
+          }
+          void send(session, {
+            type: "selection:state",
+            requestId: payload.requestId,
+            ok: true,
+            text: result.data.text,
+            truncated: result.data.truncated,
+            url: result.data.url,
+            title: result.data.title,
+          });
+        })();
         break;
       }
       case "panel:agent":

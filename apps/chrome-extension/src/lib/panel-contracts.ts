@@ -79,6 +79,7 @@ export type PanelToBg =
   | { type: "panel:setAuto"; value: boolean }
   | { type: "panel:setLength"; value: string }
   | { type: "panel:slides-context"; requestId: string; url?: string }
+  | { type: "panel:get-selection"; requestId: string; maxChars?: number }
   | { type: "panel:cache"; cache: PanelCachePayload }
   | { type: "panel:get-cache"; requestId: string; tabId: number; url: string }
   | { type: "panel:openOptions" };
@@ -103,6 +104,16 @@ export type BgToPanel =
       requestId: string;
       ok: boolean;
       transcriptTimedText?: string | null;
+      error?: string;
+    }
+  | {
+      type: "selection:state";
+      requestId: string;
+      ok: boolean;
+      text?: string;
+      truncated?: boolean;
+      url?: string;
+      title?: string | null;
       error?: string;
     }
   | { type: "ui:cache"; requestId: string; ok: boolean; cache?: PanelCachePayload };

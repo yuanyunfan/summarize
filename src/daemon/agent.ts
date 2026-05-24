@@ -1,4 +1,4 @@
-import type { AssistantMessage, Tool } from "@earendil-works/pi-ai";
+import type { Api, AssistantMessage, Model, Tool } from "@earendil-works/pi-ai";
 import { completeSimple, streamSimple } from "@earendil-works/pi-ai";
 import { buildPromptHash } from "../cache.js";
 import {
@@ -11,6 +11,7 @@ import {
   buildSystemPrompt,
   flattenAgentForCli,
   getAgentPrompt,
+  hasImageContent,
   normalizeMessages,
   resolveToolList,
 } from "./agent-request.js";
@@ -303,6 +304,22 @@ function normalizeAgentStreamError(error: unknown): Error {
   return next;
 }
 
+function ensureImageCapableAgentModel({
+  model,
+  provider,
+  hasImageInputs,
+}: {
+  model: Model<Api>;
+  provider: string;
+  hasImageInputs: boolean;
+}) {
+  if (!hasImageInputs || model.input.includes("image")) return;
+  const modelId = `${provider}/${model.id}`;
+  throw new Error(
+    `Selected model ${modelId} does not support image inputs. Choose Auto or a vision-capable model to use chat image attachments.`,
+  );
+}
+
 export async function streamAgentResponse({
   env,
   pageUrl,
@@ -331,6 +348,7 @@ export async function streamAgentResponse({
   signal?: AbortSignal;
 }): Promise<void> {
   const normalizedMessages = normalizeMessages(messages);
+  const hasImageInputs = hasImageContent(normalizedMessages);
   const toolList = resolveToolList(automationEnabled, tools, TOOL_DEFINITIONS);
 
   const systemPrompt = buildSystemPrompt({
@@ -345,9 +363,15 @@ export async function streamAgentResponse({
     env,
     pageContent,
     modelOverride,
+    hasImageInputs,
   });
 
   if ("transport" in resolved && resolved.transport === "cli") {
+    if (hasImageInputs) {
+      throw new Error(
+        "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
+      );
+    }
     const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
     const result = await import("../llm/cli.js").then(({ runCliModel }) =>
       runCliModel({
@@ -367,6 +391,7 @@ export async function streamAgentResponse({
   }
 
   const { provider, model, maxOutputTokens, apiKeys } = resolved;
+  ensureImageCapableAgentModel({ model, provider, hasImageInputs });
   const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
   let emittedContent = false;
@@ -449,6 +474,7 @@ export async function completeAgentResponse({
   language?: string | null;
 }): Promise<AssistantMessage> {
   const normalizedMessages = normalizeMessages(messages);
+  const hasImageInputs = hasImageContent(normalizedMessages);
   const toolList = resolveToolList(automationEnabled, tools, TOOL_DEFINITIONS);
 
   const systemPrompt = buildSystemPrompt({
@@ -463,9 +489,15 @@ export async function completeAgentResponse({
     env,
     pageContent,
     modelOverride,
+    hasImageInputs,
   });
 
   if ("transport" in resolved && resolved.transport === "cli") {
+    if (hasImageInputs) {
+      throw new Error(
+        "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
+      );
+    }
     const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
     const result = await import("../llm/cli.js").then(({ runCliModel }) =>
       runCliModel({
@@ -485,6 +517,7 @@ export async function completeAgentResponse({
   }
 
   const { provider, model, maxOutputTokens, apiKeys } = resolved;
+  ensureImageCapableAgentModel({ model, provider, hasImageInputs });
   const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
   const run = (modelForRun: typeof model) =>

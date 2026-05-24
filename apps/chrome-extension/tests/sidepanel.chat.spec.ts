@@ -94,6 +94,75 @@ test("sidepanel chat queue sends next message after stream completes", async ({
   }
 });
 
+test("sidepanel chat sends selected page text as model context", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    await seedSettings(harness, { token: "test-token", autoSummarize: false, chatEnabled: true });
+    const selectedText = "Selected alpha beta gamma text from the article.";
+    const contentPage = await harness.context.newPage();
+    await contentPage.goto("https://example.com", { waitUntil: "domcontentloaded" });
+    await contentPage.evaluate((text) => {
+      document.body.innerHTML = `<article><p id="target">${text}</p><p>${"More page text. ".repeat(
+        40,
+      )}</p></article>`;
+    }, selectedText);
+    await maybeBringToFront(contentPage);
+    await activateTabByUrl(harness, "https://example.com");
+    await waitForActiveTabUrl(harness, "https://example.com");
+    await injectContentScript(harness, "content-scripts/extract.js", "https://example.com");
+    await waitForExtractReady(harness, "https://example.com");
+
+    const agentBodies: unknown[] = [];
+    await harness.context.route("http://127.0.0.1:8787/v1/agent", async (route) => {
+      agentBodies.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body: buildAgentStream("Ack selected text"),
+      });
+    });
+
+    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
+    await activateTabByUrl(harness, "https://example.com");
+    await waitForActiveTabUrl(harness, "https://example.com");
+    await contentPage.evaluate(() => {
+      const target = document.getElementById("target");
+      const node = target?.firstChild;
+      if (!node) throw new Error("missing target text");
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await sendPanelMessage(page, { type: "panel:ready" });
+
+    await expect(page.locator("#chatSelectionPreview")).toBeVisible();
+    await expect(page.locator("#chatSelectionText")).toContainText("Selected alpha beta gamma");
+
+    await page.evaluate((value) => {
+      const input = document.getElementById("chatInput") as HTMLTextAreaElement | null;
+      const send = document.getElementById("chatSend") as HTMLButtonElement | null;
+      if (!input || !send) return;
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      send.click();
+    }, "Explain the selected text");
+
+    await expect.poll(() => agentBodies.length).toBe(1);
+    const payload = JSON.stringify(agentBodies[0]);
+    expect(payload).toContain("<selected_text>");
+    expect(payload).toContain(selectedText);
+    expect(payload).toContain("Explain the selected text");
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
 test("sidepanel chat queue drains messages after stream completes", async ({
   browserName: _browserName,
 }, testInfo) => {

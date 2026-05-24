@@ -24,7 +24,13 @@ import {
   createChatHistoryStore,
   normalizeStoredMessage,
 } from "./chat-history-store";
+import {
+  buildUserMessageFromChatPayload,
+  createChatImageAttachmentRuntime,
+  type ChatInputPayload,
+} from "./chat-image-attachments";
 import { createChatQueueRuntime } from "./chat-queue-runtime";
+import { createChatSelectionRuntime } from "./chat-selection-runtime";
 import { createChatSession } from "./chat-session";
 import { type ChatHistoryLimits } from "./chat-state";
 import { createChatStreamRuntime } from "./chat-stream-runtime";
@@ -79,11 +85,17 @@ const {
   chatContainerEl,
   chatContextStatusEl,
   chatDockEl,
+  chatAttachBtn,
+  chatImageInputEl,
+  chatImagePreviewsEl,
   chatInputEl,
   chatJumpBtn,
   chatMessagesEl,
   chatMetricsSlotEl,
   chatQueueEl,
+  chatSelectionClearBtn,
+  chatSelectionPreviewEl,
+  chatSelectionTextEl,
   chatSendBtn,
   clearBtn,
   drawerEl,
@@ -598,6 +610,24 @@ const chatQueueRuntime = createChatQueueRuntime({
   setStatus: (value) => {
     headerController.setStatus(value);
   },
+});
+const chatImageAttachmentRuntime = createChatImageAttachmentRuntime({
+  attachBtn: chatAttachBtn,
+  fileInputEl: chatImageInputEl,
+  inputEl: chatInputEl,
+  previewsEl: chatImagePreviewsEl,
+  dropTargetEl: chatDockEl,
+  setStatus: (value) => {
+    headerController.setStatus(value);
+  },
+});
+const chatSelectionRuntime = createChatSelectionRuntime({
+  rootEl: chatSelectionPreviewEl,
+  textEl: chatSelectionTextEl,
+  clearBtn: chatSelectionClearBtn,
+  sendMessage: (message) => send(message),
+  getActiveTabUrl: () => activeTabUrl,
+  chatEnabled: () => chatEnabledValue,
 });
 
 slideNoticeRetryBtn.addEventListener("click", () => {
@@ -1340,6 +1370,7 @@ const uiStateRuntime = createUiStateRuntime({
 
 function updateControls(state: UiState) {
   uiStateRuntime.apply(state);
+  chatSelectionRuntime.syncActiveTab(state.tab.url, state.settings.chatEnabled);
 }
 
 const bgMessageRuntime = createSidepanelBgMessageRuntime({
@@ -1401,6 +1432,7 @@ const bgMessageRuntime = createSidepanelBgMessageRuntime({
 });
 
 function handleBgMessage(msg: BgToPanel) {
+  if (chatSelectionRuntime.handleMessage(msg)) return;
   bgMessageRuntime.handle(msg);
 }
 
@@ -1428,13 +1460,21 @@ const interactionRuntime = createSidepanelInteractionRuntime({
     chatStreamRuntime.retryChat();
   },
   chatEnabled: () => chatEnabledValue,
-  getRawChatInput: () => chatInputEl.value,
+  getChatInputPayload: () => ({
+    text: chatInputEl.value,
+    images: chatImageAttachmentRuntime.getImages(),
+    selectedText: chatSelectionRuntime.getSelectedText(),
+  }),
   clearChatInput: () => {
     chatInputEl.value = "";
     chatInputEl.style.height = "auto";
+    chatImageAttachmentRuntime.clearImages();
+    chatSelectionRuntime.clearAfterSend();
   },
-  restoreChatInput: (value) => {
-    chatInputEl.value = value;
+  restoreChatInput: (value: ChatInputPayload) => {
+    chatInputEl.value = value.text;
+    chatImageAttachmentRuntime.restoreImages(value.images);
+    chatSelectionRuntime.restoreSelectedText(value.selectedText);
   },
   getChatInputScrollHeight: () => chatInputEl.scrollHeight,
   setChatInputHeight: (value) => {
@@ -1655,8 +1695,8 @@ const chatStreamRuntime = createChatStreamRuntime({
     panelState.chatStreaming = value;
   },
   hasUserMessages: () => chatController.hasUserMessages(),
-  addUserMessage: (text) => {
-    chatController.addMessage(wrapMessage({ role: "user", content: text, timestamp: Date.now() }));
+  addUserMessage: (payload) => {
+    chatController.addMessage(wrapMessage(buildUserMessageFromChatPayload(payload)));
   },
   dequeueQueuedMessage: chatQueueRuntime.dequeueQueuedMessage,
   getQueuedChatCount: chatQueueRuntime.getQueueLength,
@@ -1730,6 +1770,8 @@ bindSidepanelUiEvents({
   },
   runRefreshFree,
 });
+
+chatSelectionRuntime.start();
 
 bootstrapSidepanel({
   ensurePanelPort: () => panelPortRuntime.ensure(),

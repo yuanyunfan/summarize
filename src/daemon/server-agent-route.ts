@@ -26,7 +26,7 @@ export async function handleAgentRoute({
 
   let body: unknown;
   try {
-    body = await readJsonBody(req, 4_000_000);
+    body = await readJsonBody(req, 8_000_000);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     json(res, 400, { ok: false, error: message }, cors);

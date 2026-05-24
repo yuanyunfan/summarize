@@ -7,6 +7,9 @@ import { compactChatHistory, type ChatHistoryLimits } from "./chat-state";
 import { normalizePanelUrl } from "./session-policy";
 import type { ChatMessage } from "./types";
 
+const STORED_IMAGE_DATA_MAX_CHARS = 1_700_000;
+const STORED_IMAGE_MIME_PATTERN = /^image\/(?:png|jpeg|webp|gif)$/i;
+
 function getChatHistoryKey(tabId: number, url?: string | null) {
   if (url) {
     try {
@@ -30,14 +33,49 @@ export function buildEmptyUsage() {
   };
 }
 
+function normalizeStoredUserContent(content: unknown) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+  const parts = content
+    .map((part) => {
+      if (!part || typeof part !== "object") return null;
+      const record = part as Record<string, unknown>;
+      if (record.type === "text" && typeof record.text === "string") {
+        return { type: "text", text: record.text };
+      }
+      if (
+        record.type === "image" &&
+        typeof record.data === "string" &&
+        record.data.length <= STORED_IMAGE_DATA_MAX_CHARS &&
+        typeof record.mimeType === "string" &&
+        STORED_IMAGE_MIME_PATTERN.test(record.mimeType)
+      ) {
+        return { type: "image", data: record.data, mimeType: record.mimeType.toLowerCase() };
+      }
+      return null;
+    })
+    .filter(
+      (
+        part,
+      ): part is
+        | { type: "text"; text: string }
+        | {
+            type: "image";
+            data: string;
+            mimeType: string;
+          } => Boolean(part),
+    );
+  return parts.length > 0 ? parts : null;
+}
+
 export function normalizeStoredMessage(raw: Record<string, unknown>): ChatMessage | null {
   const role = raw.role;
   const timestamp = typeof raw.timestamp === "number" ? raw.timestamp : Date.now();
   const id = typeof raw.id === "string" ? raw.id : crypto.randomUUID();
 
   if (role === "user") {
-    const content = raw.content;
-    if (typeof content !== "string" && !Array.isArray(content)) return null;
+    const content = normalizeStoredUserContent(raw.content);
+    if (content === null) return null;
     return { ...(raw as Message), role: "user", content, timestamp, id };
   }
 

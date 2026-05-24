@@ -124,11 +124,13 @@ function resolveModelWithFallback({
   modelId,
   baseUrl,
   openAiChatCompletionsPreference,
+  allowImages,
 }: {
   provider: string;
   modelId: string;
   baseUrl: string | null;
   openAiChatCompletionsPreference: boolean | null;
+  allowImages: boolean;
 }): Model<Api> {
   try {
     const model = getModel(provider as never, modelId as never);
@@ -149,7 +151,7 @@ function resolveModelWithFallback({
             ? resolveSyntheticOpenAiApi({ baseUrl, openAiChatCompletionsPreference })
             : "openai-completions",
         baseUrl,
-        allowImages: false,
+        allowImages,
       });
     }
     if (provider === "openrouter") {
@@ -158,7 +160,7 @@ function resolveModelWithFallback({
         modelId,
         api: "openai-completions",
         baseUrl: "https://openrouter.ai/api/v1",
-        allowImages: false,
+        allowImages,
       });
     }
     throw error;
@@ -264,10 +266,12 @@ export async function resolveAgentModel({
   env,
   pageContent,
   modelOverride,
+  hasImageInputs = false,
 }: {
   env: Record<string, string | undefined>;
   pageContent: string;
   modelOverride: string | null;
+  hasImageInputs?: boolean;
 }) {
   const {
     config,
@@ -337,6 +341,7 @@ export async function resolveAgentModel({
         baseUrl,
         openAiChatCompletionsPreference:
           provider === "openai" ? openAiChatCompletionsPreference : null,
+        allowImages: hasImageInputs,
       }),
     };
   };
@@ -371,8 +376,8 @@ export async function resolveAgentModel({
 
   const estimatedPromptTokens = Math.ceil(pageContent.length / 4);
   const attempts = buildAutoModelAttempts({
-    kind: "website",
-    promptTokens: estimatedPromptTokens,
+    kind: hasImageInputs ? "image" : "website",
+    promptTokens: hasImageInputs ? null : estimatedPromptTokens,
     desiredOutputTokens: maxOutputTokens,
     requiresVideoUnderstanding: false,
     env: envForAuto,

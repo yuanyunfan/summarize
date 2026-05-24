@@ -1,6 +1,12 @@
 import type { Message, Tool } from "@earendil-works/pi-ai";
 import { formatOutputLanguageInstruction, resolveOutputLanguage } from "../language.js";
 
+const AGENT_IMAGE_DATA_MAX_CHARS = 1_700_000;
+const AGENT_IMAGE_MIME_PATTERN = /^image\/(?:png|jpeg|webp|gif)$/i;
+type NormalizedContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
 const AGENT_PROMPT_AUTOMATION = `You are Summarize Automation, not Claude.
 
 # Purpose
@@ -99,13 +105,45 @@ export function normalizeMessages(raw: unknown): Message[] {
     if (!item || typeof item !== "object") continue;
     const role = (item as { role?: unknown }).role;
     if (role !== "user" && role !== "assistant" && role !== "toolResult") continue;
-    const msg = item as Message;
+    const msg = normalizeMessageContent(item as Message);
     if (!msg.timestamp || typeof msg.timestamp !== "number") {
       (msg as Message).timestamp = Date.now();
     }
     out.push(msg);
   }
   return out;
+}
+
+function normalizeMessageContent(message: Message): Message {
+  if (message.role !== "user" && message.role !== "toolResult") return message;
+  if (!Array.isArray(message.content)) return message;
+  const content = message.content
+    .map((part) => {
+      if (!part || typeof part !== "object") return null;
+      const record = part as unknown as Record<string, unknown>;
+      if (record.type === "text" && typeof record.text === "string") {
+        return { type: "text", text: record.text };
+      }
+      if (
+        record.type === "image" &&
+        typeof record.data === "string" &&
+        record.data.length <= AGENT_IMAGE_DATA_MAX_CHARS &&
+        typeof record.mimeType === "string" &&
+        AGENT_IMAGE_MIME_PATTERN.test(record.mimeType)
+      ) {
+        return { type: "image", data: record.data, mimeType: record.mimeType.toLowerCase() };
+      }
+      return null;
+    })
+    .filter((part): part is NormalizedContentPart => Boolean(part));
+  return { ...message, content } as Message;
+}
+
+export function hasImageContent(messages: Message[]): boolean {
+  return messages.some((message) => {
+    if (message.role !== "user" && message.role !== "toolResult") return false;
+    return Array.isArray(message.content) && message.content.some((part) => part.type === "image");
+  });
 }
 
 export function resolveToolList(

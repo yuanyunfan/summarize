@@ -48,14 +48,14 @@ const buildAssistant = (provider: string, model: string): AssistantMessage => ({
   timestamp: Date.now(),
 });
 
-const makeModel = (provider: string, modelId: string) => ({
+const makeModel = (provider: string, modelId: string, input: string[] = ["text"]) => ({
   id: modelId,
   name: modelId,
   provider,
   api: "openai-completions" as const,
   baseUrl: "https://example.com",
   reasoning: false,
-  input: ["text"],
+  input,
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 8192,
   maxTokens: 2048,
@@ -627,6 +627,89 @@ describe("daemon/agent", () => {
     }
   });
 
+  it("uses image auto model selection and preserves image message parts", async () => {
+    const home = makeTempHome();
+    mockGetModel.mockImplementation((provider: string, modelId: string) =>
+      makeModel(provider, modelId, ["text", "image"]),
+    );
+    const autoSpy = vi.spyOn(modelAuto, "buildAutoModelAttempts").mockReturnValue([
+      {
+        transport: "native",
+        userModelId: "google/gemini-3-flash",
+        llmModelId: "google/gemini-3-flash",
+        openrouterProviders: null,
+        forceOpenRouter: false,
+        requiredEnv: "GEMINI_API_KEY",
+        debug: "image",
+      },
+    ]);
+
+    try {
+      await completeAgentResponse({
+        env: { HOME: home, GEMINI_API_KEY: "gemini-key" },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is this?" },
+              { type: "image", data: "abc123", mimeType: "image/png" },
+            ],
+          },
+        ],
+        modelOverride: null,
+        tools: [],
+        automationEnabled: false,
+      });
+
+      expect(autoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "image", promptTokens: null }),
+      );
+      const context = mockCompleteSimple.mock.calls[0]?.[1] as { messages?: unknown[] };
+      expect(context.messages?.[0]).toMatchObject({
+        role: "user",
+        content: [
+          { type: "text", text: "What is this?" },
+          { type: "image", data: "abc123", mimeType: "image/png" },
+        ],
+      });
+    } finally {
+      autoSpy.mockRestore();
+    }
+  });
+
+  it("rejects fixed non-vision models for image messages", async () => {
+    const home = makeTempHome();
+    mockGetModel.mockImplementationOnce((provider: string, modelId: string) =>
+      makeModel(provider, modelId, ["text"]),
+    );
+
+    await expect(
+      completeAgentResponse({
+        env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is this?" },
+              { type: "image", data: "abc123", mimeType: "image/png" },
+            ],
+          },
+        ],
+        modelOverride: "openai/text-only-model",
+        tools: [],
+        automationEnabled: false,
+      }),
+    ).rejects.toThrow(/does not support image inputs/);
+
+    expect(mockCompleteSimple).not.toHaveBeenCalled();
+  });
+
   it("runs fixed CLI agent models through the CLI transport", async () => {
     const home = makeTempHome();
 
@@ -653,6 +736,33 @@ describe("daemon/agent", () => {
     expect(args.prompt).toContain("User: Hi");
     expect(mockCompleteSimple).not.toHaveBeenCalled();
     expect(assistant.content).toBe("cli agent");
+  });
+
+  it("rejects image messages for CLI agent transport instead of dropping them", async () => {
+    const home = makeTempHome();
+
+    await expect(
+      completeAgentResponse({
+        env: { HOME: home },
+        pageUrl: "https://example.com",
+        pageTitle: "Example",
+        pageContent: "Hello world",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is this?" },
+              { type: "image", data: "abc123", mimeType: "image/png" },
+            ],
+          },
+        ],
+        modelOverride: "cli/codex/gpt-5.2",
+        tools: [],
+        automationEnabled: false,
+      }),
+    ).rejects.toThrow(/API vision model/);
+
+    expect(runCliModel).not.toHaveBeenCalled();
   });
 
   it("falls back to CLI auto attempts when no API-key agent model is available", async () => {

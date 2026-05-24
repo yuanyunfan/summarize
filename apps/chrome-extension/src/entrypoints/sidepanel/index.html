@@ -184,7 +184,36 @@
         </label>
         <button id="summaryPromptOptions" type="button" class="ghost small">编辑</button>
       </div>
+      <div id="chatSelectionPreview" class="chatSelectionPreview isHidden" aria-live="polite">
+        <div class="chatSelectionPreview__body">
+          <span class="chatSelectionPreview__label">已选择文本</span>
+          <span id="chatSelectionText" class="chatSelectionPreview__text"></span>
+        </div>
+        <button
+          id="chatSelectionClear"
+          type="button"
+          class="ghost chatSelectionPreview__clear"
+          aria-label="忽略选中文本"
+        >
+          x
+        </button>
+      </div>
+      <div id="chatImagePreviews" class="chatImagePreviews isHidden" aria-live="polite"></div>
       <div class="chatInputRow">
+        <input
+          id="chatImageInput"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          multiple
+          hidden
+        />
+        <button id="chatAttach" type="button" class="ghost chatAttachBtn" aria-label="添加图片">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2ZM8.5 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm10 9.5h-13l3.2-4.1a1 1 0 0 1 1.55-.05l1.68 1.9 2.47-3.17a1 1 0 0 1 1.58 0L18.5 18Z"
+            />
+          </svg>
+        </button>
         <textarea
           id="chatInput"
           class="chatInput"

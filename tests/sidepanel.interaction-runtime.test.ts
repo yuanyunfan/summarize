@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ChatInputPayload } from "../apps/chrome-extension/src/entrypoints/sidepanel/chat-image-attachments";
 import { createSidepanelInteractionRuntime } from "../apps/chrome-extension/src/entrypoints/sidepanel/interaction-runtime";
 
 function createHarness() {
@@ -6,7 +7,9 @@ function createHarness() {
   const state = {
     rawInput: "",
     cleared: 0,
-    restored: "",
+    images: [] as ChatInputPayload["images"],
+    selectedText: null as ChatInputPayload["selectedText"],
+    restored: null as null | ChatInputPayload,
     height: "",
     queueLength: 0,
     chatStreaming: false,
@@ -46,14 +49,22 @@ function createHarness() {
     getInputModeOverride: vi.fn(() => "video"),
     retryChat: spies.retryChat,
     chatEnabled: vi.fn(() => true),
-    getRawChatInput: vi.fn(() => state.rawInput),
+    getChatInputPayload: vi.fn(() => ({
+      text: state.rawInput,
+      images: state.images,
+      selectedText: state.selectedText,
+    })),
     clearChatInput: vi.fn(() => {
       state.rawInput = "";
+      state.images = [];
+      state.selectedText = null;
       state.cleared += 1;
     }),
-    restoreChatInput: vi.fn((value: string) => {
+    restoreChatInput: vi.fn((value: ChatInputPayload) => {
       state.restored = value;
-      state.rawInput = value;
+      state.rawInput = value.text;
+      state.images = value.images;
+      state.selectedText = value.selectedText;
     }),
     getChatInputScrollHeight: vi.fn(() => 180),
     setChatInputHeight: vi.fn((value: string) => {
@@ -114,7 +125,54 @@ describe("sidepanel interaction runtime", () => {
     harness.runtime.sendChatMessage();
 
     expect(harness.state.cleared).toBe(1);
-    expect(harness.spies.startChatMessage).toHaveBeenCalledWith("hello there");
+    expect(harness.spies.startChatMessage).toHaveBeenCalledWith({
+      text: "hello there",
+      images: [],
+    });
+  });
+
+  it("starts chat with an attached image and default prompt", () => {
+    const harness = createHarness();
+    const image = {
+      id: "img-1",
+      name: "screenshot.png",
+      mimeType: "image/png",
+      data: "abc",
+      sizeBytes: 3,
+    };
+    harness.state.images = [
+      {
+        ...image,
+      },
+    ];
+
+    harness.runtime.sendChatMessage();
+
+    expect(harness.state.cleared).toBe(1);
+    expect(harness.spies.startChatMessage).toHaveBeenCalledWith({
+      text: "请根据这张图片回答。",
+      images: [image],
+    });
+  });
+
+  it("starts chat with selected text context", () => {
+    const harness = createHarness();
+    harness.state.rawInput = "Explain this part";
+    harness.state.selectedText = { text: "Selected page text" };
+
+    harness.runtime.sendChatMessage();
+
+    expect(harness.state.cleared).toBe(1);
+    expect(harness.spies.startChatMessage).toHaveBeenCalledWith({
+      text: "Explain this part",
+      images: [],
+      selectedText: {
+        text: "Selected page text",
+        truncated: false,
+        url: null,
+        title: null,
+      },
+    });
   });
 
   it("restores chat input when queueing fails", () => {
@@ -125,7 +183,7 @@ describe("sidepanel interaction runtime", () => {
 
     harness.runtime.sendChatMessage();
 
-    expect(harness.state.restored).toBe("queued");
+    expect(harness.state.restored).toEqual({ text: "queued", images: [] });
     expect(harness.state.height).toBe("120px");
     expect(harness.spies.maybeSendQueuedChat).not.toHaveBeenCalled();
   });
@@ -137,7 +195,7 @@ describe("sidepanel interaction runtime", () => {
 
     harness.runtime.sendChatMessage();
 
-    expect(harness.spies.enqueueChatMessage).toHaveBeenCalledWith("queued");
+    expect(harness.spies.enqueueChatMessage).toHaveBeenCalledWith({ text: "queued", images: [] });
     expect(harness.spies.maybeSendQueuedChat).toHaveBeenCalledTimes(1);
   });
 
@@ -170,7 +228,7 @@ describe("sidepanel interaction runtime", () => {
       getInputModeOverride: vi.fn(() => null),
       retryChat: vi.fn(),
       chatEnabled: vi.fn(() => false),
-      getRawChatInput: vi.fn(() => "hello"),
+      getChatInputPayload: vi.fn(() => ({ text: "hello", images: [] })),
       clearChatInput: vi.fn(),
       restoreChatInput: vi.fn(),
       getChatInputScrollHeight: vi.fn(() => 40),

@@ -1,3 +1,9 @@
+import {
+  chatPayloadHasContent,
+  normalizeChatInputPayload,
+  type ChatInputPayload,
+} from "./chat-image-attachments";
+
 type PatchSettingsResult = {
   fontFamily: string;
   fontSize: number;
@@ -11,16 +17,16 @@ export function createSidepanelInteractionRuntime(options: {
   getInputModeOverride: () => "page" | "video" | null;
   retryChat: () => void;
   chatEnabled: () => boolean;
-  getRawChatInput: () => string;
+  getChatInputPayload: () => ChatInputPayload;
   clearChatInput: () => void;
-  restoreChatInput: (value: string) => void;
+  restoreChatInput: (value: ChatInputPayload) => void;
   getChatInputScrollHeight: () => number;
   setChatInputHeight: (value: string) => void;
   isChatStreaming: () => boolean;
   getQueuedChatCount: () => number;
-  enqueueChatMessage: (value: string) => boolean;
+  enqueueChatMessage: (value: ChatInputPayload) => boolean;
   maybeSendQueuedChat: () => void;
-  startChatMessage: (value: string) => void;
+  startChatMessage: (value: ChatInputPayload) => void;
   typographyController: {
     clampFontSize: (value: number) => number;
     getCurrentFontSize: () => number;
@@ -70,17 +76,16 @@ export function createSidepanelInteractionRuntime(options: {
 
   function sendChatMessage() {
     if (!options.chatEnabled()) return;
-    const rawInput = options.getRawChatInput();
-    const input = rawInput.trim();
-    if (!input) return;
+    const payload = normalizeChatInputPayload(options.getChatInputPayload());
+    if (!chatPayloadHasContent(payload)) return;
 
     options.clearChatInput();
 
     const chatBusy = options.isChatStreaming();
     if (chatBusy || options.getQueuedChatCount() > 0) {
-      const queued = options.enqueueChatMessage(input);
+      const queued = options.enqueueChatMessage(payload);
       if (!queued) {
-        options.restoreChatInput(rawInput);
+        options.restoreChatInput(payload);
         options.setChatInputHeight(`${Math.min(options.getChatInputScrollHeight(), 120)}px`);
       } else if (!chatBusy) {
         options.maybeSendQueuedChat();
@@ -88,7 +93,7 @@ export function createSidepanelInteractionRuntime(options: {
       return;
     }
 
-    options.startChatMessage(input);
+    options.startChatMessage(payload);
   }
 
   const bumpFontSize = (delta: number) => {

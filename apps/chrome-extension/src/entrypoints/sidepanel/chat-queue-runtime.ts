@@ -1,6 +1,13 @@
+import {
+  chatPayloadHasContent,
+  formatChatPayloadPreview,
+  normalizeChatInputPayload,
+  type ChatInputPayload,
+} from "./chat-image-attachments";
+
 type ChatQueueItem = {
   id: string;
-  text: string;
+  payload: ChatInputPayload;
   createdAt: number;
 };
 
@@ -13,8 +20,10 @@ type ChatQueueRuntimeOpts = {
 export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
   let queue: ChatQueueItem[] = [];
 
-  function normalizeQueueText(input: string) {
-    return input.replace(/\s+/g, " ").trim();
+  function normalizeQueuePayload(input: ChatInputPayload) {
+    const payload = normalizeChatInputPayload(input);
+    payload.text = payload.text.replace(/\s+/g, " ").trim();
+    return chatPayloadHasContent(payload) ? payload : null;
   }
 
   function removeQueuedMessage(id: string) {
@@ -38,8 +47,9 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
 
       const text = document.createElement("div");
       text.className = "chatQueueText";
-      text.textContent = item.text;
-      text.title = item.text;
+      const preview = formatChatPayloadPreview(item.payload);
+      text.textContent = preview;
+      text.title = preview;
 
       const remove = document.createElement("button");
       remove.type = "button";
@@ -53,14 +63,14 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
     }
   }
 
-  function enqueueChatMessage(input: string): boolean {
-    const text = normalizeQueueText(input);
-    if (!text) return false;
+  function enqueueChatMessage(input: ChatInputPayload): boolean {
+    const payload = normalizeQueuePayload(input);
+    if (!payload) return false;
     if (queue.length >= opts.maxQueue) {
       opts.setStatus(`队列已满（${opts.maxQueue}）。先移除一条再添加。`);
       return false;
     }
-    queue.push({ id: crypto.randomUUID(), text, createdAt: Date.now() });
+    queue.push({ id: crypto.randomUUID(), payload, createdAt: Date.now() });
     renderChatQueue();
     return true;
   }

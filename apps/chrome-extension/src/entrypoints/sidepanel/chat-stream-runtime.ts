@@ -1,10 +1,16 @@
+import {
+  chatPayloadHasContent,
+  normalizeChatInputPayload,
+  type ChatInputPayload,
+} from "./chat-image-attachments";
+
 type ChatStreamRuntimeOpts = {
   chatEnabled: () => boolean;
   isChatStreaming: () => boolean;
   setChatStreaming: (value: boolean) => void;
   hasUserMessages: () => boolean;
-  addUserMessage: (text: string) => void;
-  dequeueQueuedMessage: () => { text: string } | undefined;
+  addUserMessage: (payload: ChatInputPayload) => void;
+  dequeueQueuedMessage: () => { payload: ChatInputPayload } | undefined;
   getQueuedChatCount: () => number;
   renderChatQueue: () => void;
   focusInput: () => void;
@@ -27,9 +33,9 @@ export function createChatStreamRuntime(opts: ChatStreamRuntimeOpts) {
     maybeSendQueuedChat();
   }
 
-  function startChatMessage(text: string) {
-    const input = text.trim();
-    if (!input || !opts.chatEnabled()) return;
+  function startChatMessage(payload: ChatInputPayload) {
+    const input = normalizeChatInputPayload(payload);
+    if (!chatPayloadHasContent(input) || !opts.chatEnabled()) return;
 
     opts.clearErrors();
     opts.resetAbort();
@@ -60,7 +66,7 @@ export function createChatStreamRuntime(opts: ChatStreamRuntimeOpts) {
     }
     const next = opts.dequeueQueuedMessage();
     opts.renderChatQueue();
-    if (next) startChatMessage(next.text);
+    if (next) startChatMessage(next.payload);
   }
 
   function retryChat() {

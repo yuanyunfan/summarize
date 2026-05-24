@@ -59,6 +59,12 @@ export function createSidepanelDom() {
   const chatContainerEl = byId<HTMLElement>("chatContainer");
   const chatMessagesEl = byId<HTMLDivElement>("chatMessages");
   const chatInputEl = byId<HTMLTextAreaElement>("chatInput");
+  const chatImageInputEl = byId<HTMLInputElement>("chatImageInput");
+  const chatImagePreviewsEl = byId<HTMLDivElement>("chatImagePreviews");
+  const chatSelectionPreviewEl = byId<HTMLDivElement>("chatSelectionPreview");
+  const chatSelectionTextEl = byId<HTMLSpanElement>("chatSelectionText");
+  const chatSelectionClearBtn = byId<HTMLButtonElement>("chatSelectionClear");
+  const chatAttachBtn = byId<HTMLButtonElement>("chatAttach");
   const chatSendBtn = byId<HTMLButtonElement>("chatSend");
   const chatContextStatusEl = byId<HTMLDivElement>("chatContextStatus");
   const automationNoticeEl = byId<HTMLDivElement>("automationNotice");
@@ -90,11 +96,17 @@ export function createSidepanelDom() {
     chatContainerEl,
     chatContextStatusEl,
     chatDockEl,
+    chatAttachBtn,
+    chatImageInputEl,
+    chatImagePreviewsEl,
     chatInputEl,
     chatJumpBtn,
     chatMessagesEl,
     chatMetricsSlotEl,
     chatQueueEl,
+    chatSelectionClearBtn,
+    chatSelectionPreviewEl,
+    chatSelectionTextEl,
     chatSendBtn,
     clearBtn,
     drawerEl,
