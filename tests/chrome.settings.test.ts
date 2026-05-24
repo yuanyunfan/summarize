@@ -40,6 +40,26 @@ describe("chrome/settings", () => {
     expect(loaded.language).toBe("German");
   });
 
+  it("migrates the old xl default to medium on load", async () => {
+    storage.settings = {
+      length: "xl",
+    };
+
+    const loaded = await loadSettings();
+    expect(loaded.length).toBe("medium");
+    expect(loaded.schemaVersion).toBe(defaultSettings.schemaVersion);
+  });
+
+  it("keeps explicit xl after the settings schema migration", async () => {
+    storage.settings = {
+      schemaVersion: defaultSettings.schemaVersion,
+      length: "xl",
+    };
+
+    const loaded = await loadSettings();
+    expect(loaded.length).toBe("xl");
+  });
+
   it("patches settings and persists them", async () => {
     await patchSettings({ token: "x", length: "20k", language: "en" });
     const loaded = await loadSettings();

@@ -140,7 +140,9 @@ export function buildLinkSummaryPrompt({
       ? "Use the slide format below. Do not add extra sections or list items outside the intro and slides."
       : directive.formatting;
   const presetLengthLine =
-    typeof effectiveSummaryLength === "string" ? formatPresetLengthGuidance(preset) : "";
+    typeof effectiveSummaryLength === "string"
+      ? `${formatPresetLengthGuidance(preset)} Treat this as an upper bound, not a fill target; finish early when the source is already short.`
+      : "";
   const needsHeadings = preset !== "short";
   const markdownStructureContract = formatMarkdownStructureContract({
     needsHeadings,
@@ -159,6 +161,10 @@ export function buildLinkSummaryPrompt({
   const contentLengthLine =
     contentCharacters > 0
       ? `Extracted content length: ${formatCount(contentCharacters)} characters. Hard limit: never exceed this length. If the requested length is larger, do not pad—finish early rather than adding filler.`
+      : "";
+  const synthesisLine =
+    contentCharacters > 0
+      ? "This is a summary, not a translation or paragraph-by-paragraph rewrite. Synthesize and compress the source: merge repeated ideas, omit nonessential examples, and do not preserve the original paragraph order unless it improves clarity."
       : "";
 
   const shareLines = shares.map((share) => {
@@ -264,6 +270,7 @@ export function buildLinkSummaryPrompt({
     presetLengthLine,
     maxCharactersLine,
     contentLengthLine,
+    synthesisLine,
     formatOutputLanguageInstruction(outputLanguage ?? { kind: "auto" }),
     "Keep the response compact by avoiding blank lines between sentences or list items; use only the single newlines required by the formatting instructions.",
     "Do not use emojis, disclaimers, or speculation.",

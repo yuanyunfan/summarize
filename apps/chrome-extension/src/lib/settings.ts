@@ -8,6 +8,7 @@ import {
 } from "./theme";
 
 export type Settings = {
+  schemaVersion: number;
   token: string;
   autoSummarize: boolean;
   hoverSummaries: boolean;
@@ -89,6 +90,7 @@ const MAX_FONT_SIZE = 20;
 const MAX_CUSTOM_PROMPTS = 50;
 const MAX_CUSTOM_PROMPT_NAME_LENGTH = 80;
 const MAX_CUSTOM_PROMPT_TEXT_LENGTH = 20_000;
+const SETTINGS_SCHEMA_VERSION = 2;
 
 const legacyFontFamilyMap = new Map<string, string>([
   [
@@ -122,6 +124,16 @@ function normalizeLength(value: unknown): string {
   if (lowered === "m") return "medium";
   if (lowered === "l") return "long";
   return lowered;
+}
+
+function normalizeLoadedLength(raw: Partial<Settings>): string {
+  const normalized = normalizeLength(raw.length);
+  const schemaVersion =
+    typeof raw.schemaVersion === "number" && Number.isFinite(raw.schemaVersion)
+      ? Math.floor(raw.schemaVersion)
+      : 0;
+  if (schemaVersion < 2 && normalized === "xl") return defaultSettings.length;
+  return normalized;
 }
 
 function normalizeLanguage(value: unknown): string {
@@ -373,6 +385,7 @@ function normalizeLineHeight(value: unknown): number {
 }
 
 export const defaultSettings: Settings = {
+  schemaVersion: SETTINGS_SCHEMA_VERSION,
   token: "",
   autoSummarize: true,
   hoverSummaries: false,
@@ -390,7 +403,7 @@ export const defaultSettings: Settings = {
     "Plain text only (no Markdown). Summarize the linked page concisely in 1-2 sentences; aim for 100-200 characters.",
   transcriber: "",
   model: "auto",
-  length: "xl",
+  length: "medium",
   language: "auto",
   promptOverride: "",
   customPrompts: [],
@@ -435,9 +448,10 @@ export async function loadSettings(): Promise<Settings> {
   return {
     ...defaultSettings,
     ...raw,
+    schemaVersion: SETTINGS_SCHEMA_VERSION,
     token: typeof raw.token === "string" ? raw.token : defaultSettings.token,
     model: normalizeModel(raw.model),
-    length: normalizeLength(raw.length),
+    length: normalizeLoadedLength(raw),
     language: normalizeLanguage(raw.language),
     promptOverride: normalizePromptOverride(raw.promptOverride),
     customPrompts,
@@ -503,6 +517,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
   const customPrompts = normalizeCustomPrompts(settings.customPrompts);
   const normalized = {
     ...settings,
+    schemaVersion: SETTINGS_SCHEMA_VERSION,
     model: normalizeModel(settings.model),
     length: normalizeLength(settings.length),
     language: normalizeLanguage(settings.language),

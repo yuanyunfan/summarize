@@ -29,6 +29,8 @@ describe("buildLinkSummaryPrompt", () => {
     expect(prompt).toContain("Page description: Desc");
     expect(prompt).toContain("Extracted content length: 4 characters");
     expect(prompt).toContain("Target length: around 900 characters");
+    expect(prompt).toContain("Treat this as an upper bound, not a fill target");
+    expect(prompt).toContain("not a translation or paragraph-by-paragraph rewrite");
     expect(prompt).toContain("You are not given any quotes from people who shared this link.");
     expect(prompt).not.toContain("Tweets from sharers:");
   });
