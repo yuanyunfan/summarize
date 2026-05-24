@@ -44,7 +44,8 @@ function formatMarkdownStructureContract({
         : "For short summaries, keep the response Markdown-compatible even if it is plain text.",
     "Use bullet lists for grouped facts, steps, tradeoffs, or evidence; avoid wall-of-text paragraphs.",
     "Never simulate headings with bold text; use # heading syntax.",
-    "If including Mermaid diagrams, put the diagram source in a fenced code block that starts with ```mermaid and never inline raw Mermaid syntax in prose.",
+    "Do not reproduce source code blocks, Mermaid diagrams, flowcharts, or ASCII architecture diagrams from the source in ordinary summaries; describe their meaning in prose instead unless the instructions explicitly ask you to create a diagram.",
+    "If the instructions explicitly ask for Mermaid, put valid Mermaid source in a fenced code block that starts with ```mermaid and close the fence; never inline raw Mermaid syntax in prose.",
   ];
   return lines.join("\n");
 }
@@ -166,6 +167,8 @@ export function buildLinkSummaryPrompt({
     contentCharacters > 0
       ? "This is a summary, not a translation or paragraph-by-paragraph rewrite. Synthesize and compress the source: merge repeated ideas, omit nonessential examples, and do not preserve the original paragraph order unless it improves clarity."
       : "";
+  const noCodeCopyLine =
+    "Do not copy the source article's table of contents, code blocks, Mermaid diagrams, architecture diagrams, or reading-plan sections. If those are important, summarize the insight in prose in one bullet or sentence.";
 
   const shareLines = shares.map((share) => {
     const handle = share.handle && share.handle.length > 0 ? `@${share.handle}` : share.author;
@@ -232,9 +235,18 @@ export function buildLinkSummaryPrompt({
     : "Use short paragraphs; use bullet lists when they improve scanability; avoid wall-of-text output.";
   const quoteGuidanceLine =
     "Include 1-2 short exact excerpts (max 25 words each) formatted as Markdown italics using single asterisks when there is a strong, non-sponsor line. Use straight quotation marks (no curly) as needed. If no suitable line exists, omit excerpts. Never include ad/sponsor/boilerplate excerpts and do not mention them.";
+  const hasSlides = Boolean(slides && slides.count > 0);
+  const sponsorSourceLabel = hasSlides ? "transcript or slide timeline" : "transcript";
   const sponsorInstruction =
-    hasTranscript || (slides && slides.count > 0)
-      ? 'Omit sponsor messages, ads, promos, and calls-to-action (including podcast ad reads), even if they appear in the transcript or slide timeline. Do not mention or acknowledge them, and do not say you skipped or ignored anything. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code. Treat them as if they do not exist. If a slide segment contains only excluded content, keep its marker and add exactly "## Interlude" with no body.'
+    hasTranscript || hasSlides
+      ? [
+          `Omit sponsor messages, ads, promos, and calls-to-action (including podcast ad reads), even if they appear in the ${sponsorSourceLabel}. Do not mention or acknowledge them, and do not say you skipped or ignored anything. Avoid sponsor/ad/promo language, brand names like Squarespace, or CTA phrases like discount code. Treat them as if they do not exist.`,
+          hasSlides
+            ? 'If a slide segment contains only excluded content, keep its marker and add exactly "## Interlude" with no body.'
+            : "",
+        ]
+          .filter((line) => line.length > 0)
+          .join(" ")
       : "";
   const slideRequiredOverrideInstructions =
     slides && slides.count > 0
@@ -271,6 +283,7 @@ export function buildLinkSummaryPrompt({
     maxCharactersLine,
     contentLengthLine,
     synthesisLine,
+    noCodeCopyLine,
     formatOutputLanguageInstruction(outputLanguage ?? { kind: "auto" }),
     "Keep the response compact by avoiding blank lines between sentences or list items; use only the single newlines required by the formatting instructions.",
     "Do not use emojis, disclaimers, or speculation.",
@@ -281,7 +294,9 @@ export function buildLinkSummaryPrompt({
     quoteGuidanceLine,
     "Base everything strictly on the provided content and never invent details.",
     "Final check: remove any sponsor/ad references or mentions of skipping/ignoring content. Ensure excerpts (if any) are italicized and use only straight quotes.",
-    'Final check for slides: every [slide:N] must be immediately followed by a line that starts with "## ". Remove any "Title:" or "Slide" label lines.',
+    hasSlides
+      ? 'Final check for slides: every [slide:N] must be immediately followed by a line that starts with "## ". Remove any "Title:" or "Slide" label lines.'
+      : "",
     timestampInstruction,
     shareGuidance,
     slideInstruction,

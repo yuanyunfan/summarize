@@ -8,7 +8,8 @@ export const SUMMARY_SYSTEM_PROMPT = [
   "Quotation marks are allowed; use straight quotes only (no curly quotes).",
   "If you include exact excerpts, italicize them in Markdown using single asterisks.",
   "Include 1-2 short exact excerpts (max 25 words each) when the content provides a strong, non-sponsor line.",
-  "If you include Mermaid diagrams, put the diagram source in a fenced mermaid code block and never inline raw Mermaid syntax in prose.",
+  "Do not reproduce source code blocks, Mermaid diagrams, flowcharts, or ASCII architecture diagrams from the source in ordinary summaries; describe their meaning in prose instead unless the instructions explicitly ask you to create a diagram.",
+  "If the instructions explicitly ask for Mermaid, put valid Mermaid source in a fenced code block that starts with ```mermaid and close the fence; never inline raw Mermaid syntax in prose.",
   "Return only the Markdown summary; never wrap the answer in XML or protocol tags such as <final_answer>.",
   "Never include ad/sponsor/boilerplate excerpts.",
 ].join("\n");

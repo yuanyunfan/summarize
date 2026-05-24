@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   assertUsableSummaryMarkdown,
+  hasDanglingFence,
+  hasRawMermaidSyntax,
   isClassificationOnlySummary,
   sanitizeSummaryMarkdown,
 } from "../src/shared/summary-sanitizer.js";
@@ -64,6 +66,47 @@ describe("summary sanitizer", () => {
     ].join("\n");
 
     expect(isClassificationOnlySummary(input)).toBe(false);
+    expect(() => assertUsableSummaryMarkdown(input)).not.toThrow();
+  });
+
+  it("rejects raw Mermaid diagram syntax outside fences", () => {
+    const input = [
+      "## 核心架构",
+      "flowchart TD",
+      "  A[输入] --> B{识别意图}",
+      "这篇文章介绍素材生产 Agent 的工作流。",
+    ].join("\n");
+
+    expect(hasRawMermaidSyntax(input)).toBe(true);
+    expect(() => assertUsableSummaryMarkdown(input)).toThrow(/raw Mermaid/);
+  });
+
+  it("rejects dangling code fences", () => {
+    const input = ["## 核心架构", "```", "flowchart TD"].join("\n");
+
+    expect(hasDanglingFence(input)).toBe(true);
+    expect(() => assertUsableSummaryMarkdown(input)).toThrow(/unterminated code fence/);
+  });
+
+  it("allows complete fenced Mermaid diagrams requested by a custom prompt", () => {
+    const input = [
+      "## 核心架构",
+      "```mermaid",
+      "flowchart TD",
+      "  A[输入] --> B[摘要]",
+      "```",
+    ].join("\n");
+
+    expect(hasDanglingFence(input)).toBe(false);
+    expect(hasRawMermaidSyntax(input)).toBe(false);
+    expect(() => assertUsableSummaryMarkdown(input)).not.toThrow();
+  });
+
+  it("does not reject fenced examples that are syntactically complete", () => {
+    const input = ["## Implementation", "```ts", "const ok = true;", "```"].join("\n");
+
+    expect(hasDanglingFence(input)).toBe(false);
+    expect(hasRawMermaidSyntax(input)).toBe(false);
     expect(() => assertUsableSummaryMarkdown(input)).not.toThrow();
   });
 });

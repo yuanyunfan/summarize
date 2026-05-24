@@ -19,6 +19,8 @@ const CLASSIFICATION_TYPED_LABEL_PATTERN = new RegExp(
   "i",
 );
 const CLASSIFICATION_SECTION_MARKER_PATTERN = /^\s*<?\/?(?:类型|文章类型|判断文章类型)>?\s*$/i;
+const RAW_MERMAID_LINE_PATTERN =
+  /^\s{0,3}(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b|^\s{0,3}(?:sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|gantt|mindmap|journey|timeline|quadrantChart|gitGraph)\b/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -64,6 +66,12 @@ export function assertUsableSummaryMarkdown(markdown: string, sourceLabel = "LLM
   if (isClassificationOnlySummary(markdown)) {
     throw new Error(`${sourceLabel} returned classification labels instead of a summary`);
   }
+  if (hasDanglingFence(markdown)) {
+    throw new Error(`${sourceLabel} returned an unterminated code fence instead of a summary`);
+  }
+  if (hasRawMermaidSyntax(markdown)) {
+    throw new Error(`${sourceLabel} returned raw Mermaid diagram syntax instead of a summary`);
+  }
 }
 
 export function sanitizeSummaryMarkdown(markdown: string): string {
@@ -94,4 +102,25 @@ export function sanitizeSummaryMarkdown(markdown: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+export function hasDanglingFence(markdown: string): boolean {
+  let inFence = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (isFenceDelimiter(line)) inFence = !inFence;
+  }
+  return inFence;
+}
+
+export function hasRawMermaidSyntax(markdown: string): boolean {
+  let inFence = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (isFenceDelimiter(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    if (RAW_MERMAID_LINE_PATTERN.test(line)) return true;
+  }
+  return false;
 }
