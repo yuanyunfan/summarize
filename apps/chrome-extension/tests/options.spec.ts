@@ -93,7 +93,6 @@ test("options keeps custom model selected while presets refresh", async ({
         body: JSON.stringify({ ok: true }),
       });
     });
-
     const page = await openExtensionPage(harness, "options.html", "#tabs");
     await page.click("#tab-model");
     await expect(page.locator("#panel-model")).toBeVisible();
@@ -137,6 +136,48 @@ test("options defers automation skills until Skills tab opens", async ({
     await expect
       .poll(async () => page.locator("#skillsList .skillCard").count())
       .toBeGreaterThan(0);
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
+test("options generates a redacted debug snapshot", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    await seedSettings(harness, {
+      token: "",
+      schemaVersion: 2,
+      model: "auto",
+      length: "medium",
+      language: "auto",
+      extendedLogging: true,
+    });
+    await harness.context.route("http://127.0.0.1:8787/health", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ok: true, version: "0.0.0" }),
+      });
+    });
+    await harness.context.route("http://127.0.0.1:8787/v1/ping", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+
+    const page = await openExtensionPage(harness, "options.html", "#tabs");
+    await page.click("#tab-advanced");
+    await page.click("#debugSnapshotCopy");
+    await expect(page.locator("#debugSnapshotOutput")).toBeVisible();
+    await expect(page.locator("#debugSnapshotOutput")).toContainText('"tokenPresent": false');
+    await expect(page.locator("#debugSnapshotOutput")).toContainText('"length": "medium"');
+    await expect(page.locator("#debugSnapshotOutput")).not.toContainText("test-token");
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);

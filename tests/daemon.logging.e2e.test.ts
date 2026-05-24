@@ -188,9 +188,21 @@ describe("daemon logging", () => {
 
       const doneExtended = await waitForDoneLog(extendedId);
       const doneMinimal = await waitForDoneLog(minimalId);
+      const logEntries = readLogEntries();
+      const requestExtended = logEntries.find(
+        (line) => line.event === "summarize.request" && line.requestId === extendedId,
+      );
 
+      expect(requestExtended).toBeTruthy();
+      expect(requestExtended?.lengthRaw).toBe("short");
+      expect(requestExtended?.lengthTargetCharacters).toBe(900);
       expect(doneExtended).toBeTruthy();
       expect(doneMinimal).toBeTruthy();
+      expect(doneExtended?.lengthRaw).toBe("short");
+      expect(doneExtended?.lengthTargetCharacters).toBe(900);
+      expect(doneExtended?.sourceMetaPresent).toBe(true);
+      expect(doneExtended?.sourceMetaInputSource).toBe("url");
+      expect(doneExtended?.sourceMetaContentStrategy).toBeTruthy();
       expect(doneExtended?.summary).toContain("https://example.com/article");
       expect(doneExtended?.extracted).toBeTruthy();
       expect(doneMinimal?.summary).toBeUndefined();

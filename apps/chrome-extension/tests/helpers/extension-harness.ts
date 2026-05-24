@@ -59,7 +59,7 @@ const defaultUiState: UiState = {
     slidesOcrEnabled: false,
     slidesLayout: "strip",
     model: "auto",
-    length: "xl",
+    length: "medium",
     tokenPresent: true,
   },
   status: "",

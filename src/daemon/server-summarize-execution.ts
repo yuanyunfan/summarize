@@ -22,6 +22,7 @@ import {
   streamSummaryForUrl,
   streamSummaryForVisiblePage,
 } from "./summarize.js";
+import { resolveLengthTargetCharacters, summarizeSourceMetaForLog } from "./summary-diagnostics.js";
 import { assertDaemonUrlFetchAllowed, createDaemonUrlFetchGuard } from "./url-fetch-guard.js";
 
 type LoggerLike = {
@@ -262,6 +263,7 @@ export async function executeSummarizeSession({
   let logInputSummary: string | null = null;
   let logSummaryText = "";
   let logExtracted: Record<string, unknown> | null = null;
+  let logSourceMeta: NonNullable<Parameters<typeof summarizeSourceMetaForLog>[0]> | null = null;
 
   try {
     let emittedOutput = false;
@@ -306,6 +308,7 @@ export async function executeSummarizeSession({
         }
         if (data.sourceMeta === null || typeof data.sourceMeta === "object") {
           metaPatch.sourceMeta = data.sourceMeta ?? null;
+          logSourceMeta = data.sourceMeta ?? null;
         }
         emitMeta(session, metaPatch, onSessionEvent);
       },
@@ -497,8 +500,11 @@ export async function executeSummarizeSession({
       mode,
       model: result.usedModel,
       elapsedMs: Date.now() - logStartedAt,
+      lengthRaw,
+      lengthTargetCharacters: resolveLengthTargetCharacters(lengthRaw),
       summaryFromCache: logSummaryFromCache,
       inputSummary: logInputSummary,
+      ...summarizeSourceMetaForLog(logSourceMeta),
       ...(includeContentLog && slideLogState.requested
         ? { slides: serializeSlideLogState(slideLogState) }
         : {}),
@@ -522,8 +528,11 @@ export async function executeSummarizeSession({
       url: request.pageUrl,
       mode: request.mode,
       elapsedMs: Date.now() - logStartedAt,
+      lengthRaw,
+      lengthTargetCharacters: resolveLengthTargetCharacters(lengthRaw),
       summaryFromCache: logSummaryFromCache,
       inputSummary: logInputSummary,
+      ...summarizeSourceMetaForLog(logSourceMeta),
       ...(includeContentLog && slideLogState.requested
         ? { slides: serializeSlideLogState(slideLogState) }
         : {}),

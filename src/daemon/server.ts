@@ -49,6 +49,7 @@ import {
   toExtractOnlySlidesPayload,
 } from "./server-summarize-execution.js";
 import { parseSummarizeRequest } from "./server-summarize-request.js";
+import { resolveLengthTargetCharacters } from "./summary-diagnostics.js";
 import { assertDaemonUrlFetchAllowed, createDaemonUrlFetchGuard } from "./url-fetch-guard.js";
 import { isWindowsContainerEnvironment } from "./windows-container.js";
 
@@ -421,6 +422,8 @@ export async function runDaemonServer({
             hasText,
             noCache,
             length: lengthRaw,
+            lengthRaw,
+            lengthTargetCharacters: resolveLengthTargetCharacters(lengthRaw),
             language: languageRaw,
             model: modelOverride,
             includeContent: includeContentLog,

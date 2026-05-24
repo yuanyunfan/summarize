@@ -17,6 +17,7 @@ summary: "Docs index for summarize behaviors and modes."
 - `docs/openai.md` — OpenAI model usage + flags
 - `docs/releasing.md` — release checklist + Homebrew/core verify
 - `docs/smoketest.md` — 20-case smoke test plan
+- `docs/verification-matrix.md` — required gates by feature/bug-fix type
 - `docs/website.md` — normal websites (HTML extraction + Firecrawl fallback)
 - `docs/youtube.md` — YouTube transcript extraction (youtubei / captionTracks / Apify)
 

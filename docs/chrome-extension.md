@@ -37,7 +37,9 @@ Dev (repo checkout):
   - Chromium runs headless by default.
   - Visible debugging: `SHOW_UI=1 pnpm -C apps/chrome-extension test:e2e` or `HEADLESS=0 pnpm -C apps/chrome-extension test:e2e`
 - Extension change gates:
+  - Verification matrix: `docs/verification-matrix.md`
   - CI-equivalent local gate: `pnpm check:extension`
+  - Full local runtime gate: `pnpm verify:extension-runtime`
   - Real Chrome/Edge profile smoke: `pnpm extension:real-smoke`
   - Strict real-browser gate: `pnpm check:extension:real`
 - Chrome/Edge stable-channel note: Playwright can side-load extensions reliably only in its bundled Chromium path. For real Chrome/Edge, use the smoke script plus manual reload in `chrome://extensions` and `edge://extensions`.

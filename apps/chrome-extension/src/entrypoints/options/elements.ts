@@ -42,6 +42,8 @@ export function getOptionsElements() {
     slidesParallelToggleRoot: byId<HTMLDivElement>("slidesParallelToggle"),
     slidesOcrToggleRoot: byId<HTMLDivElement>("slidesOcrToggle"),
     extendedLoggingToggleRoot: byId<HTMLDivElement>("extendedLoggingToggle"),
+    debugSnapshotCopyBtn: byId<HTMLButtonElement>("debugSnapshotCopy"),
+    debugSnapshotOutputEl: byId<HTMLPreElement>("debugSnapshotOutput"),
     autoCliFallbackToggleRoot: byId<HTMLDivElement>("autoCliFallbackToggle"),
     autoCliOrderEl: byId<HTMLInputElement>("autoCliOrder"),
     requestModeEl: byId<HTMLSelectElement>("requestMode"),

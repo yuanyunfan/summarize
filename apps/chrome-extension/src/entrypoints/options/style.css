@@ -546,6 +546,37 @@ form {
   line-height: 1.35;
 }
 
+.debugSnapshot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: center;
+}
+
+.debugSnapshot .toggleHint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.debugSnapshotOutput {
+  grid-column: 1 / -1;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .logsHeader {
   display: flex;
   align-items: center;

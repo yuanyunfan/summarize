@@ -4,6 +4,7 @@ import { bindOptionsInputs } from "./bindings";
 import { createBooleanSettingsRuntime } from "./boolean-settings";
 import { languagePresets, optionsTabStorageKey } from "./constants";
 import { createDaemonStatusChecker } from "./daemon-status";
+import { createDebugSnapshotController } from "./debug-snapshot";
 import { getOptionsElements } from "./elements";
 import { applyLoadedOptionsSettings, buildSavedOptionsSettings } from "./form-state";
 import { createLogsViewer } from "./logs-viewer";
@@ -59,6 +60,8 @@ const {
   slidesParallelToggleRoot,
   slidesOcrToggleRoot,
   extendedLoggingToggleRoot,
+  debugSnapshotCopyBtn,
+  debugSnapshotOutputEl,
   autoCliFallbackToggleRoot,
   autoCliOrderEl,
   requestModeEl,
@@ -170,6 +173,13 @@ const logsViewer = createLogsViewer({
   getToken: () => tokenEl.value.trim(),
   isActive: () => resolveActiveTab() === "logs",
 });
+
+const debugSnapshotController = createDebugSnapshotController({
+  copyBtn: debugSnapshotCopyBtn,
+  outputEl: debugSnapshotOutputEl,
+  flashStatus,
+});
+debugSnapshotController.bind();
 
 const processesViewer = createProcessesViewer({
   elements: {

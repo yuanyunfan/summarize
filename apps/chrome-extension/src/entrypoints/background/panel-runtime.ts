@@ -1,3 +1,4 @@
+import type { DebugDaemonRequestSummary } from "../../lib/debug-snapshot";
 import { logExtensionEvent } from "../../lib/extension-logs";
 import { resolvePanelState } from "./panel-state";
 import { summarizeActiveTab as runPanelSummarize } from "./panel-summarize";
@@ -25,6 +26,7 @@ export function createBackgroundPanelRuntime<
   isDaemonUnreachableError: typeof import("../../lib/daemon-recovery").isDaemonUnreachableError;
   fetchImpl: typeof fetch;
   resolveLogLevel: (event: string) => "verbose" | "warn" | "error";
+  recordDebugRequest?: (summary: DebugDaemonRequestSummary) => void;
 }) {
   const {
     panelSessionStore,
@@ -41,6 +43,7 @@ export function createBackgroundPanelRuntime<
     isDaemonUnreachableError,
     fetchImpl,
     resolveLogLevel,
+    recordDebugRequest,
   } = options;
 
   const send = (session: Session, msg: unknown) => {
@@ -122,6 +125,7 @@ export function createBackgroundPanelRuntime<
       buildSummarizeRequestBody,
       friendlyFetchError,
       isDaemonUnreachableError,
+      recordDebugRequest,
       logPanel: (event, detail) => {
         void (async () => {
           const settings = await loadSettings();

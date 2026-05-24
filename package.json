@@ -58,7 +58,10 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:build": "pnpm build && pnpm test:coverage",
     "test:extension-e2e": "pnpm -C apps/chrome-extension test:e2e",
-    "typecheck": "pnpm -C packages/core typecheck && tsgo -p tsconfig.build.json --noEmit"
+    "typecheck": "pnpm -C packages/core typecheck && tsgo -p tsconfig.build.json --noEmit",
+    "verify:extension-runtime": "pnpm -C apps/chrome-extension build && pnpm -C apps/chrome-extension test:chrome && pnpm -s summarize daemon restart && pnpm -s summarize daemon status && pnpm extension:real-smoke -- --strict",
+    "verify:local": "pnpm -s check && pnpm -s verify:extension-runtime && pnpm -s verify:quality",
+    "verify:quality": "node scripts/verify-quality.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.74.0",

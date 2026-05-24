@@ -28,6 +28,7 @@ export function createPanelSessionStore<
   const lastMediaProbeByTab = new Map<number, string>();
   const cachedExtracts = new Map<number, CachedExtract>();
   const panelCacheByTabId = new Map<number, PanelCachePayload>();
+  let lastPanelCache: PanelCachePayload | null = null;
 
   const getPanelPortMap = () => {
     const global = globalThis as typeof globalThis & {
@@ -99,12 +100,16 @@ export function createPanelSessionStore<
     },
     storePanelCache(payload: PanelCachePayload) {
       panelCacheByTabId.set(payload.tabId, payload);
+      lastPanelCache = payload;
     },
     getPanelCache(tabId: number, url?: string | null) {
       const cached = panelCacheByTabId.get(tabId) ?? null;
       if (!cached) return null;
       if (url && cached.url !== url) return null;
       return cached;
+    },
+    getLastPanelCache() {
+      return lastPanelCache;
     },
     async clearCachedExtractsForWindow(windowId: number) {
       try {

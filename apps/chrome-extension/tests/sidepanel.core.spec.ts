@@ -509,6 +509,92 @@ test("sidepanel renders mermaid summary code fences as diagrams", async ({
   }
 });
 
+test("sidepanel renders source metadata received from summary SSE", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    await seedSettings(harness, { token: "test-token", autoSummarize: false });
+    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
+    await waitForPanelPort(page);
+
+    const sourceMeta = {
+      input: { source: "url", requestedMode: "auto" },
+      content: {
+        strategy: "html",
+        markdownProvider: null,
+        firecrawlUsed: false,
+        totalCharacters: 2400,
+        wordCount: 420,
+        truncated: false,
+      },
+      transcript: {
+        source: "captionTracks",
+        transcriptionProvider: null,
+        cacheStatus: "hit",
+        attemptedProviders: ["youtubei", "captionTracks"],
+        characters: 1800,
+        wordCount: 300,
+        lines: 12,
+        hasTimestamps: true,
+      },
+      media: { kind: "youtube", durationSeconds: 92, isVideoOnly: false },
+    };
+    const sseBody = [
+      "event: meta",
+      `data: ${JSON.stringify({
+        model: "test",
+        inputSummary: "1m 32s YouTube",
+        summaryFromCache: true,
+        sourceMeta,
+      })}`,
+      "",
+      "event: chunk",
+      'data: {"text":"Source metadata summary"}',
+      "",
+      "event: done",
+      "data: {}",
+      "",
+    ].join("\n");
+
+    await page.route("http://127.0.0.1:8787/v1/summarize/run-source/events", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body: sseBody,
+      });
+    });
+
+    await sendBgMessage(harness, {
+      type: "ui:state",
+      state: buildUiState({
+        tab: { id: 1, url: "https://www.youtube.com/watch?v=source123", title: "Source" },
+        settings: { autoSummarize: false, tokenPresent: true },
+      }),
+    });
+    await sendBgMessage(harness, {
+      type: "run:start",
+      run: {
+        id: "run-source",
+        url: "https://www.youtube.com/watch?v=source123",
+        title: "Source",
+        model: "auto",
+        reason: "test",
+      },
+    });
+
+    await expect(page.locator("#sourceMeta")).toBeVisible();
+    await expect(page.locator("#sourceMeta")).toContainText("YouTube video");
+    await expect(page.locator("#sourceMeta")).toContainText("YouTube captions");
+    await expect(page.locator("#sourceMeta")).toContainText("summary cache");
+    await expect(page.locator("#sourceMeta")).toContainText("attempted youtubei, captionTracks");
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
 test("sidepanel clears summary when tab url changes", async ({
   browserName: _browserName,
 }, testInfo) => {

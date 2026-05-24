@@ -1,4 +1,5 @@
 import { shouldPreferUrlMode } from "@steipete/summarize-core/content/url";
+import type { DebugDaemonRequestSummary } from "../../lib/debug-snapshot";
 import type { RunStart } from "../../lib/panel-contracts";
 import type { Settings } from "../../lib/settings";
 import { isYouTubeWatchUrl } from "../../lib/youtube-url";
@@ -53,6 +54,7 @@ export async function summarizeActiveTab({
   friendlyFetchError,
   isDaemonUnreachableError,
   logPanel,
+  recordDebugRequest,
 }: {
   session: BackgroundSummarizeSession;
   reason: string;
@@ -85,6 +87,7 @@ export async function summarizeActiveTab({
   friendlyFetchError: (error: unknown, fallback: string) => string;
   isDaemonUnreachableError: (error: unknown) => boolean;
   logPanel: (event: string, detail?: Record<string, unknown>) => void;
+  recordDebugRequest?: (summary: DebugDaemonRequestSummary) => void;
 }) {
   if (!panelSessionStore.isPanelOpen(session)) return;
 
@@ -392,6 +395,20 @@ export async function summarizeActiveTab({
       timestamps: summaryTimestamps,
       slides: summarySlides,
     });
+    recordDebugRequest?.({
+      kind: "summary",
+      requestedAt: new Date().toISOString(),
+      url: typeof body.url === "string" ? body.url : resolvedPayload.url,
+      reason,
+      mode: typeof body.mode === "string" ? body.mode : null,
+      length: typeof body.length === "string" ? body.length : null,
+      language: typeof body.language === "string" ? body.language : null,
+      maxCharacters: typeof body.maxCharacters === "number" ? body.maxCharacters : null,
+      slides: body.slides === true,
+      slidesOcr: body.slidesOcr === true,
+      timestamps: body.timestamps === true,
+      noCache: body.noCache === true,
+    });
     logPanel("summarize:request", {
       url: resolvedPayload.url,
       slides: wantsSlides && !wantsParallelSlides,
@@ -448,6 +465,21 @@ export async function summarizeActiveTab({
         inputMode: effectiveInputMode,
         timestamps: slidesTimestamps,
         slides: slidesConfig,
+      });
+      recordDebugRequest?.({
+        kind: "slides",
+        requestedAt: new Date().toISOString(),
+        url: typeof slidesBody.url === "string" ? slidesBody.url : resolvedPayload.url,
+        reason,
+        mode: typeof slidesBody.mode === "string" ? slidesBody.mode : null,
+        length: typeof slidesBody.length === "string" ? slidesBody.length : null,
+        language: typeof slidesBody.language === "string" ? slidesBody.language : null,
+        maxCharacters:
+          typeof slidesBody.maxCharacters === "number" ? slidesBody.maxCharacters : null,
+        slides: slidesBody.slides === true,
+        slidesOcr: slidesBody.slidesOcr === true,
+        timestamps: slidesBody.timestamps === true,
+        noCache: slidesBody.noCache === true,
       });
       logPanel("slides:request", { url: resolvedPayload.url });
       const res = await fetchImpl("http://127.0.0.1:8787/v1/summarize", {

@@ -14,6 +14,7 @@ Goal: exercise URL + file inputs, extraction + LLM summary paths, multiple model
 
 - API keys set for at least: `OPENAI_API_KEY`, `GEMINI_API_KEY`.
 - Optional: `FIRECRAWL_API_KEY` to test fallback (if available).
+- Before feature sign-off, choose the required gate from `docs/verification-matrix.md`.
 
 ## Models (cheap/fast)
 

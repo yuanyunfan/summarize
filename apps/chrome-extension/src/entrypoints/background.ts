@@ -3,6 +3,12 @@ import { defineBackground } from "wxt/utils/define-background";
 import { buildDaemonRequestBody, buildSummarizeRequestBody } from "../lib/daemon-payload";
 import { createDaemonRecovery, isDaemonUnreachableError } from "../lib/daemon-recovery";
 import { createDaemonStatusTracker } from "../lib/daemon-status";
+import {
+  type DebugDaemonRequestSummary,
+  type DebugSnapshot,
+  summarizeSettings,
+  summarizeSourceMeta,
+} from "../lib/debug-snapshot";
 import { logExtensionEvent } from "../lib/extension-logs";
 import type { BgToPanel, PanelCachePayload, PanelToBg } from "../lib/panel-contracts";
 import { loadSettings, patchSettings } from "../lib/settings";
@@ -39,6 +45,9 @@ type BackgroundPanelSession = PanelSession<
   ReturnType<typeof createDaemonRecovery>,
   ReturnType<typeof createDaemonStatusTracker>
 >;
+
+declare const __SUMMARIZE_GIT_HASH__: string;
+
 export default defineBackground(() => {
   const panelSessionStore = createPanelSessionStore<
     CachedExtract,
@@ -53,6 +62,7 @@ export default defineBackground(() => {
     number,
     { requestId: string; controller: AbortController }
   >();
+  let lastDebugDaemonRequest: DebugDaemonRequestSummary | null = null;
   // Tabs explicitly armed by the sidepanel for debugger-driven native input.
   // Prevents arbitrary pages from triggering trusted clicks via the
   // postMessage → content-script → runtime bridge.
@@ -101,7 +111,46 @@ export default defineBackground(() => {
       isDaemonUnreachableError,
       fetchImpl: (...args) => fetch(...args),
       resolveLogLevel,
+      recordDebugRequest: (summary) => {
+        lastDebugDaemonRequest = summary;
+      },
     });
+
+  const buildDebugSnapshot = async (): Promise<DebugSnapshot> => {
+    const settings = await loadSettings();
+    const [health, authed] = await Promise.all([
+      daemonHealth(),
+      settings.token.trim()
+        ? daemonPing(settings.token.trim())
+        : Promise.resolve({ ok: false, error: "missing token" }),
+    ]);
+    const manifest = chrome.runtime.getManifest();
+    const cached = panelSessionStore.getLastPanelCache();
+    return {
+      generatedAt: new Date().toISOString(),
+      extension: {
+        id: chrome.runtime.id || null,
+        version: manifest.version ?? null,
+        gitHash: typeof __SUMMARIZE_GIT_HASH__ === "string" ? __SUMMARIZE_GIT_HASH__ : null,
+      },
+      browser: {
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      },
+      settings: summarizeSettings(settings),
+      daemon: { health, authed },
+      lastRun: cached
+        ? {
+            id: cached.runId,
+            url: cached.url,
+            title: cached.title,
+            summaryFromCache: cached.summaryFromCache,
+            lastMeta: cached.lastMeta,
+            sourceMeta: summarizeSourceMeta(cached.sourceMeta),
+          }
+        : null,
+      lastDaemonRequest: lastDebugDaemonRequest,
+    };
+  };
 
   const handlePanelMessage = (session: BackgroundPanelSession, raw: PanelToBg) => {
     if (!raw || typeof raw !== "object" || typeof (raw as { type?: unknown }).type !== "string") {
@@ -413,6 +462,21 @@ export default defineBackground(() => {
       nativeInputArmedTabs.delete(tabId);
       artifactsArmedTabs.delete(tabId);
     },
+  });
+
+  chrome.runtime.onMessage.addListener((raw, _sender, sendResponse): boolean | undefined => {
+    if (!raw || typeof raw !== "object" || (raw as { type?: unknown }).type !== "debug:snapshot") {
+      return undefined;
+    }
+    void buildDebugSnapshot()
+      .then((snapshot) => sendResponse({ ok: true, snapshot }))
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    return true;
   });
 
   // Chrome: Auto-open side panel on toolbar icon click
