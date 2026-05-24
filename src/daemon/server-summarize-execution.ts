@@ -299,15 +299,15 @@ export async function executeSummarizeSession({
         if (typeof data.summaryFromCache === "boolean") {
           logSummaryFromCache = data.summaryFromCache;
         }
-        emitMeta(
-          session,
-          {
-            inputSummary: typeof data.inputSummary === "string" ? data.inputSummary : null,
-            summaryFromCache:
-              typeof data.summaryFromCache === "boolean" ? data.summaryFromCache : null,
-          },
-          onSessionEvent,
-        );
+        const metaPatch: Parameters<typeof emitMeta>[1] = {};
+        if (typeof data.inputSummary === "string") metaPatch.inputSummary = data.inputSummary;
+        if (typeof data.summaryFromCache === "boolean") {
+          metaPatch.summaryFromCache = data.summaryFromCache;
+        }
+        if (data.sourceMeta === null || typeof data.sourceMeta === "object") {
+          metaPatch.sourceMeta = data.sourceMeta ?? null;
+        }
+        emitMeta(session, metaPatch, onSessionEvent);
       },
     };
 
