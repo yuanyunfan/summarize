@@ -22,4 +22,8 @@
   - `pnpm -C apps/chrome-extension test:chrome` = supported automated path.
   - Firefox Playwright extension tests are not reliable (`moz-extension://` limitation); default `test:firefox` skips.
   - Use `pnpm -C apps/chrome-extension test:firefox:force` only for explicit diagnostics.
+- Live E2E gate:
+  - `pnpm -s verify:e2e-live` builds the Chrome extension, restarts the daemon, and runs the live sidepanel E2E article + YouTube video tests with cache bypass enabled.
+  - Before committing non-docs code changes, run `pnpm -s verify:before-commit`; before pushing, run `pnpm -s verify:before-push`.
+  - If the live gate fails, do not commit or push unless the user explicitly accepts the failure and the reason is recorded.
 - Commits: use `committer "type: message" <files...>` (Conventional Commits).

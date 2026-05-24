@@ -58,7 +58,11 @@
     "test:coverage": "vitest run --coverage",
     "test:coverage:build": "pnpm build && pnpm test:coverage",
     "test:extension-e2e": "pnpm -C apps/chrome-extension test:e2e",
+    "test:extension-live-e2e": "pnpm -C apps/chrome-extension test:live-e2e",
     "typecheck": "pnpm -C packages/core typecheck && tsgo -p tsconfig.build.json --noEmit",
+    "verify:before-commit": "pnpm -s check && pnpm -s verify:e2e-live",
+    "verify:before-push": "pnpm -s verify:before-commit && pnpm -s verify:extension-runtime",
+    "verify:e2e-live": "node scripts/verify-live-e2e.mjs",
     "verify:extension-runtime": "pnpm -C apps/chrome-extension build && pnpm -C apps/chrome-extension test:chrome && pnpm -s summarize daemon restart && pnpm -s summarize daemon status && pnpm extension:real-smoke -- --strict",
     "verify:local": "pnpm -s check && pnpm -s verify:extension-runtime && pnpm -s verify:quality",
     "verify:quality": "node scripts/verify-quality.mjs"
