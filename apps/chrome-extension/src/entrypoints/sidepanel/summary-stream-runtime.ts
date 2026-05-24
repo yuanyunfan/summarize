@@ -20,6 +20,7 @@ export function createSummaryStreamRuntime({
   queueSlidesRender,
   rebuildSlideDescriptions,
   refreshSummaryMetrics,
+  renderSourceMeta = () => {},
   rememberUrl,
   renderMarkdown,
   resetSummaryView,
@@ -48,6 +49,7 @@ export function createSummaryStreamRuntime({
   queueSlidesRender: () => void;
   rebuildSlideDescriptions: () => void;
   refreshSummaryMetrics: (summary: string) => void;
+  renderSourceMeta?: () => void;
   rememberUrl: (url: string) => void;
   renderMarkdown: (markdown: string) => void;
   resetSummaryView: (opts: {
@@ -84,6 +86,8 @@ export function createSummaryStreamRuntime({
           model: fallbackModel,
           modelLabel: fallbackModel,
         };
+        panelState.sourceMeta = null;
+        renderSourceMeta();
         lastStreamError = null;
         seedPlannedSlidesForPendingRun();
       },
@@ -126,6 +130,10 @@ export function createSummaryStreamRuntime({
               ? data.inputSummary
               : panelState.lastMeta.inputSummary,
         };
+        if (data.sourceMeta === null || typeof data.sourceMeta === "object") {
+          panelState.sourceMeta = data.sourceMeta ?? null;
+          renderSourceMeta();
+        }
         headerSetBaseSubtitle(
           buildIdleSubtitle({
             inputSummary: panelState.lastMeta.inputSummary,
@@ -139,6 +147,7 @@ export function createSummaryStreamRuntime({
       onSummaryFromCache: (value) => {
         panelState.summaryFromCache = value;
         handleSummaryFromCache(value);
+        renderSourceMeta();
         schedulePanelCacheSync();
         if (value === true) {
           headerStopProgress();

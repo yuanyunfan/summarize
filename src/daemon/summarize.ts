@@ -6,13 +6,14 @@ import { deriveExtractionUi } from "../run/flows/url/extract.js";
 import { runUrlFlow } from "../run/flows/url/flow.js";
 import { buildUrlPrompt, summarizeExtractedUrl } from "../run/flows/url/summary.js";
 import type { RunOverrides } from "../run/run-settings.js";
-import type { SseProgressData } from "../shared/sse-events.js";
+import type { ContextSourceMeta, SseProgressData } from "../shared/sse-events.js";
 import type {
   SlideExtractionResult,
   SlideImage,
   SlideSettings,
   SlideSourceKind,
 } from "../slides/index.js";
+import { buildUrlSourceMeta, buildVisiblePageSourceMeta } from "./context-source-meta.js";
 import { createDaemonUrlFlowContext } from "./flow-context.js";
 import { countWords, estimateDurationSecondsFromWords, formatInputSummary } from "./meta.js";
 import { createProgressStatus, formatProgressEvent } from "./summarize-progress.js";
@@ -36,7 +37,11 @@ export type StreamSink = {
   writeStatus?: ((text: string) => void) | null;
   writeProgress?: ((progress: SseProgressData) => void) | null;
   writeMeta?:
-    | ((data: { inputSummary?: string | null; summaryFromCache?: boolean | null }) => void)
+    | ((data: {
+        inputSummary?: string | null;
+        summaryFromCache?: boolean | null;
+        sourceMeta?: ContextSourceMeta | null;
+      }) => void)
     | null;
 };
 
@@ -157,6 +162,7 @@ export async function streamSummaryForVisiblePage({
   fetchImpl,
   urlFetchImpl,
   input,
+  requestedMode = "page",
   modelOverride,
   promptOverride,
   lengthRaw,
@@ -171,6 +177,7 @@ export async function streamSummaryForVisiblePage({
   fetchImpl: typeof fetch;
   urlFetchImpl?: typeof fetch | null;
   input: VisiblePageInput;
+  requestedMode?: ContextSourceMeta["input"]["requestedMode"];
   modelOverride: string | null;
   promptOverride: string | null;
   lengthRaw: unknown;
@@ -264,6 +271,12 @@ export async function streamSummaryForVisiblePage({
       words: extracted.wordCount,
       characters: extracted.totalCharacters,
     }),
+    sourceMeta: buildVisiblePageSourceMeta({
+      wordCount: extracted.wordCount,
+      totalCharacters: extracted.totalCharacters,
+      truncated: extracted.truncated,
+      requestedMode,
+    }),
   });
   writeProgressOrStatus(
     sink,
@@ -318,6 +331,7 @@ export async function streamSummaryForUrl({
   fetchImpl,
   urlFetchImpl,
   input,
+  requestedMode = "url",
   modelOverride,
   promptOverride,
   lengthRaw,
@@ -334,6 +348,7 @@ export async function streamSummaryForUrl({
   fetchImpl: typeof fetch;
   urlFetchImpl?: typeof fetch | null;
   input: UrlModeInput;
+  requestedMode?: ContextSourceMeta["input"]["requestedMode"];
   modelOverride: string | null;
   promptOverride: string | null;
   lengthRaw: unknown;
@@ -391,7 +406,10 @@ export async function streamSummaryForUrl({
       onExtracted: (content) => {
         extractedRef.value = content;
         hooks?.onExtracted?.(content);
-        sink.writeMeta?.({ inputSummary: buildInputSummaryForExtracted(content) });
+        sink.writeMeta?.({
+          inputSummary: buildInputSummaryForExtracted(content),
+          sourceMeta: buildUrlSourceMeta({ extracted: content, requestedMode }),
+        });
         writeProgressOrStatus(
           sink,
           createProgressStatus("summarizing", "Summarizing…", "Summarizing"),

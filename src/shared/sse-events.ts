@@ -5,6 +5,37 @@ export type SseMetaData = {
   modelLabel: string | null;
   inputSummary: string | null;
   summaryFromCache?: boolean | null;
+  sourceMeta?: ContextSourceMeta | null;
+};
+
+export type ContextSourceMeta = {
+  input: {
+    source: "page" | "url";
+    requestedMode: "auto" | "page" | "url" | null;
+  };
+  content: {
+    strategy: string | null;
+    markdownProvider: string | null;
+    firecrawlUsed: boolean | null;
+    totalCharacters: number | null;
+    wordCount: number | null;
+    truncated: boolean | null;
+  };
+  transcript: {
+    source: string | null;
+    transcriptionProvider: string | null;
+    cacheStatus: string | null;
+    attemptedProviders: string[];
+    characters: number | null;
+    wordCount: number | null;
+    lines: number | null;
+    hasTimestamps: boolean | null;
+  } | null;
+  media: {
+    kind: "youtube" | "video" | "audio" | "podcast" | "media" | null;
+    durationSeconds: number | null;
+    isVideoOnly: boolean | null;
+  } | null;
 };
 
 export type SseSlidesData = {

@@ -1,5 +1,5 @@
 import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
-import type { SseSlidesData } from "./runtime-contracts";
+import type { ContextSourceMeta, SseSlidesData } from "./runtime-contracts";
 
 export type UiState = {
   panelOpen: boolean;
@@ -52,6 +52,7 @@ export type PanelCachePayload = {
   slidesSummaryComplete: boolean | null;
   slidesSummaryModel: string | null;
   lastMeta: PanelCacheMeta;
+  sourceMeta?: ContextSourceMeta | null;
   slides: SseSlidesData | null;
   transcriptTimedText: string | null;
 };

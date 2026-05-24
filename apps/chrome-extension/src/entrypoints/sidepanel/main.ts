@@ -52,6 +52,7 @@ import { createSlidesSessionStore } from "./slides-session-store";
 import { selectMarkdownForLayout, type SlideTextMode } from "./slides-state";
 import { createSlidesTextController } from "./slides-text-controller";
 import { createSlidesViewRuntime } from "./slides-view-runtime";
+import { createSourceMetaController } from "./source-meta-controller";
 import { createSummarizeControlRuntime } from "./summarize-control-runtime";
 import { createSummaryLanguageRuntime } from "./summary-language-runtime";
 import { buildSummaryProgressFromSse, buildSummaryProgressFromStatus } from "./summary-progress";
@@ -120,6 +121,7 @@ const {
   slideNoticeEl,
   slideNoticeMessageEl,
   slideNoticeRetryBtn,
+  sourceMetaEl,
   slidesLayoutEl,
   subtitleEl,
   summaryLanguageSelectEl,
@@ -135,6 +137,7 @@ const metricsController = createMetricsController({
   metricsHomeEl,
   chatMetricsSlotEl,
 });
+const sourceMetaController = createSourceMetaController({ rootEl: sourceMetaEl });
 
 const typographyController = createTypographyController({
   sizeSmBtn,
@@ -178,6 +181,7 @@ const panelState: PanelState = {
   slidesRunId: null,
   currentSource: null,
   lastMeta: { inputSummary: null, model: null, modelLabel: null },
+  sourceMeta: null,
   summaryMarkdown: null,
   summaryFromCache: null,
   summaryProgress: null,
@@ -186,6 +190,15 @@ const panelState: PanelState = {
   error: null,
   chatStreaming: false,
 };
+
+function renderSourceMeta() {
+  sourceMetaController.render({
+    meta: panelState.sourceMeta ?? null,
+    slides: panelState.slides,
+    summaryFromCache: panelState.summaryFromCache,
+    inputSummary: panelState.lastMeta.inputSummary,
+  });
+}
 
 const panelPortRuntime = createPanelPortRuntime<BgToPanel>({
   onMessage: (msg) => {
@@ -380,6 +393,7 @@ function attachSummaryRun(run: RunStart) {
       model: fallbackModel,
       modelLabel: fallbackModel,
     };
+    panelState.sourceMeta = null;
   }
   slidesState.pendingRunForPlannedSlides = run;
   if (!panelState.summaryMarkdown?.trim()) {
@@ -762,6 +776,7 @@ const summaryViewRuntime = createSummaryViewRuntime({
   updateSlidesTextState,
   requestSlidesContext,
   updateSlideSummaryFromMarkdown,
+  renderSourceMeta,
   renderMarkdown,
   renderMarkdownDisplay,
   queueSlidesRender,
@@ -886,6 +901,7 @@ slidesRenderer = slidesViewRuntime.slidesRenderer;
 
 function applySlidesPayload(data: SseSlidesData) {
   slidesViewRuntime.applySlidesPayload(data, setSlidesTranscriptTimedText);
+  renderSourceMeta();
 }
 
 registerSidepanelTestHooks({
@@ -1184,6 +1200,7 @@ const summaryStreamRuntime = createSummaryStreamRuntime({
     );
     metricsController.setActiveMode("summary");
   },
+  renderSourceMeta,
   rememberUrl: (url) => {
     void send({ type: "panel:rememberUrl", url });
   },

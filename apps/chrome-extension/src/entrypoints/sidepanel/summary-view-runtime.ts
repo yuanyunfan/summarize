@@ -71,6 +71,7 @@ type SummaryViewRuntimeOpts = {
     markdown: string,
     opts?: { preserveIfEmpty?: boolean; source?: "summary" | "slides" },
   ) => void;
+  renderSourceMeta?: () => void;
   renderMarkdown: (markdown: string) => void;
   renderMarkdownDisplay: () => void;
   queueSlidesRender: () => void;
@@ -95,6 +96,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
     opts.getSlidesRenderer().clear();
     opts.metricsController.clearForMode("summary");
     opts.panelState.summaryMarkdown = null;
+    opts.panelState.sourceMeta = null;
     opts.panelState.summaryFromCache = null;
     opts.panelState.summaryProgress = null;
     opts.panelState.slides = null;
@@ -113,6 +115,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
       opts.stopSlidesStream();
     }
     opts.refreshSummarizeControl();
+    opts.renderSourceMeta?.();
     if (!preserveChat) {
       opts.resetChatState();
     }
@@ -136,6 +139,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
       slidesSummaryComplete: hasSlidesSummaryState ? slidesSummary.complete : null,
       slidesSummaryModel: hasSlidesSummaryState ? slidesSummary.model : null,
       lastMeta: opts.panelState.lastMeta,
+      sourceMeta: opts.panelState.sourceMeta ?? null,
       slides: opts.panelState.slides ?? null,
       transcriptTimedText: opts.slidesTextController.getTranscriptTimedText() ?? null,
     };
@@ -154,7 +158,9 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
       model: null,
       modelLabel: null,
     };
+    opts.panelState.sourceMeta = payload.sourceMeta ?? null;
     opts.panelState.summaryFromCache = payload.summaryFromCache ?? null;
+    opts.renderSourceMeta?.();
     opts.setSlidesSummaryState({
       markdown: payload.slidesSummaryMarkdown ?? "",
       complete:
@@ -207,6 +213,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
       summaryFromCache: payload.summaryFromCache,
       hasSlides: hasNormalizedSlides,
     });
+    opts.renderSourceMeta?.();
     if ((payload.slidesSummaryMarkdown ?? "").trim()) {
       opts.updateSlideSummaryFromMarkdown(payload.slidesSummaryMarkdown ?? "", {
         preserveIfEmpty: false,

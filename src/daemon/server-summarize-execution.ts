@@ -294,7 +294,7 @@ export async function executeSummarizeSession({
           onSessionEvent,
         );
       },
-      writeMeta: (data: { inputSummary?: string | null; summaryFromCache?: boolean | null }) => {
+      writeMeta: (data: Parameters<typeof emitMeta>[1]) => {
         if (typeof data.inputSummary === "string") logInputSummary = data.inputSummary;
         if (typeof data.summaryFromCache === "boolean") {
           logSummaryFromCache = data.summaryFromCache;
@@ -345,6 +345,7 @@ export async function executeSummarizeSession({
           languageRaw,
           format,
           input: { url: pageUrl, title, maxCharacters },
+          requestedMode: mode,
           sink,
           cache: requestCache,
           mediaCache,
@@ -448,6 +449,7 @@ export async function executeSummarizeSession({
         languageRaw,
         format,
         input: { url: pageUrl, title, text: textContent, truncated },
+        requestedMode: mode,
         sink,
         cache: requestCache,
         mediaCache,

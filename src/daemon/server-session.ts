@@ -1,5 +1,10 @@
 import http from "node:http";
-import { encodeSseEvent, type SseEvent, type SseSlidesData } from "../shared/sse-events.js";
+import {
+  encodeSseEvent,
+  type ContextSourceMeta,
+  type SseEvent,
+  type SseSlidesData,
+} from "../shared/sse-events.js";
 import type { SlideExtractionResult } from "../slides/index.js";
 
 export type SessionEvent = SseEvent;
@@ -22,6 +27,7 @@ export type Session = {
     modelLabel: string | null;
     inputSummary: string | null;
     summaryFromCache: boolean | null;
+    sourceMeta: ContextSourceMeta | null;
   };
   slides: SlideExtractionResult | null;
 };
@@ -48,6 +54,7 @@ export function createSession(idFactory: () => string): Session {
       modelLabel: null,
       inputSummary: null,
       summaryFromCache: null,
+      sourceMeta: null,
     },
     slides: null,
   };
@@ -124,6 +131,7 @@ export function emitMeta(
     modelLabel?: string | null;
     inputSummary?: string | null;
     summaryFromCache?: boolean | null;
+    sourceMeta?: ContextSourceMeta | null;
   },
   onSessionEvent?: ((event: SessionEvent, sessionId: string) => void) | null,
 ) {
@@ -136,6 +144,10 @@ export function emitMeta(
       typeof data.summaryFromCache === "boolean"
         ? data.summaryFromCache
         : session.lastMeta.summaryFromCache,
+    sourceMeta:
+      data.sourceMeta === null || typeof data.sourceMeta === "object"
+        ? (data.sourceMeta ?? null)
+        : session.lastMeta.sourceMeta,
   };
   pushToSession(session, { event: "meta", data: session.lastMeta }, onSessionEvent);
 }

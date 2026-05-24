@@ -1,5 +1,6 @@
 export type { SummaryLength } from "../../../../src/shared/contracts.js";
 export {
+  type ContextSourceMeta,
   parseSseEvent,
   type RawSseMessage,
   type SseEvent,

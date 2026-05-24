@@ -3,6 +3,7 @@
 @import "./styles/controls.css";
 @import "./styles/summary.css";
 @import "./styles/slides.css";
+@import "./styles/source-meta.css";
 @import "./styles/chat.css";
 
 :root {

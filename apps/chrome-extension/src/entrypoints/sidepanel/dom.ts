@@ -19,6 +19,7 @@ export function createSidepanelDom() {
   const slideNoticeEl = byId<HTMLDivElement>("slideNotice");
   const slideNoticeMessageEl = byId<HTMLSpanElement>("slideNoticeMessage");
   const slideNoticeRetryBtn = byId<HTMLButtonElement>("slideNoticeRetry");
+  const sourceMetaEl = byId<HTMLElement>("sourceMeta");
   const renderEl = byId<HTMLElement>("render");
   const renderSlidesHostEl = document.createElement("div");
   renderSlidesHostEl.className = "render__slidesHost";
@@ -131,6 +132,7 @@ export function createSidepanelDom() {
     slideNoticeEl,
     slideNoticeMessageEl,
     slideNoticeRetryBtn,
+    sourceMetaEl,
     slidesLayoutEl,
     subtitleEl,
     summaryLanguageSelectEl,
