@@ -11,6 +11,14 @@ export {
 } from "../../../../src/shared/sse-events.js";
 export { mergeStreamingChunk } from "../../../../src/shared/streaming-merge.js";
 export {
+  CHAT_UNUSABLE_ASSISTANT_MESSAGE,
+  createChatOutputStreamSanitizer,
+  isPathOnlyChatReference,
+  sanitizeChatAssistantContent,
+  sanitizeChatAssistantMessage,
+  sanitizeChatAssistantText,
+} from "../../../../src/shared/chat-output-sanitizer.js";
+export {
   isClassificationOnlySummary,
   sanitizeSummaryMarkdown,
 } from "../../../../src/shared/summary-sanitizer.js";

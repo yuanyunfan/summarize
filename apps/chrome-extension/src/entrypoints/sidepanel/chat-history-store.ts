@@ -1,4 +1,8 @@
 import type { Message } from "@earendil-works/pi-ai";
+import {
+  sanitizeChatAssistantContent,
+  sanitizeChatAssistantMessage,
+} from "../../lib/runtime-contracts";
 import { compactChatHistory, type ChatHistoryLimits } from "./chat-state";
 import { normalizePanelUrl } from "./session-policy";
 import type { ChatMessage } from "./types";
@@ -39,9 +43,9 @@ export function normalizeStoredMessage(raw: Record<string, unknown>): ChatMessag
 
   if (role === "assistant") {
     const content = Array.isArray(raw.content)
-      ? raw.content
+      ? sanitizeChatAssistantContent(raw.content)
       : typeof raw.content === "string"
-        ? [{ type: "text", text: raw.content }]
+        ? [{ type: "text", text: sanitizeChatAssistantContent(raw.content) }]
         : [];
     return {
       ...(raw as Message),
@@ -130,7 +134,8 @@ export function createChatHistoryStore({
   ) {
     if (!chatEnabled || !tabId) return messages;
     const key = getChatHistoryKey(tabId, url);
-    const compacted = compactChatHistory(messages, chatLimits);
+    const sanitized = messages.map((message) => sanitizeChatAssistantMessage(message));
+    const compacted = compactChatHistory(sanitized, chatLimits);
     cache.set(key, compacted);
     const store = getStorage();
     if (!store) return compacted;

@@ -1,4 +1,8 @@
 import type { Message, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import {
+  sanitizeChatAssistantMessage,
+  sanitizeChatAssistantText,
+} from "../../lib/runtime-contracts";
 import type { ChatController } from "./chat-controller";
 import type { ChatMessage } from "./types";
 
@@ -68,7 +72,9 @@ export async function runChatAgentLoop({
       response = await chatSession.requestAgent(messages, tools, summaryMarkdown, {
         onChunk: (text) => {
           streamedContent += text;
-          chatController.updateStreamingMessage(streamedContent);
+          chatController.updateStreamingMessage(
+            sanitizeChatAssistantText(streamedContent, { final: false }),
+          );
         },
       });
     } catch (error) {
@@ -82,7 +88,10 @@ export async function runChatAgentLoop({
       throw new Error(response.error || "Agent failed");
     }
 
-    const assistant = { ...response.assistant, id: streamingMessage.id } as ChatMessage;
+    const assistant = sanitizeChatAssistantMessage({
+      ...response.assistant,
+      id: streamingMessage.id,
+    } as ChatMessage);
     if (chatSession.isAbortRequested()) {
       chatController.removeMessage(streamingMessage.id);
       return;

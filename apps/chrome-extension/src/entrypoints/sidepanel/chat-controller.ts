@@ -1,5 +1,9 @@
 import type MarkdownIt from "markdown-it";
 import {
+  sanitizeChatAssistantMessage,
+  sanitizeChatAssistantText,
+} from "../../lib/runtime-contracts";
+import {
   buildChatRequestMessages,
   type ChatHistoryLimits,
   computeChatContextUsage,
@@ -124,11 +128,12 @@ export class ChatController {
   updateStreamingMessage(content: string) {
     const lastMsg = this.messages[this.messages.length - 1];
     if (lastMsg?.role === "assistant") {
-      lastMsg.content = [{ type: "text", text: content }];
+      const displayContent = sanitizeChatAssistantText(content, { final: false });
+      lastMsg.content = [{ type: "text", text: displayContent }];
       const msgEl = this.messagesEl.querySelector(`[data-id="${lastMsg.id}"]`);
       if (msgEl) {
-        if (content.trim()) {
-          msgEl.innerHTML = this.markdown.render(this.linkifyTimestamps(content));
+        if (displayContent.trim()) {
+          msgEl.innerHTML = this.markdown.render(this.linkifyTimestamps(displayContent));
           msgEl.removeAttribute("data-placeholder");
         } else {
           msgEl.innerHTML = this.typingIndicatorHtml;
@@ -205,7 +210,7 @@ export class ChatController {
     msgEl.dataset.id = message.id;
 
     if (message.role === "assistant") {
-      const { text, toolCalls } = splitAssistantMessage(message);
+      const { text, toolCalls } = splitAssistantMessage(sanitizeChatAssistantMessage(message));
       const rendered = buildAssistantMarkdown(text, toolCalls);
       if (rendered.trim()) {
         msgEl.innerHTML = this.markdown.render(this.linkifyTimestamps(rendered));

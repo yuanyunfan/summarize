@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { completeAgentResponse, streamAgentResponse } from "../src/daemon/agent.js";
 import { runCliModel } from "../src/llm/cli.js";
 import * as modelAuto from "../src/model-auto.js";
+import { CHAT_UNUSABLE_ASSISTANT_MESSAGE } from "../src/shared/chat-output-sanitizer.js";
 
 const { mockCompleteSimple, mockGetModel, mockStreamSimple } = vi.hoisted(() => ({
   mockCompleteSimple: vi.fn(),
@@ -161,6 +162,97 @@ describe("daemon/agent", () => {
 
     const options = mockCompleteSimple.mock.calls[0]?.[2] as { apiKey?: string };
     expect(options.apiKey).toBe("sk-openai");
+  });
+
+  it("adds language and protocol safety rules to the agent system prompt", async () => {
+    const home = makeTempHome();
+    await completeAgentResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      pageUrl: "https://example.com",
+      pageTitle: "Example",
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/gpt-5-mini",
+      tools: [],
+      automationEnabled: false,
+      language: "zh-cn",
+    });
+
+    const context = mockCompleteSimple.mock.calls[0]?.[1] as { systemPrompt?: string };
+    expect(context.systemPrompt).toContain("Write the answer in Chinese (Simplified)");
+    expect(context.systemPrompt).toContain("Do not wrap final answers in XML/protocol tags");
+    expect(context.systemPrompt).toContain("<final_answer>");
+    expect(context.systemPrompt).toContain("Do not return only file paths");
+  });
+
+  it("sanitizes path-only final_answer agent responses before returning them", async () => {
+    const home = makeTempHome();
+    mockCompleteSimple.mockResolvedValueOnce({
+      ...buildAssistant("openai", "gpt-5-mini"),
+      content: [
+        {
+          type: "text",
+          text: "<final_answer>\n/workspace/claude/harness/skill-subagent-transform.md:1-200\n</final_answer>",
+        },
+      ],
+    });
+
+    const assistant = await completeAgentResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/gpt-5-mini",
+      tools: [],
+      automationEnabled: false,
+    });
+
+    expect(assistant.content).toEqual([{ type: "text", text: CHAT_UNUSABLE_ASSISTANT_MESSAGE }]);
+  });
+
+  it("does not stream path-only final_answer protocol leaks to agent clients", async () => {
+    const home = makeTempHome();
+    const rawAssistant = {
+      ...buildAssistant("openai", "gpt-5-mini"),
+      content: [
+        {
+          type: "text",
+          text: "<final_answer>\n/workspace/claude/harness/skill-subagent-transform.md:1-200\n</final_answer>",
+        },
+      ],
+    };
+    const chunks: string[] = [];
+    const assistants: AssistantMessage[] = [];
+    mockStreamSimple.mockReturnValueOnce(
+      makeAgentStream([
+        { type: "text_delta", delta: "<final_answer>\n" },
+        {
+          type: "text_delta",
+          delta: "/workspace/claude/harness/skill-subagent-transform.md:1-200",
+        },
+        { type: "text_delta", delta: "\n</final_answer>" },
+        { type: "done", message: rawAssistant },
+      ]),
+    );
+
+    await streamAgentResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/gpt-5-mini",
+      tools: [],
+      automationEnabled: false,
+      onChunk: (text) => chunks.push(text),
+      onAssistant: (assistant) => assistants.push(assistant),
+    });
+
+    expect(chunks).toEqual([]);
+    expect(assistants[0]?.content).toEqual([
+      { type: "text", text: CHAT_UNUSABLE_ASSISTANT_MESSAGE },
+    ]);
   });
 
   it("falls back to a synthetic model for unknown custom models when a base url is configured", async () => {

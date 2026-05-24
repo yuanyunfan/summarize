@@ -43,6 +43,7 @@ export async function handleAgentRoute({
   const pageContent = typeof obj.pageContent === "string" ? obj.pageContent : "";
   const messages = obj.messages;
   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
+  const language = typeof obj.language === "string" ? obj.language.trim() : null;
   const tools = Array.isArray(obj.tools)
     ? obj.tools.filter((tool): tool is string => typeof tool === "string")
     : [];
@@ -69,6 +70,7 @@ export async function handleAgentRoute({
           modelOverride: normalizedModelOverride,
           tools,
           automationEnabled,
+          language,
         }),
       );
       json(res, 200, { ok: true, assistant }, cors);
@@ -109,6 +111,7 @@ export async function handleAgentRoute({
         modelOverride: normalizedModelOverride,
         tools,
         automationEnabled,
+        language,
         onChunk: (text) => writeEvent({ event: "chunk", data: { text } }),
         onAssistant: (assistant) => writeEvent({ event: "assistant", data: assistant }),
         signal: controller.signal,

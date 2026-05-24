@@ -6,6 +6,7 @@ import {
   hasUserChatMessage,
 } from "../apps/chrome-extension/src/entrypoints/sidepanel/chat-state";
 import type { ChatMessage } from "../apps/chrome-extension/src/entrypoints/sidepanel/types";
+import { CHAT_UNUSABLE_ASSISTANT_MESSAGE } from "../src/shared/chat-output-sanitizer.js";
 
 const limits = { maxMessages: 3, maxChars: 10 };
 
@@ -42,6 +43,22 @@ describe("sidepanel/chat-state", () => {
     ];
 
     expect(buildChatRequestMessages(messages)).toEqual([{ role: "assistant", content: "hi" }]);
+  });
+
+  it("sanitizes leaked assistant protocol artifacts before building request history", () => {
+    const messages: ChatMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content:
+          "<final_answer>\n/workspace/claude/harness/skill-subagent-transform.md:1-200\n</final_answer>",
+        timestamp: 1,
+      },
+    ];
+
+    expect(buildChatRequestMessages(messages)).toEqual([
+      { role: "assistant", content: CHAT_UNUSABLE_ASSISTANT_MESSAGE },
+    ]);
   });
 
   it("counts array text parts, keeps tool results, and ignores unsupported roles", () => {

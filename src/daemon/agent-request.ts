@@ -1,4 +1,5 @@
 import type { Message, Tool } from "@earendil-works/pi-ai";
+import { formatOutputLanguageInstruction, resolveOutputLanguage } from "../language.js";
 
 const AGENT_PROMPT_AUTOMATION = `You are Summarize Automation, not Claude.
 
@@ -46,14 +47,23 @@ export function buildSystemPrompt({
   pageTitle,
   pageContent,
   automationEnabled,
+  language,
 }: {
   pageUrl: string;
   pageTitle: string | null;
   pageContent: string;
   automationEnabled: boolean;
+  language?: string | null;
 }): string {
   const base = getAgentPrompt(automationEnabled);
+  const languageInstruction = formatOutputLanguageInstruction(resolveOutputLanguage(language));
   return `${base}
+
+# Response Contract
+- ${languageInstruction}
+- Answer directly in normal Markdown prose.
+- Do not wrap final answers in XML/protocol tags such as <final_answer>.
+- Do not return only file paths, line ranges, or internal source references. If a source is relevant, explain what it says in prose.
 
 Page URL: ${pageUrl}
 ${pageTitle ? `Page Title: ${pageTitle}` : ""}

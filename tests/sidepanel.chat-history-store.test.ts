@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createChatHistoryStore } from "../apps/chrome-extension/src/entrypoints/sidepanel/chat-history-store.js";
 import type { ChatMessage } from "../apps/chrome-extension/src/entrypoints/sidepanel/types.js";
+import { CHAT_UNUSABLE_ASSISTANT_MESSAGE } from "../src/shared/chat-output-sanitizer.js";
 
 function createMemoryStorage(): chrome.storage.StorageArea {
   const values = new Map<string, unknown>();
@@ -54,5 +55,30 @@ describe("sidepanel chat history store", () => {
 
     await expect(store.load(7, "https://example.com/a")).resolves.toBeNull();
     await expect(store.load(7, "https://example.com/b")).resolves.toEqual([pageB]);
+  });
+
+  it("sanitizes leaked assistant protocol artifacts before persisting history", async () => {
+    const storage = createMemoryStorage();
+    const store = createChatHistoryStore({
+      chatLimits: { maxMessages: 10, maxChars: 1_000 },
+      getStorage: () => storage,
+    });
+    const leaked: ChatMessage = {
+      id: "leak",
+      role: "assistant",
+      content: [
+        {
+          type: "text",
+          text: "<final_answer>\n/workspace/claude/harness/skill-subagent-transform.md:1-200\n</final_answer>",
+        },
+      ],
+      timestamp: 1,
+    } as ChatMessage;
+
+    const persisted = await store.persist(7, [leaked], true, "https://example.com/a");
+    await expect(store.load(7, "https://example.com/a")).resolves.toEqual(persisted);
+    expect(persisted[0]?.content).toEqual([
+      { type: "text", text: CHAT_UNUSABLE_ASSISTANT_MESSAGE },
+    ]);
   });
 });

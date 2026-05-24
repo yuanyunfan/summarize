@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { runChatAgentLoop } from "../apps/chrome-extension/src/entrypoints/sidepanel/chat-agent-loop.js";
+import { CHAT_UNUSABLE_ASSISTANT_MESSAGE } from "../src/shared/chat-output-sanitizer.js";
 
 function createController() {
   return {
@@ -148,6 +149,57 @@ describe("sidepanel chat agent loop", () => {
       expect.objectContaining({ content: "Plain reply" }),
     );
     expect(executeToolCall).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes protocol wrapper leaks before rendering and storing assistant content", async () => {
+    const controller = createController();
+    const leaked = [
+      "<final_answer>",
+      "/workspace/claude/harness/skill-subagent-transform.md:1-200",
+      "</final_answer>",
+    ].join("\n");
+    const chatSession = {
+      isAbortRequested: vi.fn(() => false),
+      requestAgent: vi.fn(async (_messages, _tools, _summary, opts) => {
+        opts?.onChunk?.("<final_answer>\n");
+        opts?.onChunk?.("/workspace/claude/harness/skill-subagent-transform.md:1-200");
+        opts?.onChunk?.("\n</final_answer>");
+        return {
+          ok: true,
+          assistant: {
+            role: "assistant",
+            content: [{ type: "text", text: leaked }],
+          },
+        };
+      }),
+    };
+
+    await runChatAgentLoop({
+      automationEnabled: false,
+      summaryMarkdown: null,
+      chatController: controller as never,
+      chatSession,
+      createStreamingAssistantMessage: () =>
+        ({ id: "stream", role: "assistant", content: [] }) as never,
+      executeToolCall: vi.fn(),
+      getAutomationToolNames: () => [],
+      hasDebuggerPermission: async () => true,
+      markAgentNavigationIntent: vi.fn(),
+      markAgentNavigationResult: vi.fn(),
+      scrollToBottom: vi.fn(),
+      wrapMessage: vi.fn((message) => ({ ...message, id: "wrapped" }) as never),
+    });
+
+    expect(controller.updateStreamingMessage).toHaveBeenCalled();
+    for (const [content] of controller.updateStreamingMessage.mock.calls) {
+      expect(content).not.toContain("final_answer");
+      expect(content).not.toContain("/workspace/claude/harness");
+    }
+    expect(controller.replaceMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: [{ type: "text", text: CHAT_UNUSABLE_ASSISTANT_MESSAGE }],
+      }),
+    );
   });
 
   it("removes the placeholder message on request failure", async () => {

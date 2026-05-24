@@ -1,6 +1,11 @@
 import type { AssistantMessage, Tool } from "@earendil-works/pi-ai";
 import { completeSimple, streamSimple } from "@earendil-works/pi-ai";
 import { buildPromptHash } from "../cache.js";
+import {
+  createChatOutputStreamSanitizer,
+  sanitizeChatAssistantMessage,
+  sanitizeChatAssistantText,
+} from "../shared/chat-output-sanitizer.js";
 import { resolveAgentModel, resolveApiKeyForModel } from "./agent-model.js";
 import {
   buildSystemPrompt,
@@ -307,6 +312,7 @@ export async function streamAgentResponse({
   modelOverride,
   tools,
   automationEnabled,
+  language = null,
   onChunk,
   onAssistant,
   signal,
@@ -319,6 +325,7 @@ export async function streamAgentResponse({
   modelOverride: string | null;
   tools: string[];
   automationEnabled: boolean;
+  language?: string | null;
   onChunk: (text: string) => void;
   onAssistant: (assistant: AssistantMessage) => void;
   signal?: AbortSignal;
@@ -331,6 +338,7 @@ export async function streamAgentResponse({
     pageTitle,
     pageContent,
     automationEnabled,
+    language,
   });
 
   const resolved = await resolveAgentModel({
@@ -352,8 +360,9 @@ export async function streamAgentResponse({
         config: resolved.cliConfig,
       }),
     );
-    onChunk(result.text);
-    onAssistant({ role: "assistant", content: result.text } as unknown as AssistantMessage);
+    const text = sanitizeChatAssistantText(result.text);
+    if (text) onChunk(text);
+    onAssistant({ role: "assistant", content: text } as unknown as AssistantMessage);
     return;
   }
 
@@ -362,6 +371,7 @@ export async function streamAgentResponse({
 
   let emittedContent = false;
   const run = async (modelForRun: typeof model): Promise<AssistantMessage> => {
+    const outputSanitizer = createChatOutputStreamSanitizer();
     const stream = streamSimple(
       modelForRun,
       {
@@ -380,7 +390,8 @@ export async function streamAgentResponse({
     for await (const event of stream) {
       if (event.type === "text_delta") {
         emittedContent = true;
-        onChunk(event.delta);
+        const delta = outputSanitizer.push(event.delta);
+        if (delta) onChunk(delta);
       } else if (event.type === "done") {
         assistant = event.message;
         break;
@@ -399,7 +410,7 @@ export async function streamAgentResponse({
       throw new Error("Agent stream ended without a result.");
     }
 
-    return assistant;
+    return sanitizeChatAssistantMessage(assistant);
   };
 
   let assistant: AssistantMessage;
@@ -413,7 +424,7 @@ export async function streamAgentResponse({
     }
   }
 
-  onAssistant(assistant);
+  onAssistant(sanitizeChatAssistantMessage(assistant));
 }
 
 export async function completeAgentResponse({
@@ -425,6 +436,7 @@ export async function completeAgentResponse({
   modelOverride,
   tools,
   automationEnabled,
+  language = null,
 }: {
   env: Record<string, string | undefined>;
   pageUrl: string;
@@ -434,6 +446,7 @@ export async function completeAgentResponse({
   modelOverride: string | null;
   tools: string[];
   automationEnabled: boolean;
+  language?: string | null;
 }): Promise<AssistantMessage> {
   const normalizedMessages = normalizeMessages(messages);
   const toolList = resolveToolList(automationEnabled, tools, TOOL_DEFINITIONS);
@@ -443,6 +456,7 @@ export async function completeAgentResponse({
     pageTitle,
     pageContent,
     automationEnabled,
+    language,
   });
 
   const resolved = await resolveAgentModel({
@@ -464,7 +478,10 @@ export async function completeAgentResponse({
         config: resolved.cliConfig,
       }),
     );
-    return { role: "assistant", content: result.text } as unknown as AssistantMessage;
+    return {
+      role: "assistant",
+      content: sanitizeChatAssistantText(result.text),
+    } as unknown as AssistantMessage;
   }
 
   const { provider, model, maxOutputTokens, apiKeys } = resolved;
@@ -485,10 +502,10 @@ export async function completeAgentResponse({
     );
 
   try {
-    return await run(model);
+    return sanitizeChatAssistantMessage(await run(model));
   } catch (error) {
     if (isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
-      return await run(withOpenAiChatCompletionsModel(model));
+      return sanitizeChatAssistantMessage(await run(withOpenAiChatCompletionsModel(model)));
     }
     throw error;
   }

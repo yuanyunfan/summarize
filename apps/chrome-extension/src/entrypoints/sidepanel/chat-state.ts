@@ -1,3 +1,4 @@
+import { sanitizeChatAssistantMessage } from "../../lib/runtime-contracts";
 import type { ChatMessage } from "./types";
 
 export type ChatHistoryLimits = {
@@ -61,5 +62,5 @@ export function hasUserChatMessage(messages: ChatMessage[]): boolean {
 export function buildChatRequestMessages(messages: ChatMessage[]) {
   return messages
     .filter((msg) => msg.role === "toolResult" || messageTextLength(msg) > 0)
-    .map(({ id: _id, timestamp: _timestamp, ...rest }) => rest);
+    .map(({ id: _id, timestamp: _timestamp, ...rest }) => sanitizeChatAssistantMessage(rest));
 }
