@@ -32,11 +32,7 @@ export function buildSummaryEmptyState(input: SummaryEmptyStateInput): SummaryEm
     };
   }
 
-  if (
-    input.phase === "connecting" ||
-    input.phase === "streaming" ||
-    (input.autoSummarize && input.phase === "idle")
-  ) {
+  if (input.phase === "connecting" || input.phase === "streaming") {
     const progress = input.progress;
     const progressDetail =
       progress?.detail && progress.detail.trim().length > 0

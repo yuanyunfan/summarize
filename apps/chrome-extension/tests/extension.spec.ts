@@ -149,7 +149,7 @@ test("sidepanel keeps the current summary sticky when switching tabs manually", 
   }
 });
 
-test("sidepanel shows a loading state instead of going blank while waiting for auto summarize", async ({
+test("sidepanel shows a ready state when auto summarize is idle", async ({
   browserName: _browserName,
 }, testInfo) => {
   const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
@@ -168,8 +168,8 @@ test("sidepanel shows a loading state instead of going blank while waiting for a
       }),
     });
 
-    await expect(page.locator("#render")).toContainText("正在准备摘要");
-    await expect(page.locator(".renderEmpty__label")).toHaveText("加载中");
+    await expect(page.locator("#render")).toContainText("点击摘要开始。");
+    await expect(page.locator(".renderEmpty__label")).toHaveText("就绪");
 
     assertNoErrors(harness);
   } finally {

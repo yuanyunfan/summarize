@@ -21,7 +21,7 @@ describe("sidepanel summary empty state", () => {
     });
   });
 
-  it("shows a loading state when auto summarize is active", () => {
+  it("shows a ready state when auto summarize is enabled but no run is active", () => {
     expect(
       buildSummaryEmptyState({
         tabTitle: "Example Video",
@@ -32,11 +32,11 @@ describe("sidepanel summary empty state", () => {
         progress: null,
       }),
     ).toEqual({
-      label: "加载中",
-      message: "正在准备摘要",
+      label: "就绪",
+      message: "点击摘要开始。",
       detail: "Example Video",
       progressPercent: null,
-      progressActive: true,
+      progressActive: false,
     });
   });
 
