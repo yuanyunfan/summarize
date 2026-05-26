@@ -21,6 +21,9 @@ const FLOWCHART_EDGE_PATTERN =
   /([A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)\s*[A-Za-z_][\w-]*(?:\[[^\]]+\])?)/g;
 const FLOWCHART_EDGE_START_PATTERN = /^[A-Za-z_][\w-]*(?:\[[^\]]+\])?\s*(?:-->|---|-.->|==>|--|==)/;
 const MERMAID_DIRECTIVE_PREFIX_PATTERN = /^\s*(%%\{.*?\}%%)\s*/;
+const TEXT_DIAGRAM_LANGUAGE = "summary-chart";
+const BOX_DRAWING_PATTERN = /[\u2500-\u257f]/u;
+const MARKDOWN_TABLE_SEPARATOR_PATTERN = /^\s{0,3}\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 const defaultMermaidLoader = () =>
   import("mermaid").then((module) => module.default as MermaidRuntime);
 let mermaidLoadPromise: Promise<MermaidRuntime> | null = null;
@@ -94,6 +97,117 @@ function isMermaidCodeBlock(code: Element): boolean {
 
 function isFenceDelimiter(line: string): boolean {
   return /^\s{0,3}(`{3,}|~{3,})/.test(line);
+}
+
+function countPipes(line: string): number {
+  return line.match(/\|/g)?.length ?? 0;
+}
+
+function isMarkdownTableSeparatorLine(line: string): boolean {
+  return MARKDOWN_TABLE_SEPARATOR_PATTERN.test(line);
+}
+
+function isWithinMarkdownTable(lines: string[], index: number): boolean {
+  const line = lines[index] ?? "";
+  if (!line.includes("|") || !line.trim()) return false;
+
+  for (let probe = index; probe >= 0; probe -= 1) {
+    const candidate = lines[probe] ?? "";
+    if (!candidate.trim() || !candidate.includes("|")) break;
+    if (isMarkdownTableSeparatorLine(candidate)) return true;
+  }
+  for (let probe = index + 1; probe < lines.length; probe += 1) {
+    const candidate = lines[probe] ?? "";
+    if (!candidate.trim() || !candidate.includes("|")) break;
+    if (isMarkdownTableSeparatorLine(candidate)) return true;
+  }
+  return false;
+}
+
+function looksLikeTextDiagramLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)/.test(line)) return false;
+  if (BOX_DRAWING_PATTERN.test(trimmed)) return true;
+
+  const pipeCount = countPipes(trimmed);
+  if (pipeCount >= 3) return true;
+  return pipeCount >= 2 && /(?:\s\|\s|\|\|)/.test(trimmed);
+}
+
+function shouldFenceTextDiagramBlock(lines: string[]): boolean {
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+  return (
+    nonEmptyLines.some((line) => BOX_DRAWING_PATTERN.test(line)) ||
+    nonEmptyLines.filter(looksLikeTextDiagramLine).length >= 2
+  );
+}
+
+function collectTextDiagramBlock(
+  lines: string[],
+  startIndex: number,
+): { lines: string[]; nextIndex: number } {
+  const block: string[] = [];
+  let index = startIndex;
+
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    if (!line.trim()) {
+      let probe = index + 1;
+      while (probe < lines.length && !(lines[probe] ?? "").trim()) probe += 1;
+      if (
+        probe < lines.length &&
+        !isWithinMarkdownTable(lines, probe) &&
+        looksLikeTextDiagramLine(lines[probe] ?? "")
+      ) {
+        block.push(line);
+        index += 1;
+        continue;
+      }
+      break;
+    }
+    if (isWithinMarkdownTable(lines, index) || !looksLikeTextDiagramLine(line)) break;
+    block.push(line);
+    index += 1;
+  }
+
+  return { lines: block, nextIndex: index };
+}
+
+function fenceTextDiagramBlock(lines: string[]): string[] {
+  const source = lines.join("\n");
+  const delimiter = source.includes("```") ? "~~~" : "```";
+  return [`${delimiter}${TEXT_DIAGRAM_LANGUAGE}`, ...lines, delimiter];
+}
+
+export function normalizeTextDiagramBlocks(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let inFence = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (isFenceDelimiter(line)) {
+      inFence = !inFence;
+      output.push(line);
+      continue;
+    }
+    if (inFence || isWithinMarkdownTable(lines, index) || !looksLikeTextDiagramLine(line)) {
+      output.push(line);
+      continue;
+    }
+
+    const block = collectTextDiagramBlock(lines, index);
+    if (shouldFenceTextDiagramBlock(block.lines)) {
+      output.push(...fenceTextDiagramBlock(block.lines));
+      index = block.nextIndex - 1;
+      continue;
+    }
+
+    output.push(line);
+  }
+
+  return output.join("\n");
 }
 
 function startsNewMarkdownBlock(line: string): boolean {
@@ -410,6 +524,49 @@ export async function renderMermaidPreviews(markdownHost: HTMLElement) {
   }
 }
 
+function isTextDiagramCodeBlock(code: Element): boolean {
+  const dataLanguage = code.getAttribute("data-language")?.trim().toLowerCase();
+  if (dataLanguage === TEXT_DIAGRAM_LANGUAGE) return true;
+
+  for (const className of Array.from(code.classList)) {
+    const normalized = className.toLowerCase().replace(/[{}]/g, "");
+    if (normalized === TEXT_DIAGRAM_LANGUAGE) return true;
+    if (normalized === `language-${TEXT_DIAGRAM_LANGUAGE}`) return true;
+    if (normalized === `lang-${TEXT_DIAGRAM_LANGUAGE}`) return true;
+  }
+
+  const lines = (code.textContent ?? "").split(/\r?\n/);
+  return shouldFenceTextDiagramBlock(lines);
+}
+
+function decorateTextDiagramBlocks(markdownHost: HTMLElement) {
+  for (const code of Array.from(markdownHost.querySelectorAll("pre > code"))) {
+    if (!isTextDiagramCodeBlock(code)) continue;
+    const pre = code.parentElement;
+    if (!pre) continue;
+    pre.classList.add("renderAsciiChart");
+    pre.closest(".chatMessage")?.classList.add("chatMessage--wide");
+  }
+}
+
+function wrapMarkdownTables(markdownHost: HTMLElement) {
+  for (const table of Array.from(markdownHost.querySelectorAll("table"))) {
+    if (table.parentElement?.classList.contains("renderTableScroll")) continue;
+    const wrapper = document.createElement("div");
+    wrapper.className = "renderTableScroll";
+    wrapper.setAttribute("role", "region");
+    wrapper.setAttribute("aria-label", "表格");
+    table.before(wrapper);
+    wrapper.append(table);
+    wrapper.closest(".chatMessage")?.classList.add("chatMessage--wide");
+  }
+}
+
+export function enhanceRenderedSummaryBlocks(markdownHost: HTMLElement) {
+  wrapMarkdownTables(markdownHost);
+  decorateTextDiagramBlocks(markdownHost);
+}
+
 function createCopyButton({
   text,
   headerSetStatus,
@@ -589,8 +746,9 @@ export function renderSummaryMarkdownDisplay({
     const markdownHost = document.createElement("div");
     markdownHost.className = "render__markdownBody";
     markdownHost.innerHTML = md.render(
-      linkifyTimestamps(normalizeInlineMermaidBlocks(displayMarkdown)),
+      normalizeTextDiagramBlocks(linkifyTimestamps(normalizeInlineMermaidBlocks(displayMarkdown))),
     );
+    enhanceRenderedSummaryBlocks(markdownHost);
     hostEl.append(actions, markdownHost);
     void renderMermaidPreviews(markdownHost);
   } catch (err) {

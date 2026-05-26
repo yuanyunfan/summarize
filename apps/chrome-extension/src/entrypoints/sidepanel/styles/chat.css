@@ -194,6 +194,22 @@
   word-break: inherit;
 }
 
+.chatMessage pre.renderAsciiChart {
+  max-width: 100%;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.chatMessage pre.renderAsciiChart code {
+  min-width: max-content;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .chatMessage ul {
   margin: 6px 0 6px 18px;
   padding: 0;

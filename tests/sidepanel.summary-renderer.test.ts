@@ -10,7 +10,9 @@ const mermaidMocks = vi.hoisted(() => ({
 }));
 
 import {
+  enhanceRenderedSummaryBlocks,
   normalizeInlineMermaidBlocks,
+  normalizeTextDiagramBlocks,
   renderSummaryEmptyState,
   renderSummaryMarkdownDisplay,
   setMermaidRuntimeLoaderForTest,
@@ -378,6 +380,60 @@ describe("sidepanel summary renderer", () => {
         "```",
       ].join("\n"),
     );
+  });
+
+  it("normalizes ASCII diagram blocks into stable chart fences", () => {
+    const input = [
+      "## 腾讯Buddy家族全景",
+      "",
+      "┌────────────┬────────────┐",
+      "| DataBuddy || CodeBuddy |",
+      "| 做分析     || 写代码    |",
+      "└────────────┴────────────┘",
+      "",
+      "后续说明。",
+    ].join("\n");
+
+    expect(normalizeTextDiagramBlocks(input)).toBe(
+      [
+        "## 腾讯Buddy家族全景",
+        "",
+        "```summary-chart",
+        "┌────────────┬────────────┐",
+        "| DataBuddy || CodeBuddy |",
+        "| 做分析     || 写代码    |",
+        "└────────────┴────────────┘",
+        "```",
+        "",
+        "后续说明。",
+      ].join("\n"),
+    );
+  });
+
+  it("does not turn valid Markdown tables into chart fences", () => {
+    const input = [
+      "| Product | Audience |",
+      "| --- | --- |",
+      "| DataBuddy | 数据从业者 |",
+      "| CodeBuddy | 开发者 |",
+    ].join("\n");
+
+    expect(normalizeTextDiagramBlocks(input)).toBe(input);
+  });
+
+  it("decorates rendered Markdown tables and ASCII charts for horizontal scrolling", () => {
+    const hostEl = document.createElement("div");
+    hostEl.innerHTML = [
+      "<table><thead><tr><th>Product</th><th>Audience</th></tr></thead><tbody><tr><td>DataBuddy</td><td>数据从业者</td></tr></tbody></table>",
+      '<pre><code class="language-summary-chart">| DataBuddy || CodeBuddy |\n| 做分析     || 写代码    |</code></pre>',
+    ].join("");
+
+    enhanceRenderedSummaryBlocks(hostEl);
+
+    expect(hostEl.querySelector(".renderTableScroll > table")).not.toBeNull();
+    expect(
+      hostEl.querySelector("pre.renderAsciiChart > code.language-summary-chart"),
+    ).not.toBeNull();
   });
 
   it("leaves mermaid source visible when diagram rendering fails", async () => {

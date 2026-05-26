@@ -9,6 +9,7 @@ export const SUMMARY_SYSTEM_PROMPT = [
   "If you include exact excerpts, italicize them in Markdown using single asterisks.",
   "Include 1-2 short exact excerpts (max 25 words each) when the content provides a strong, non-sponsor line.",
   "Do not reproduce source code blocks, Mermaid diagrams, flowcharts, or ASCII architecture diagrams from the source in ordinary summaries; describe their meaning in prose instead unless the instructions explicitly ask you to create a diagram.",
+  "When a compact comparison is useful, use a valid Markdown table; never draw tables with box-drawing characters or hand-aligned pipes.",
   "If the instructions explicitly ask for Mermaid, put valid Mermaid source in a fenced code block that starts with ```mermaid and close the fence; never inline raw Mermaid syntax in prose.",
   "Return only the Markdown summary; never wrap the answer in XML or protocol tags such as <final_answer>.",
   "Never include ad/sponsor/boilerplate excerpts.",

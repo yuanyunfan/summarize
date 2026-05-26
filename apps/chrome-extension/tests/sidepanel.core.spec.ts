@@ -511,6 +511,76 @@ test("sidepanel renders mermaid summary code fences as diagrams", async ({
   }
 });
 
+test("sidepanel keeps ASCII charts stable while the panel width changes", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
+    await waitForPanelPort(page);
+    await waitForSlidesRuntimeHooks(page);
+    await page.setViewportSize({ width: 420, height: 720 });
+
+    const chartMarkdown = [
+      "## 腾讯Buddy家族全景",
+      "",
+      "┌────────────────────────────┬────────────────────────────┬────────────────────────────┐",
+      "| DataBuddy                  || CodeBuddy                  | WorkBuddy                  |",
+      "| 面向数据从业者              || 面向开发者                 | 面向职场人                 |",
+      "| 建数仓/做分析/指标治理       || 写代码/全栈开发/自动化办公  | 做文档/报告/项目协作        |",
+      "└────────────────────────────┴────────────────────────────┴────────────────────────────┘",
+      "",
+      "共同底座：统一账号、计费和安全。",
+    ].join("\n");
+
+    await page.evaluate((markdown) => {
+      const hooks = (
+        window as typeof globalThis & {
+          __summarizeTestHooks?: { applySummaryMarkdown?: (markdown: string) => void };
+        }
+      ).__summarizeTestHooks;
+      hooks?.applySummaryMarkdown?.(markdown);
+    }, chartMarkdown);
+
+    const chart = page.locator("#render pre.renderAsciiChart");
+    await expect(chart).toBeVisible();
+
+    const narrow = await chart.evaluate((element) => {
+      const render = document.querySelector("#render") as HTMLElement | null;
+      const style = getComputedStyle(element);
+      return {
+        clientWidth: element.clientWidth,
+        overflowX: style.overflowX,
+        rectWidth: element.getBoundingClientRect().width,
+        renderWidth: render?.getBoundingClientRect().width ?? 0,
+        scrollWidth: element.scrollWidth,
+        text: element.textContent,
+        whiteSpace: style.whiteSpace,
+      };
+    });
+    expect(narrow.whiteSpace).toBe("pre");
+    expect(narrow.overflowX === "auto" || narrow.overflowX === "scroll").toBe(true);
+    expect(narrow.scrollWidth).toBeGreaterThan(narrow.clientWidth);
+    expect(narrow.rectWidth).toBeLessThanOrEqual(narrow.renderWidth + 1);
+
+    await page.setViewportSize({ width: 720, height: 720 });
+    const wide = await chart.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        text: element.textContent,
+        whiteSpace: style.whiteSpace,
+      };
+    });
+    expect(wide.text).toBe(narrow.text);
+    expect(wide.whiteSpace).toBe("pre");
+
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
 test("sidepanel renders source metadata received from summary SSE", async ({
   browserName: _browserName,
 }, testInfo) => {

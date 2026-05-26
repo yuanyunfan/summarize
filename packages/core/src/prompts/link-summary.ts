@@ -45,6 +45,7 @@ function formatMarkdownStructureContract({
     "Use bullet lists for grouped facts, steps, tradeoffs, or evidence; avoid wall-of-text paragraphs.",
     "Never simulate headings with bold text; use # heading syntax.",
     "Do not reproduce source code blocks, Mermaid diagrams, flowcharts, or ASCII architecture diagrams from the source in ordinary summaries; describe their meaning in prose instead unless the instructions explicitly ask you to create a diagram.",
+    "When a compact comparison is useful, use a valid Markdown table; never draw tables with box-drawing characters or hand-aligned pipes.",
     "If the instructions explicitly ask for Mermaid, put valid Mermaid source in a fenced code block that starts with ```mermaid and close the fence; never inline raw Mermaid syntax in prose.",
   ];
   return lines.join("\n");

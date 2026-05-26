@@ -34,6 +34,8 @@ describe("buildLinkSummaryPrompt", () => {
     expect(prompt).toContain("Do not copy the source article's table of contents");
     expect(prompt).toContain("If the instructions explicitly ask for Mermaid");
     expect(prompt).toContain("starts with ```mermaid and close the fence");
+    expect(prompt).toContain("use a valid Markdown table");
+    expect(prompt).toContain("never draw tables with box-drawing characters");
     expect(prompt).toContain("You are not given any quotes from people who shared this link.");
     expect(prompt).not.toContain("[slide:N]");
     expect(prompt).not.toContain("slide segment");

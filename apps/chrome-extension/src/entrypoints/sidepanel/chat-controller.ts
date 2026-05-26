@@ -9,7 +9,12 @@ import {
   computeChatContextUsage,
   hasUserChatMessage,
 } from "./chat-state";
-import { normalizeInlineMermaidBlocks, renderMermaidPreviews } from "./summary-renderer";
+import {
+  enhanceRenderedSummaryBlocks,
+  normalizeInlineMermaidBlocks,
+  normalizeTextDiagramBlocks,
+  renderMermaidPreviews,
+} from "./summary-renderer";
 import { parseTimestampSeconds } from "./timestamp-links";
 import type { ChatMessage } from "./types";
 
@@ -281,8 +286,9 @@ export class ChatController {
 
   private renderAssistantMarkdown(root: HTMLElement, content: string) {
     root.innerHTML = this.markdown.render(
-      this.linkifyTimestamps(normalizeInlineMermaidBlocks(content)),
+      normalizeTextDiagramBlocks(this.linkifyTimestamps(normalizeInlineMermaidBlocks(content))),
     );
+    enhanceRenderedSummaryBlocks(root);
     void renderMermaidPreviews(root);
     this.decorateAnchors(root);
   }
