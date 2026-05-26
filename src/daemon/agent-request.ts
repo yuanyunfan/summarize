@@ -6,6 +6,15 @@ const AGENT_IMAGE_MIME_PATTERN = /^image\/(?:png|jpeg|webp|gif)$/i;
 type NormalizedContentPart =
   | { type: "text"; text: string }
   | { type: "image"; data: string; mimeType: string };
+type NormalizedAssistantContentPart =
+  | { type: "text"; text: string }
+  | {
+      type: "toolCall";
+      id: string;
+      toolCallId?: string;
+      name: string;
+      arguments: Record<string, unknown>;
+    };
 
 const AGENT_PROMPT_AUTOMATION = `You are Summarize Automation, not Claude.
 
@@ -111,10 +120,11 @@ export function normalizeMessages(raw: unknown): Message[] {
     }
     out.push(msg);
   }
-  return out;
+  return stripHistoricalImages(out);
 }
 
 function normalizeMessageContent(message: Message): Message {
+  if (message.role === "assistant") return normalizeAssistantMessageContent(message);
   if (message.role !== "user" && message.role !== "toolResult") return message;
   if (!Array.isArray(message.content)) return message;
   const content = message.content
@@ -137,6 +147,69 @@ function normalizeMessageContent(message: Message): Message {
     })
     .filter((part): part is NormalizedContentPart => Boolean(part));
   return { ...message, content } as Message;
+}
+
+function normalizeAssistantMessageContent(message: Message): Message {
+  if (typeof message.content === "string") return message;
+  if (!Array.isArray(message.content)) return { ...message, content: [] } as Message;
+  const content = message.content
+    .map((part) => {
+      if (!part || typeof part !== "object") return null;
+      const record = part as unknown as Record<string, unknown>;
+      if (record.type === "text" && typeof record.text === "string") {
+        return { type: "text", text: record.text };
+      }
+      if (
+        record.type === "toolCall" &&
+        typeof record.name === "string" &&
+        typeof record.arguments === "object" &&
+        record.arguments !== null
+      ) {
+        const id =
+          typeof record.id === "string"
+            ? record.id
+            : typeof record.toolCallId === "string"
+              ? record.toolCallId
+              : "";
+        if (!id) return null;
+        return {
+          type: "toolCall",
+          id,
+          ...(typeof record.toolCallId === "string" ? { toolCallId: record.toolCallId } : {}),
+          name: record.name,
+          arguments: record.arguments as Record<string, unknown>,
+        };
+      }
+      return null;
+    })
+    .filter((part): part is NormalizedAssistantContentPart => Boolean(part));
+  return { ...message, content } as Message;
+}
+
+function isImageCarrier(message: Message): boolean {
+  return message.role === "user" || message.role === "toolResult";
+}
+
+function stripImages(message: Message): Message {
+  if (!isImageCarrier(message) || !Array.isArray(message.content)) return message;
+  return {
+    ...message,
+    content: message.content.filter((part) => part.type !== "image"),
+  } as Message;
+}
+
+function stripHistoricalImages(messages: Message[]): Message[] {
+  const latestImageCarrierIndex = (() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (isImageCarrier(messages[i])) return i;
+    }
+    return -1;
+  })();
+  if (latestImageCarrierIndex === -1) return messages;
+  return messages.map((message, index) => {
+    if (index === latestImageCarrierIndex) return message;
+    return stripImages(message);
+  });
 }
 
 export function hasImageContent(messages: Message[]): boolean {

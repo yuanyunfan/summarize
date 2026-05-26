@@ -108,6 +108,18 @@ function createUnsupportedImageMediaTypeError(): Error {
   return error;
 }
 
+function createModelNotSupportedError(): Error {
+  const error = new Error(
+    '400 {"error":{"message":"The requested model is not supported.","code":"model_not_supported","param":"model","type":"invalid_request_error"}}',
+  );
+  (
+    error as {
+      code?: string;
+    }
+  ).code = "model_not_supported";
+  return error;
+}
+
 const makeTempHome = () => mkdtempSync(join(tmpdir(), "summarize-daemon-agent-"));
 
 const writeHomeConfig = (home: string, config: unknown) => {
@@ -520,6 +532,199 @@ describe("daemon/agent", () => {
     expect(chunks).toEqual(["chat ok"]);
   });
 
+  it("falls back to auto for explicit image models rejected by the runtime gateway", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/gpt-4.1-mini" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    mockGetModel.mockImplementation((provider: string, modelId: string) =>
+      makeModel(provider, modelId, ["text", "image"]),
+    );
+    const autoSpy = vi.spyOn(modelAuto, "buildAutoModelAttempts").mockReturnValue([
+      {
+        transport: "native",
+        userModelId: "openai/gpt-5-mini",
+        llmModelId: "openai/gpt-5-mini",
+        openrouterProviders: null,
+        forceOpenRouter: false,
+        requiredEnv: "OPENAI_API_KEY",
+        debug: "image fallback",
+      },
+    ]);
+
+    try {
+      mockCompleteSimple
+        .mockRejectedValueOnce(createUnsupportedImageMediaTypeError())
+        .mockRejectedValueOnce(createUnsupportedImageMediaTypeError())
+        .mockImplementationOnce(async (model: { provider: string; id: string }) =>
+          buildAssistant(model.provider, model.id),
+        );
+
+      const assistant = await completeAgentResponse({
+        env: {
+          HOME: home,
+          OPENAI_API_KEY: "sk-openai",
+        },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is this?" },
+              { type: "image", data: "abc123", mimeType: "image/jpeg" },
+            ],
+          },
+        ],
+        modelOverride: "openai/gpt-4.1-mini",
+        tools: [],
+        automationEnabled: false,
+      });
+
+      expect(mockCompleteSimple).toHaveBeenCalledTimes(3);
+      const firstModel = mockCompleteSimple.mock.calls[0]?.[0] as { id: string; api: string };
+      const retryModel = mockCompleteSimple.mock.calls[1]?.[0] as { id: string; api: string };
+      const autoModel = mockCompleteSimple.mock.calls[2]?.[0] as { id: string; api: string };
+      expect(firstModel).toMatchObject({ id: "gpt-4.1-mini", api: "openai-responses" });
+      expect(retryModel).toMatchObject({ id: "gpt-4.1-mini", api: "openai-completions" });
+      expect(autoModel).toMatchObject({ id: "gpt-5-mini", api: "openai-responses" });
+      expect(assistant.model).toBe("gpt-5-mini");
+    } finally {
+      autoSpy.mockRestore();
+    }
+  });
+
+  it("falls back to auto for explicit models rejected by the runtime gateway", async () => {
+    const home = makeTempHome();
+    const autoSpy = vi.spyOn(modelAuto, "buildAutoModelAttempts").mockReturnValue([
+      {
+        transport: "native",
+        userModelId: "openai/gpt-5-mini",
+        llmModelId: "openai/gpt-5-mini",
+        openrouterProviders: null,
+        forceOpenRouter: false,
+        requiredEnv: "OPENAI_API_KEY",
+        debug: "gateway fallback",
+      },
+    ]);
+
+    try {
+      mockCompleteSimple
+        .mockRejectedValueOnce(createModelNotSupportedError())
+        .mockImplementationOnce(async (model: { provider: string; id: string }) =>
+          buildAssistant(model.provider, model.id),
+        );
+
+      const assistant = await completeAgentResponse({
+        env: {
+          HOME: home,
+          OPENAI_API_KEY: "sk-openai",
+        },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [{ role: "user", content: "Hi" }],
+        modelOverride: "openai/gpt-4.1-mini",
+        tools: [],
+        automationEnabled: false,
+      });
+
+      expect(mockCompleteSimple).toHaveBeenCalledTimes(2);
+      const firstModel = mockCompleteSimple.mock.calls[0]?.[0] as { id: string };
+      const autoModel = mockCompleteSimple.mock.calls[1]?.[0] as { id: string };
+      expect(firstModel.id).toBe("gpt-4.1-mini");
+      expect(autoModel.id).toBe("gpt-5-mini");
+      expect(assistant.model).toBe("gpt-5-mini");
+    } finally {
+      autoSpy.mockRestore();
+    }
+  });
+
+  it("falls back to auto while streaming explicit image model gateway rejections", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/gpt-4.1-mini" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    mockGetModel.mockImplementation((provider: string, modelId: string) =>
+      makeModel(provider, modelId, ["text", "image"]),
+    );
+    const autoSpy = vi.spyOn(modelAuto, "buildAutoModelAttempts").mockReturnValue([
+      {
+        transport: "native",
+        userModelId: "openai/gpt-5-mini",
+        llmModelId: "openai/gpt-5-mini",
+        openrouterProviders: null,
+        forceOpenRouter: false,
+        requiredEnv: "OPENAI_API_KEY",
+        debug: "image fallback",
+      },
+    ]);
+    const assistant = buildAssistant("openai", "gpt-5-mini");
+    const chunks: string[] = [];
+    const assistants: AssistantMessage[] = [];
+
+    try {
+      mockStreamSimple
+        .mockReturnValueOnce(
+          makeAgentStream([{ type: "error", error: createUnsupportedImageMediaTypeError() }]),
+        )
+        .mockReturnValueOnce(
+          makeAgentStream([{ type: "error", error: createUnsupportedImageMediaTypeError() }]),
+        )
+        .mockReturnValueOnce(
+          makeAgentStream([
+            { type: "text_delta", delta: "auto ok" },
+            { type: "done", message: assistant },
+          ]),
+        );
+
+      await streamAgentResponse({
+        env: {
+          HOME: home,
+          OPENAI_API_KEY: "sk-openai",
+        },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is this?" },
+              { type: "image", data: "abc123", mimeType: "image/jpeg" },
+            ],
+          },
+        ],
+        modelOverride: "openai/gpt-4.1-mini",
+        tools: [],
+        automationEnabled: false,
+        onChunk: (text) => chunks.push(text),
+        onAssistant: (message) => assistants.push(message),
+      });
+
+      expect(mockStreamSimple).toHaveBeenCalledTimes(3);
+      const firstModel = mockStreamSimple.mock.calls[0]?.[0] as { id: string; api: string };
+      const retryModel = mockStreamSimple.mock.calls[1]?.[0] as { id: string; api: string };
+      const autoModel = mockStreamSimple.mock.calls[2]?.[0] as { id: string; api: string };
+      expect(firstModel).toMatchObject({ id: "gpt-4.1-mini", api: "openai-responses" });
+      expect(retryModel).toMatchObject({ id: "gpt-4.1-mini", api: "openai-completions" });
+      expect(autoModel).toMatchObject({ id: "gpt-5-mini", api: "openai-responses" });
+      expect(chunks).toEqual(["auto ok"]);
+      expect(assistants).toEqual([assistant]);
+    } finally {
+      autoSpy.mockRestore();
+    }
+  });
+
   it("does not retry streaming agent responses after content is emitted", async () => {
     const home = makeTempHome();
     writeHomeConfig(home, {
@@ -752,6 +957,59 @@ describe("daemon/agent", () => {
     } finally {
       autoSpy.mockRestore();
     }
+  });
+
+  it("strips stale images and assistant thinking blocks from agent request history", async () => {
+    const home = makeTempHome();
+
+    await completeAgentResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-openai" },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is this?" },
+            { type: "image", data: "old-image", mimeType: "image/jpeg" },
+          ],
+        },
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", thinking: "", thinkingSignature: '{"id":"reasoning"}' },
+            { type: "text", text: "It is a logo." },
+          ],
+          provider: "openai",
+          model: "gpt-5-mini",
+          api: "openai-responses",
+        },
+        {
+          role: "user",
+          content: "Use Mermaid to show the video content.",
+        },
+      ],
+      modelOverride: "openai/gpt-5-mini",
+      tools: [],
+      automationEnabled: false,
+    });
+
+    const context = mockCompleteSimple.mock.calls[0]?.[1] as { messages?: unknown[] };
+    expect(context.messages).toMatchObject([
+      {
+        role: "user",
+        content: [{ type: "text", text: "What is this?" }],
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "It is a logo." }],
+      },
+      {
+        role: "user",
+        content: "Use Mermaid to show the video content.",
+      },
+    ]);
   });
 
   it("rejects fixed non-vision models for image messages", async () => {

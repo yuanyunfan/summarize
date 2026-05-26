@@ -304,6 +304,43 @@ function normalizeAgentStreamError(error: unknown): Error {
   return next;
 }
 
+function stringifyErrorPart(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function errorDetails(error: unknown): string {
+  const record =
+    typeof error === "object" && error !== null ? (error as Record<string, unknown>) : {};
+  const message = error instanceof Error ? error.message : stringifyErrorPart(error);
+  const body = stringifyErrorPart(record.responseBody);
+  const code = stringifyErrorPart(record.code);
+  const errorMessage = stringifyErrorPart(record.errorMessage);
+  return [message, body, code, errorMessage].filter(Boolean).join("\n");
+}
+
+function isAutoModelOverride(modelOverride: string | null): boolean {
+  return !modelOverride || modelOverride.trim().toLowerCase() === "auto";
+}
+
+function shouldRetryRequestWithAutoModel({
+  error,
+  hasImageInputs,
+  modelOverride,
+}: {
+  error: unknown;
+  hasImageInputs: boolean;
+  modelOverride: string | null;
+}): boolean {
+  if (isAutoModelOverride(modelOverride)) return false;
+  if (/model_not_supported|requested model is not supported/i.test(errorDetails(error)))
+    return true;
+  if (!hasImageInputs) return false;
+  if (isUnsupportedResponsesApiError(error)) return true;
+  return false;
+}
+
 function ensureImageCapableAgentModel({
   model,
   provider,
@@ -366,84 +403,108 @@ export async function streamAgentResponse({
     hasImageInputs,
   });
 
-  if ("transport" in resolved && resolved.transport === "cli") {
-    if (hasImageInputs) {
-      throw new Error(
-        "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
-      );
-    }
-    const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
-    const result = await import("../llm/cli.js").then(({ runCliModel }) =>
-      runCliModel({
-        provider: resolved.cliProvider,
-        prompt,
-        model: resolved.cliModel,
-        allowTools: false,
-        timeoutMs: 120_000,
-        env,
-        config: resolved.cliConfig,
-      }),
-    );
-    const text = sanitizeChatAssistantText(result.text);
-    if (text) onChunk(text);
-    onAssistant({ role: "assistant", content: text } as unknown as AssistantMessage);
-    return;
-  }
-
-  const { provider, model, maxOutputTokens, apiKeys } = resolved;
-  ensureImageCapableAgentModel({ model, provider, hasImageInputs });
-  const apiKey = resolveApiKeyForModel({ provider, apiKeys });
-
   let emittedContent = false;
-  const run = async (modelForRun: typeof model): Promise<AssistantMessage> => {
-    const outputSanitizer = createChatOutputStreamSanitizer();
-    const stream = streamSimple(
-      modelForRun,
-      {
-        systemPrompt,
-        messages: normalizedMessages,
-        tools: toolList,
-      },
-      {
-        maxTokens: maxOutputTokens,
-        apiKey,
-        signal,
-      },
-    );
 
-    let assistant: AssistantMessage | null = null;
-    for await (const event of stream) {
-      if (event.type === "text_delta") {
-        emittedContent = true;
-        const delta = outputSanitizer.push(event.delta);
-        if (delta) onChunk(delta);
-      } else if (event.type === "done") {
-        assistant = event.message;
-        break;
-      } else if (event.type === "error") {
-        throw normalizeAgentStreamError(event.error);
+  const runResolvedModel = async (modelResolution: typeof resolved): Promise<AssistantMessage> => {
+    if ("transport" in modelResolution && modelResolution.transport === "cli") {
+      if (hasImageInputs) {
+        throw new Error(
+          "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
+        );
       }
+      const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
+      const result = await import("../llm/cli.js").then(({ runCliModel }) =>
+        runCliModel({
+          provider: modelResolution.cliProvider,
+          prompt,
+          model: modelResolution.cliModel,
+          allowTools: false,
+          timeoutMs: 120_000,
+          env,
+          config: modelResolution.cliConfig,
+        }),
+      );
+      const text = sanitizeChatAssistantText(result.text);
+      if (text) onChunk(text);
+      return { role: "assistant", content: text } as unknown as AssistantMessage;
     }
 
-    if (!assistant) {
-      assistant = await stream.result().catch((error: unknown) => {
-        throw normalizeAgentStreamError(error);
-      });
-    }
+    const { provider, model, maxOutputTokens, apiKeys } = modelResolution;
+    ensureImageCapableAgentModel({ model, provider, hasImageInputs });
+    const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
-    if (!assistant) {
-      throw new Error("Agent stream ended without a result.");
-    }
+    const run = async (modelForRun: typeof model): Promise<AssistantMessage> => {
+      const outputSanitizer = createChatOutputStreamSanitizer();
+      const stream = streamSimple(
+        modelForRun,
+        {
+          systemPrompt,
+          messages: normalizedMessages,
+          tools: toolList,
+        },
+        {
+          maxTokens: maxOutputTokens,
+          apiKey,
+          signal,
+        },
+      );
 
-    return sanitizeChatAssistantMessage(assistant);
+      let assistant: AssistantMessage | null = null;
+      for await (const event of stream) {
+        if (event.type === "text_delta") {
+          emittedContent = true;
+          const delta = outputSanitizer.push(event.delta);
+          if (delta) onChunk(delta);
+        } else if (event.type === "done") {
+          assistant = event.message;
+          break;
+        } else if (event.type === "error") {
+          throw normalizeAgentStreamError(event.error);
+        }
+      }
+
+      if (!assistant) {
+        assistant = await stream.result().catch((error: unknown) => {
+          throw normalizeAgentStreamError(error);
+        });
+      }
+
+      if (!assistant) {
+        throw new Error("Agent stream ended without a result.");
+      }
+
+      return sanitizeChatAssistantMessage(assistant);
+    };
+
+    try {
+      return await run(model);
+    } catch (error) {
+      if (
+        !emittedContent &&
+        isOpenAiResponsesModel(model) &&
+        isUnsupportedResponsesApiError(error)
+      ) {
+        return await run(withOpenAiChatCompletionsModel(model));
+      }
+      throw error;
+    }
   };
 
   let assistant: AssistantMessage;
   try {
-    assistant = await run(model);
+    assistant = await runResolvedModel(resolved);
   } catch (error) {
-    if (!emittedContent && isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
-      assistant = await run(withOpenAiChatCompletionsModel(model));
+    if (
+      !emittedContent &&
+      shouldRetryRequestWithAutoModel({ error, hasImageInputs, modelOverride })
+    ) {
+      const autoResolved = await resolveAgentModel({
+        env,
+        pageContent,
+        modelOverride: "auto",
+        hasImageInputs,
+      });
+      assistant = await runResolvedModel(autoResolved);
     } else {
       throw error;
     }
@@ -492,53 +553,70 @@ export async function completeAgentResponse({
     hasImageInputs,
   });
 
-  if ("transport" in resolved && resolved.transport === "cli") {
-    if (hasImageInputs) {
-      throw new Error(
-        "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
+  const runResolvedModel = async (modelResolution: typeof resolved): Promise<AssistantMessage> => {
+    if ("transport" in modelResolution && modelResolution.transport === "cli") {
+      if (hasImageInputs) {
+        throw new Error(
+          "Chat image attachments require an API vision model; CLI agent transport does not support images yet.",
+        );
+      }
+      const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
+      const result = await import("../llm/cli.js").then(({ runCliModel }) =>
+        runCliModel({
+          provider: modelResolution.cliProvider,
+          prompt,
+          model: modelResolution.cliModel,
+          allowTools: false,
+          timeoutMs: 120_000,
+          env,
+          config: modelResolution.cliConfig,
+        }),
       );
+      return {
+        role: "assistant",
+        content: sanitizeChatAssistantText(result.text),
+      } as unknown as AssistantMessage;
     }
-    const prompt = flattenAgentForCli({ systemPrompt, messages: normalizedMessages });
-    const result = await import("../llm/cli.js").then(({ runCliModel }) =>
-      runCliModel({
-        provider: resolved.cliProvider,
-        prompt,
-        model: resolved.cliModel,
-        allowTools: false,
-        timeoutMs: 120_000,
-        env,
-        config: resolved.cliConfig,
-      }),
-    );
-    return {
-      role: "assistant",
-      content: sanitizeChatAssistantText(result.text),
-    } as unknown as AssistantMessage;
-  }
 
-  const { provider, model, maxOutputTokens, apiKeys } = resolved;
-  ensureImageCapableAgentModel({ model, provider, hasImageInputs });
-  const apiKey = resolveApiKeyForModel({ provider, apiKeys });
+    const { provider, model, maxOutputTokens, apiKeys } = modelResolution;
+    ensureImageCapableAgentModel({ model, provider, hasImageInputs });
+    const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
-  const run = (modelForRun: typeof model) =>
-    completeSimple(
-      modelForRun,
-      {
-        systemPrompt,
-        messages: normalizedMessages,
-        tools: toolList,
-      },
-      {
-        maxTokens: maxOutputTokens,
-        apiKey,
-      },
-    );
+    const run = (modelForRun: typeof model) =>
+      completeSimple(
+        modelForRun,
+        {
+          systemPrompt,
+          messages: normalizedMessages,
+          tools: toolList,
+        },
+        {
+          maxTokens: maxOutputTokens,
+          apiKey,
+        },
+      );
+
+    try {
+      return sanitizeChatAssistantMessage(await run(model));
+    } catch (error) {
+      if (isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
+        return sanitizeChatAssistantMessage(await run(withOpenAiChatCompletionsModel(model)));
+      }
+      throw error;
+    }
+  };
 
   try {
-    return sanitizeChatAssistantMessage(await run(model));
+    return await runResolvedModel(resolved);
   } catch (error) {
-    if (isOpenAiResponsesModel(model) && isUnsupportedResponsesApiError(error)) {
-      return sanitizeChatAssistantMessage(await run(withOpenAiChatCompletionsModel(model)));
+    if (shouldRetryRequestWithAutoModel({ error, hasImageInputs, modelOverride })) {
+      const autoResolved = await resolveAgentModel({
+        env,
+        pageContent,
+        modelOverride: "auto",
+        hasImageInputs,
+      });
+      return await runResolvedModel(autoResolved);
     }
     throw error;
   }

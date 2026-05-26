@@ -9,6 +9,7 @@ coverage
 .pnpm-store/
 .turbo
 .cache
+.playwright-mcp/
 .output
 .wxt
 _pack
