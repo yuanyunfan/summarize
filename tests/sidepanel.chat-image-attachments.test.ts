@@ -30,7 +30,7 @@ describe("sidepanel chat image attachments", () => {
     document.body.innerHTML = "";
   });
 
-  function makeImageFile(name = "screenshot.png", type = "image/png", body = "hello") {
+  function makeImageFile(name = "screenshot.jpg", type = "image/jpeg", body = "hello") {
     return new File([body], name, { type });
   }
 
@@ -134,15 +134,49 @@ describe("sidepanel chat image attachments", () => {
     ).toBe(true);
   });
 
-  it("reads small supported image files without canvas normalization", async () => {
+  it("reads small JPEG files without canvas normalization", async () => {
     const attachment = await fileToChatImageAttachment(makeImageFile());
 
     expect(attachment).toMatchObject({
       id: "img-generated",
-      name: "screenshot.png",
-      mimeType: "image/png",
+      name: "screenshot.jpg",
+      mimeType: "image/jpeg",
       data: "aGVsbG8=",
       sizeBytes: 5,
+    });
+  });
+
+  it("normalizes non-JPEG chat images to JPEG before sending to the API", async () => {
+    class FakeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 640;
+      naturalHeight = 320;
+
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+
+    vi.stubGlobal("Image", FakeImage);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      fillStyle: "",
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(
+      "data:image/jpeg;base64,YWJj",
+    );
+
+    const attachment = await fileToChatImageAttachment(
+      makeImageFile("screenshot.png", "image/png"),
+    );
+
+    expect(attachment).toMatchObject({
+      mimeType: "image/jpeg",
+      data: "YWJj",
+      width: 640,
+      height: 320,
     });
   });
 
@@ -209,7 +243,7 @@ describe("sidepanel chat image attachments", () => {
     expect(runtime.getImages()).toHaveLength(1);
     expect(previewsEl.classList.contains("isHidden")).toBe(false);
     expect(previewsEl.querySelector("img")?.getAttribute("src")).toBe(
-      "data:image/png;base64,aGVsbG8=",
+      "data:image/jpeg;base64,aGVsbG8=",
     );
 
     previewsEl.querySelector<HTMLButtonElement>(".chatImagePreview__remove")?.click();

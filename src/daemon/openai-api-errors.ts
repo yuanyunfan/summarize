@@ -15,6 +15,9 @@ export function isUnsupportedResponsesApiError(error: unknown): boolean {
     .filter((part): part is string => Boolean(part))
     .join("\n");
   return (
-    /unsupported_api_for_model/i.test(details) || /does not support responses api/i.test(details)
+    /unsupported_api_for_model/i.test(details) ||
+    /does not support responses api/i.test(details) ||
+    /validating image item:\s*image media type not supported/i.test(details) ||
+    /image media type not supported/i.test(details)
   );
 }

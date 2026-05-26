@@ -40,6 +40,7 @@ const MAX_SELECTED_TEXT_CHARS = 8_000;
 const MAX_IMAGE_BYTES = 1_200_000;
 const MAX_IMAGE_DIMENSION = 1600;
 const IMAGE_QUALITY = 0.88;
+const API_IMAGE_MIME_TYPE = "image/jpeg";
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 export function imageAttachmentToDataUrl(image: Pick<ChatImageAttachment, "data" | "mimeType">) {
@@ -91,10 +92,10 @@ function canvasToDataUrl(canvas: HTMLCanvasElement, mimeType: string, quality: n
   }
 }
 
-async function normalizeImageDataUrl(dataUrl: string, sourceMimeType: string) {
+async function normalizeImageDataUrl(dataUrl: string) {
   const original = splitDataUrl(dataUrl);
   const originalBytes = estimateBase64Bytes(original.data);
-  if (originalBytes <= MAX_IMAGE_BYTES && SUPPORTED_IMAGE_TYPES.has(original.mimeType)) {
+  if (original.mimeType === API_IMAGE_MIME_TYPE && originalBytes <= MAX_IMAGE_BYTES) {
     return { ...original, sizeBytes: originalBytes };
   }
 
@@ -114,12 +115,11 @@ async function normalizeImageDataUrl(dataUrl: string, sourceMimeType: string) {
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(image, 0, 0, width, height);
 
-  const outputType = sourceMimeType === "image/webp" ? "image/webp" : "image/jpeg";
   let quality = IMAGE_QUALITY;
-  let normalized = splitDataUrl(canvasToDataUrl(canvas, outputType, quality));
+  let normalized = splitDataUrl(canvasToDataUrl(canvas, API_IMAGE_MIME_TYPE, quality));
   while (estimateBase64Bytes(normalized.data) > MAX_IMAGE_BYTES && quality > 0.58) {
     quality -= 0.08;
-    normalized = splitDataUrl(canvasToDataUrl(canvas, outputType, quality));
+    normalized = splitDataUrl(canvasToDataUrl(canvas, API_IMAGE_MIME_TYPE, quality));
   }
   return {
     ...normalized,
@@ -215,7 +215,7 @@ export async function fileToChatImageAttachment(file: File): Promise<ChatImageAt
     throw new Error(`不支持的图片格式：${file.type || file.name || "unknown"}`);
   }
   const dataUrl = await readFileAsDataUrl(file);
-  const normalized = await normalizeImageDataUrl(dataUrl, mimeType);
+  const normalized = await normalizeImageDataUrl(dataUrl);
   if (normalized.sizeBytes > MAX_IMAGE_BYTES * 1.25) {
     throw new Error("图片过大，压缩后仍无法发送。");
   }

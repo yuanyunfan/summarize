@@ -96,6 +96,18 @@ function createUnsupportedResponsesApiError(): Error {
   return error;
 }
 
+function createUnsupportedImageMediaTypeError(): Error {
+  const error = new Error(
+    '400 {"error":{"message":"validating image item: image media type not supported","code":"invalid_request_body"}}',
+  );
+  (
+    error as {
+      code?: string;
+    }
+  ).code = "invalid_request_body";
+  return error;
+}
+
 const makeTempHome = () => mkdtempSync(join(tmpdir(), "summarize-daemon-agent-"));
 
 const writeHomeConfig = (home: string, config: unknown) => {
@@ -444,6 +456,68 @@ describe("daemon/agent", () => {
     expect(retryModel.baseUrl).toBe("http://127.0.0.1:7024/v1");
     expect(chunks).toEqual(["chat ok"]);
     expect(assistants).toEqual([assistant]);
+  });
+
+  it("retries streaming image media-type rejections with Chat Completions", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      model: { id: "openai/gpt-5.5" },
+      openai: {
+        baseUrl: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+      },
+    });
+    mockGetModel.mockImplementation((provider: string, modelId: string) =>
+      makeModel(provider, modelId, ["text", "image"]),
+    );
+    const assistant = buildAssistant("openai", "gpt-5.5");
+    const chunks: string[] = [];
+
+    mockStreamSimple
+      .mockReturnValueOnce(
+        makeAgentStream([{ type: "error", error: createUnsupportedImageMediaTypeError() }]),
+      )
+      .mockReturnValueOnce(
+        makeAgentStream([
+          { type: "text_delta", delta: "chat ok" },
+          { type: "done", message: assistant },
+        ]),
+      );
+
+    await streamAgentResponse({
+      env: {
+        HOME: home,
+        OPENAI_API_KEY: "sk-openai",
+      },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is this?" },
+            { type: "image", data: "abc123", mimeType: "image/png" },
+          ],
+        },
+      ],
+      modelOverride: "openai/gpt-5.5",
+      tools: [],
+      automationEnabled: false,
+      onChunk: (text) => chunks.push(text),
+      onAssistant: vi.fn(),
+    });
+
+    expect(mockStreamSimple).toHaveBeenCalledTimes(2);
+    const firstModel = mockStreamSimple.mock.calls[0]?.[0] as {
+      api: string;
+    };
+    const retryModel = mockStreamSimple.mock.calls[1]?.[0] as {
+      api: string;
+    };
+    expect(firstModel.api).toBe("openai-responses");
+    expect(retryModel.api).toBe("openai-completions");
+    expect(chunks).toEqual(["chat ok"]);
   });
 
   it("does not retry streaming agent responses after content is emitted", async () => {
