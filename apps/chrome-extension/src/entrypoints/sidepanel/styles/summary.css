@@ -360,12 +360,46 @@ button.setup__pill.isActive {
 }
 
 .renderMermaid {
+  position: relative;
   margin: 14px 0;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
+}
+
+.renderMermaid__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+}
+
+.renderMermaid__fullscreen {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: color-mix(in srgb, #cbd5e1 78%, transparent);
+  background: rgb(255 255 255 / 0.92);
+  color: #334155;
+  box-shadow: 0 6px 14px rgb(15 23 42 / 0.14);
+}
+
+.renderMermaid__fullscreen:hover {
+  border-color: #94a3b8;
+  color: #111827;
+}
+
+.renderMermaid__fullscreen svg,
+.renderMermaidModal__close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .renderMermaid__viewport {
@@ -379,9 +413,69 @@ button.setup__pill.isActive {
 .renderMermaid__viewport svg {
   display: block;
   width: auto;
-  max-width: 100%;
+  min-width: 720px;
+  max-width: none !important;
   height: auto;
-  margin: 0 auto;
+  margin: 0;
+  background: #ffffff;
+}
+
+.renderMermaidModal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  background: rgb(15 23 42 / 0.72);
+}
+
+.renderMermaidModal__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgb(203 213 225 / 0.86);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgb(15 23 42 / 0.38);
+}
+
+.renderMermaidModal__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.renderMermaidModal__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #334155;
+}
+
+.renderMermaidModal__canvas {
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  overflow: auto;
+  background: #ffffff;
+  color: #111827;
+}
+
+.renderMermaidModal__canvas svg {
+  display: block;
+  width: auto;
+  min-width: 960px;
+  max-width: none !important;
+  height: auto;
+  margin: 0;
   background: #ffffff;
 }
 

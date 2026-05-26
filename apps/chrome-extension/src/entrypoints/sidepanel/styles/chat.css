@@ -33,6 +33,11 @@
   word-wrap: break-word;
 }
 
+.chatMessage.chatMessage--wide {
+  align-self: stretch;
+  max-width: 100%;
+}
+
 .chatMessage.user {
   align-self: flex-end;
   background: color-mix(in srgb, var(--accent) 8%, transparent);

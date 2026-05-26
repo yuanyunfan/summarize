@@ -76,7 +76,7 @@ describe("sidepanel chat controller", () => {
     controller.addMessage(message);
 
     await vi.waitFor(() => {
-      expect(messagesEl.querySelector(".renderMermaid svg")).not.toBeNull();
+      expect(messagesEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
     });
 
     expect(mermaidMocks.render).toHaveBeenCalledWith(
@@ -84,6 +84,9 @@ describe("sidepanel chat controller", () => {
       "graph TD\nA[1.0] --> B[2.0]",
     );
     expect(messagesEl.querySelector("pre > code")).toBeNull();
+    expect(
+      messagesEl.querySelector(".chatMessage.assistant")?.classList.contains("chatMessage--wide"),
+    ).toBe(true);
   });
 
   it("keeps Mermaid init directives out of visible chat text", async () => {
@@ -98,7 +101,7 @@ describe("sidepanel chat controller", () => {
     controller.addMessage(message);
 
     await vi.waitFor(() => {
-      expect(messagesEl.querySelector(".renderMermaid svg")).not.toBeNull();
+      expect(messagesEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
     });
 
     expect(messagesEl.textContent).not.toContain("%%{init");

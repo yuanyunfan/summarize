@@ -189,11 +189,12 @@ describe("sidepanel summary renderer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+      expect(hostEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
     });
 
     expect(mermaidMocks.initialize).toHaveBeenCalledWith(
       expect.objectContaining({
+        flowchart: expect.objectContaining({ useMaxWidth: false }),
         securityLevel: "strict",
         startOnLoad: false,
       }),
@@ -203,6 +204,108 @@ describe("sidepanel summary renderer", () => {
       "flowchart TD\nA --> B",
     );
     expect(hostEl.querySelector("pre > code")).toBeNull();
+  });
+
+  it("uses Mermaid viewBox width so large diagrams can scroll instead of shrinking", async () => {
+    const hostEl = document.createElement("div");
+    document.body.append(hostEl);
+    mermaidMocks.render.mockResolvedValueOnce({
+      svg: '<svg role="img" viewBox="0 0 960 420" style="max-width: 100%;"><g><text>diagram</text></g></svg>',
+    });
+
+    renderSummaryMarkdownDisplay({
+      activeTabUrl: "https://example.com/watch",
+      autoSummarize: false,
+      currentSourceTitle: "Video",
+      currentSourceUrl: "https://example.com/watch",
+      hasSlides: false,
+      headerSetStatus: vi.fn(),
+      hostEl,
+      inputMode: "video",
+      markdown: "```mermaid\nflowchart TD\nA --> B\n```",
+      md: {
+        render: () => '<pre><code class="language-mermaid">flowchart TD\nA --&gt; B</code></pre>',
+      },
+      phase: "done",
+      renderInlineSlides: vi.fn(),
+      slidesEnabled: false,
+      slidesLayout: "gallery",
+      tabTitle: "Video",
+      tabUrl: "https://example.com/watch",
+    });
+
+    await vi.waitFor(() => {
+      expect(hostEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
+    });
+
+    const svg = hostEl.querySelector<SVGSVGElement>(".renderMermaid__viewport svg");
+    expect(svg?.style.width).toBe("960px");
+    expect(svg?.style.maxWidth).toBe("none");
+    expect(svg?.style.height).toBe("auto");
+  });
+
+  it("opens Mermaid diagrams in a fullscreen viewer", async () => {
+    const originalRequestFullscreen = HTMLElement.prototype.requestFullscreen;
+    const requestFullscreen = vi.fn(() => Promise.resolve());
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    try {
+      const hostEl = document.createElement("div");
+      document.body.append(hostEl);
+      mermaidMocks.render.mockResolvedValueOnce({
+        svg: '<svg role="img" viewBox="0 0 1040 520"><g><text>diagram</text></g></svg>',
+      });
+
+      renderSummaryMarkdownDisplay({
+        activeTabUrl: "https://example.com/watch",
+        autoSummarize: false,
+        currentSourceTitle: "Video",
+        currentSourceUrl: "https://example.com/watch",
+        hasSlides: false,
+        headerSetStatus: vi.fn(),
+        hostEl,
+        inputMode: "video",
+        markdown: "```mermaid\nflowchart TD\nA --> B\n```",
+        md: {
+          render: () => '<pre><code class="language-mermaid">flowchart TD\nA --&gt; B</code></pre>',
+        },
+        phase: "done",
+        renderInlineSlides: vi.fn(),
+        slidesEnabled: false,
+        slidesLayout: "gallery",
+        tabTitle: "Video",
+        tabUrl: "https://example.com/watch",
+      });
+
+      await vi.waitFor(() => {
+        expect(hostEl.querySelector(".renderMermaid__fullscreen")).not.toBeNull();
+      });
+
+      hostEl.querySelector<HTMLButtonElement>(".renderMermaid__fullscreen")?.click();
+
+      const modal = document.querySelector(".renderMermaidModal");
+      expect(modal?.getAttribute("role")).toBe("dialog");
+      expect(modal?.getAttribute("aria-modal")).toBe("true");
+      expect(modal?.querySelector(".renderMermaidModal__canvas svg")?.getAttribute("viewBox")).toBe(
+        "0 0 1040 520",
+      );
+      expect(requestFullscreen).toHaveBeenCalledTimes(1);
+
+      modal?.querySelector<HTMLButtonElement>(".renderMermaidModal__close")?.click();
+      expect(document.querySelector(".renderMermaidModal")).toBeNull();
+    } finally {
+      if (originalRequestFullscreen) {
+        Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+          configurable: true,
+          value: originalRequestFullscreen,
+        });
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>).requestFullscreen;
+      }
+    }
   });
 
   it("normalizes inline Mermaid paragraphs before rendering previews", async () => {
@@ -239,7 +342,7 @@ describe("sidepanel summary renderer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+      expect(hostEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
     });
 
     expect(renderedMarkdown).toContain(
@@ -345,7 +448,7 @@ describe("sidepanel summary renderer", () => {
     });
 
     await vi.waitFor(() => {
-      expect(hostEl.querySelector(".renderMermaid svg")).not.toBeNull();
+      expect(hostEl.querySelector(".renderMermaid__viewport svg")).not.toBeNull();
     });
 
     expect(hostEl.querySelector("script")).toBeNull();

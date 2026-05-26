@@ -71,7 +71,7 @@ function loadMermaid(): Promise<MermaidRuntime> {
       htmlLabels: false,
       flowchart: {
         htmlLabels: false,
-        useMaxWidth: true,
+        useMaxWidth: false,
       },
     });
     return mermaid;
@@ -252,6 +252,116 @@ function sanitizeMermaidSvg(container: HTMLElement) {
   }
 }
 
+function parseSvgViewBoxWidth(viewBox: string | null): number | null {
+  if (!viewBox) return null;
+  const parts = viewBox
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (parts.length < 4) return null;
+  const width = parts[2];
+  return Number.isFinite(width) && width > 0 ? width : null;
+}
+
+function prepareMermaidSvgLayout(container: HTMLElement) {
+  const svg = container.querySelector<SVGSVGElement>("svg");
+  if (!svg) return;
+
+  svg.style.maxWidth = "none";
+  svg.style.height = "auto";
+
+  const viewBoxWidth = parseSvgViewBoxWidth(svg.getAttribute("viewBox"));
+  if (viewBoxWidth != null) {
+    svg.style.width = `${Math.ceil(viewBoxWidth)}px`;
+  }
+}
+
+function createMermaidFullscreenButton(viewport: HTMLElement): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ghost icon renderMermaid__fullscreen";
+  button.setAttribute("aria-label", "全屏查看 Mermaid 图");
+  button.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 9V4h5v2H6v3H4Zm11-5h5v5h-2V6h-3V4ZM4 15h2v3h3v2H4v-5Zm14 0h2v5h-5v-2h3v-3Z" />
+    </svg>
+  `;
+  button.addEventListener("click", () => {
+    openMermaidFullscreen(viewport);
+  });
+  return button;
+}
+
+function closeFullscreenModal(modal: HTMLElement, previousFocus: Element | null) {
+  const shouldExitFullscreen = document.fullscreenElement === modal;
+  if (shouldExitFullscreen) {
+    void document.exitFullscreen().catch(() => {});
+  }
+  modal.remove();
+  if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+    previousFocus.focus();
+  }
+}
+
+function openMermaidFullscreen(sourceViewport: HTMLElement) {
+  const sourceSvg = sourceViewport.querySelector<SVGSVGElement>("svg");
+  if (!sourceSvg) return;
+
+  document.querySelector(".renderMermaidModal")?.remove();
+
+  const previousFocus = document.activeElement;
+  const modal = document.createElement("div");
+  modal.className = "renderMermaidModal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-label", "Mermaid 图全屏查看");
+
+  const panel = document.createElement("div");
+  panel.className = "renderMermaidModal__panel";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "renderMermaidModal__toolbar";
+
+  const closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.className = "ghost icon renderMermaidModal__close";
+  closeButton.setAttribute("aria-label", "关闭 Mermaid 图全屏查看");
+  closeButton.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z" />
+    </svg>
+  `;
+
+  const canvas = document.createElement("div");
+  canvas.className = "renderMermaidModal__canvas";
+  canvas.append(sourceSvg.cloneNode(true));
+  prepareMermaidSvgLayout(canvas);
+
+  const close = () => {
+    document.removeEventListener("keydown", onKeyDown);
+    closeFullscreenModal(modal, previousFocus);
+  };
+  function onKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    close();
+  }
+
+  closeButton.addEventListener("click", close);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) close();
+  });
+  document.addEventListener("keydown", onKeyDown);
+
+  toolbar.append(closeButton);
+  panel.append(toolbar, canvas);
+  modal.append(panel);
+  document.body.append(modal);
+  closeButton.focus();
+  const fullscreenRequest = modal.requestFullscreen?.();
+  void fullscreenRequest?.catch(() => {});
+}
+
 export async function renderMermaidPreviews(markdownHost: HTMLElement) {
   const blocks = Array.from(markdownHost.querySelectorAll("pre > code")).filter(isMermaidCodeBlock);
   if (blocks.length === 0) return;
@@ -286,9 +396,14 @@ export async function renderMermaidPreviews(markdownHost: HTMLElement) {
       viewport.className = "renderMermaid__viewport";
       viewport.innerHTML = svg;
       sanitizeMermaidSvg(viewport);
+      prepareMermaidSvgLayout(viewport);
       bindFunctions?.(viewport);
-      figure.append(viewport);
+      const actions = document.createElement("div");
+      actions.className = "renderMermaid__actions";
+      actions.append(createMermaidFullscreenButton(viewport));
+      figure.append(actions, viewport);
       pre.replaceWith(figure);
+      figure.closest(".chatMessage")?.classList.add("chatMessage--wide");
     } catch {
       pre.classList.add("renderMermaid__fallback");
     }

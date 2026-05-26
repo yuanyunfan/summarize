@@ -29,7 +29,9 @@ test.skip(
 
 async function hasVisibleMermaidPixels(page: Page): Promise<boolean> {
   return await page.evaluate(async () => {
-    const svg = document.querySelector("#render .renderMermaid svg") as SVGSVGElement | null;
+    const svg = document.querySelector(
+      "#render .renderMermaid__viewport svg",
+    ) as SVGSVGElement | null;
     if (!svg) return false;
 
     const rect = svg.getBoundingClientRect();
@@ -496,7 +498,7 @@ test("sidepanel renders mermaid summary code fences as diagrams", async ({
       );
     });
 
-    const diagram = page.locator("#render .renderMermaid svg");
+    const diagram = page.locator("#render .renderMermaid__viewport svg");
     await expect(diagram).toBeVisible();
     await expect(page.locator("#render pre > code")).toHaveCount(0);
     const box = await diagram.boundingBox();
