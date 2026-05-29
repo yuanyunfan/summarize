@@ -36,9 +36,6 @@ export function bootstrapSidepanel(options: {
   applySlidesLayout: () => void;
   setDefaultModelPresets: () => void;
   setModelValue: (value: string) => void;
-  setModelPlaceholderFromDiscovery: (value: Record<string, never>) => void;
-  updateModelRowUI: () => void;
-  setModelRefreshDisabled: (value: boolean) => void;
   toggleDrawerClosed: () => void;
   renderMarkdownDisplay: () => void;
   sendReady: () => void;
@@ -70,9 +67,6 @@ export function bootstrapSidepanel(options: {
     options.appearanceControls.initializeFromSettings(settings);
     options.setDefaultModelPresets();
     options.setModelValue(settings.model);
-    options.setModelPlaceholderFromDiscovery({});
-    options.updateModelRowUI();
-    options.setModelRefreshDisabled(!settings.token.trim());
     options.toggleDrawerClosed();
     options.renderMarkdownDisplay();
     options.sendReady();

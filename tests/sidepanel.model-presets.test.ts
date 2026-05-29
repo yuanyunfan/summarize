@@ -18,27 +18,29 @@ const flushAsyncWork = () => new Promise<void>((resolve) => window.setTimeout(re
 
 const createController = () => {
   const modelPresetEl = document.createElement("select");
-  const modelCustomEl = document.createElement("input");
-  const modelRefreshBtn = document.createElement("button");
   const modelStatusEl = document.createElement("div");
-  const modelRowEl = document.createElement("div");
   const controller = createModelPresetsController({
     modelPresetEl,
-    modelCustomEl,
-    modelRefreshBtn,
     modelStatusEl,
-    modelRowEl,
     defaultModel: "auto",
     loadSettings: async () => ({ token: "token" }) as Settings,
-    friendlyFetchError: (error) => (error instanceof Error ? error.message : String(error)),
   });
   controller.setDefaultPresets();
-  return { controller, modelPresetEl, modelCustomEl };
+  return { controller, modelPresetEl };
 };
 
 describe("sidepanel model presets", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("keeps an out-of-list value selected via a transient option", () => {
+    const { controller, modelPresetEl } = createController();
+    controller.setValue("openai/user-choice");
+    expect(controller.readCurrentValue()).toBe("openai/user-choice");
+    expect(modelPresetEl.value).toBe("openai/user-choice");
+    const option = Array.from(modelPresetEl.options).find((o) => o.value === "openai/user-choice");
+    expect(option?.dataset.transient).toBe("true");
   });
 
   it("preserves a user selection made while refresh is pending", async () => {
@@ -47,7 +49,7 @@ describe("sidepanel model presets", () => {
       "fetch",
       vi.fn(async () => refresh.promise),
     );
-    const { controller, modelPresetEl, modelCustomEl } = createController();
+    const { controller, modelPresetEl } = createController();
 
     const refreshPromise = controller.refreshPresets("token");
     controller.setValue("openai/user-choice");
@@ -62,10 +64,36 @@ describe("sidepanel model presets", () => {
     await refreshPromise;
     await flushAsyncWork();
 
+    // The discovered option is present, and the user's mid-flight choice is kept.
+    expect(Array.from(modelPresetEl.options).map((o) => o.value)).toContain("openai/from-refresh");
     expect(controller.readCurrentValue()).toBe("openai/user-choice");
-    expect(modelPresetEl.value).toBe("custom");
-    expect(modelCustomEl.hidden).toBe(false);
-    expect(modelCustomEl.value).toBe("openai/user-choice");
+    expect(modelPresetEl.value).toBe("openai/user-choice");
+  });
+
+  it("lists discovered models directly as options", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          ok: true,
+          options: [
+            { id: "copilot/gpt-5.5", label: "Copilot: gpt-5.5" },
+            { id: "copilot/claude-opus-4.8", label: "Copilot: claude-opus-4.8" },
+          ],
+        }),
+      ),
+    );
+    const { controller, modelPresetEl } = createController();
+    await controller.refreshPresets("token");
+    await flushAsyncWork();
+
+    const values = Array.from(modelPresetEl.options).map((o) => o.value);
+    expect(values).toContain("copilot/gpt-5.5");
+    expect(values).toContain("copilot/claude-opus-4.8");
+    // Baseline options remain.
+    expect(values).toContain("auto");
+    // No custom sentinel option anymore.
+    expect(values).not.toContain("custom");
   });
 
   it("ignores older token results that resolve after a newer refresh", async () => {

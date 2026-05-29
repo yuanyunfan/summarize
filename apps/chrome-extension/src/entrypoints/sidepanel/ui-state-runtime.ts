@@ -80,9 +80,7 @@ type UiStateRuntimeOpts = {
   renderMarkdownDisplay: () => void;
   readCurrentModelValue: () => string;
   setModelValue: (value: string) => void;
-  updateModelRowUI: () => void;
-  isRefreshFreeRunning: () => boolean;
-  setModelRefreshDisabled: (value: boolean) => void;
+
   renderMarkdownHostEl: HTMLElement;
   getActiveTabId: () => number | null;
   setActiveTabId: (value: number | null) => void;
@@ -329,8 +327,6 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
     if (opts.readCurrentModelValue() !== state.settings.model) {
       opts.setModelValue(state.settings.model);
     }
-    opts.updateModelRowUI();
-    opts.setModelRefreshDisabled(!state.settings.tokenPresent || opts.isRefreshFreeRunning());
     if (opts.panelState.currentSource) {
       const currentSourceMatchesActiveTab = Boolean(
         nextTabUrl && panelUrlsMatch(nextTabUrl, opts.panelState.currentSource.url),

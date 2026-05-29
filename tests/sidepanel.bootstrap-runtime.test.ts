@@ -67,9 +67,6 @@ describe("sidepanel bootstrap runtime", () => {
       applySlidesLayout: () => calls.push("apply-layout"),
       setDefaultModelPresets: () => calls.push("defaults"),
       setModelValue: (value) => calls.push(`model:${value}`),
-      setModelPlaceholderFromDiscovery: () => calls.push("placeholder"),
-      updateModelRowUI: () => calls.push("model-row"),
-      setModelRefreshDisabled: (value) => calls.push(`model-disabled:${value}`),
       toggleDrawerClosed: () => calls.push("drawer"),
       renderMarkdownDisplay: () => calls.push("render"),
       sendReady: () => calls.push("ready"),
@@ -84,7 +81,6 @@ describe("sidepanel bootstrap runtime", () => {
     expect(bindingSpies.bindSettingsStorage).toHaveBeenCalledTimes(1);
     expect(bindingSpies.bindSidepanelLifecycle).toHaveBeenCalledTimes(1);
     expect(calls).toContain("hide-automation");
-    expect(calls).toContain("model-disabled:true");
     expect(calls).toContain("chat:true");
     expect(calls).toContain("ready");
     expect(calls).toContain("ping");
@@ -133,9 +129,6 @@ describe("sidepanel bootstrap runtime", () => {
       applySlidesLayout: () => calls.push("apply-layout"),
       setDefaultModelPresets: () => calls.push("defaults"),
       setModelValue: (value) => calls.push(`model:${value}`),
-      setModelPlaceholderFromDiscovery: () => calls.push("placeholder"),
-      updateModelRowUI: () => calls.push("model-row"),
-      setModelRefreshDisabled: (value) => calls.push(`model-disabled:${value}`),
       toggleDrawerClosed: () => calls.push("drawer"),
       renderMarkdownDisplay: () => calls.push("render"),
       sendReady: () => calls.push("ready"),
@@ -148,7 +141,6 @@ describe("sidepanel bootstrap runtime", () => {
     await vi.advanceTimersByTimeAsync(25_000);
 
     expect(calls).not.toContain("hide-automation");
-    expect(calls).toContain("model-disabled:false");
     expect(calls).toContain("chat:true");
     expect(calls).toContain("layout:strip");
   });

@@ -124,9 +124,7 @@ const {
   mainEl,
   metricsEl,
   metricsHomeEl,
-  modelCustomEl,
   modelPresetEl,
-  modelRefreshBtn,
   modelRowEl,
   modelStatusEl,
   pickersRoot,
@@ -1114,32 +1112,25 @@ const setupControlsRuntime = createSetupControlsRuntime({
   defaultModel: defaultSettings.model,
   drawerEl,
   drawerToggleBtn,
-  friendlyFetchError,
   generateToken,
   getStatusResetText: () => panelState.ui?.status ?? "",
   headerSetStatus: (text) => {
     headerController.setStatus(text);
   },
   loadSettings,
-  modelCustomEl,
   modelPresetEl,
-  modelRefreshBtn,
-  modelRowEl,
   modelStatusEl,
   patchSettings,
   setupEl,
 });
 const {
   drawerControls,
-  isRefreshFreeRunning,
   maybeShowSetup,
   readCurrentModelValue,
   refreshModelsIfStale,
-  runRefreshFree,
+  refreshModelsNow,
   setDefaultModelPresets,
-  setModelPlaceholderFromDiscovery,
   setModelValue,
-  updateModelRowUI,
 } = setupControlsRuntime;
 
 const authController = createAuthController({
@@ -1151,7 +1142,7 @@ const authController = createAuthController({
   codeSubmitBtn: accountsCodeSubmitBtn,
   accountsStatusEl,
   onLoginChanged: () => {
-    refreshModelsIfStale();
+    refreshModelsNow();
   },
 });
 void authController.refreshStatus();
@@ -1326,11 +1317,6 @@ const uiStateRuntime = createUiStateRuntime({
   renderMarkdownDisplay,
   readCurrentModelValue,
   setModelValue,
-  updateModelRowUI,
-  isRefreshFreeRunning,
-  setModelRefreshDisabled: (value) => {
-    modelRefreshBtn.disabled = value;
-  },
   renderMarkdownHostEl,
   getActiveTabId: () => activeTabId,
   setActiveTabId: (value) => {
@@ -1522,14 +1508,6 @@ const interactionRuntime = createSidepanelInteractionRuntime({
   },
   typographyController,
   patchSettings,
-  updateModelRowUI,
-  isCustomModelHidden: () => modelCustomEl.hidden,
-  focusCustomModel: () => {
-    modelCustomEl.focus();
-  },
-  blurCustomModel: () => {
-    modelCustomEl.blur();
-  },
   readCurrentModelValue,
 });
 const { sendSummarize, sendChatMessage, bumpFontSize, bumpLineHeight, persistCurrentModel } =
@@ -1775,9 +1753,7 @@ bindSidepanelUiEvents({
   lineTightBtn,
   lineLooseBtn,
   modelPresetEl,
-  modelCustomEl,
   slidesLayoutEl,
-  modelRefreshBtn,
   advancedSettingsEl,
   lineHeightStep: LINE_HEIGHT_STEP,
   sendSummarize,
@@ -1799,7 +1775,6 @@ bindSidepanelUiEvents({
     if (drawerControls.hasAdvancedSettingsAnimation() && advancedSettingsEl.open) return;
     refreshModelsIfStale();
   },
-  runRefreshFree,
 });
 
 chatSelectionRuntime.start();
@@ -1838,11 +1813,6 @@ bootstrapSidepanel({
   applySlidesLayout,
   setDefaultModelPresets,
   setModelValue,
-  setModelPlaceholderFromDiscovery,
-  updateModelRowUI,
-  setModelRefreshDisabled: (value) => {
-    modelRefreshBtn.disabled = value;
-  },
   toggleDrawerClosed: () => {
     drawerControls.toggleDrawer(false, { animate: false });
   },

@@ -13,7 +13,6 @@ function createHarness() {
     height: "",
     queueLength: 0,
     chatStreaming: false,
-    customHidden: false,
   };
   const spies = {
     setLastAction: vi.fn(),
@@ -22,9 +21,6 @@ function createHarness() {
     enqueueChatMessage: vi.fn(() => true),
     maybeSendQueuedChat: vi.fn(),
     startChatMessage: vi.fn(),
-    updateModelRowUI: vi.fn(),
-    focusCustomModel: vi.fn(),
-    blurCustomModel: vi.fn(),
   };
   const typographyController = {
     clampFontSize: vi.fn((value: number) => value),
@@ -77,10 +73,6 @@ function createHarness() {
     startChatMessage: spies.startChatMessage,
     typographyController,
     patchSettings,
-    updateModelRowUI: spies.updateModelRowUI,
-    isCustomModelHidden: vi.fn(() => state.customHidden),
-    focusCustomModel: spies.focusCustomModel,
-    blurCustomModel: spies.blurCustomModel,
     readCurrentModelValue: vi.fn(() => "openai/gpt-5.4"),
   });
   return { runtime, sent, state, spies, typographyController, patchSettings };
@@ -204,7 +196,7 @@ describe("sidepanel interaction runtime", () => {
 
     harness.runtime.bumpFontSize(2);
     harness.runtime.bumpLineHeight(0.2);
-    harness.runtime.persistCurrentModel({ focusCustom: true, blurCustom: true });
+    harness.runtime.persistCurrentModel();
     await Promise.resolve();
     await Promise.resolve();
 
@@ -212,15 +204,13 @@ describe("sidepanel interaction runtime", () => {
     expect(harness.patchSettings).toHaveBeenCalledWith({ lineHeight: 1.5999999999999999 });
     expect(harness.patchSettings).toHaveBeenCalledWith({ model: "openai/gpt-5.4" });
     expect(harness.typographyController.apply).toHaveBeenCalled();
-    expect(harness.spies.focusCustomModel).toHaveBeenCalledTimes(1);
-    expect(harness.spies.blurCustomModel).toHaveBeenCalledTimes(1);
   });
 
-  it("skips hidden custom model focus and disabled chat input", () => {
+  it("does not send chat when chat is disabled", () => {
     const harness = createHarness();
-    harness.state.customHidden = true;
-    harness.runtime.persistCurrentModel({ focusCustom: true });
+    harness.runtime.persistCurrentModel();
     harness.state.rawInput = "hello";
+    const startChatMessage = vi.fn();
     const disabledRuntime = createSidepanelInteractionRuntime({
       sendRawMessage: async () => {},
       setLastAction: vi.fn(),
@@ -237,18 +227,14 @@ describe("sidepanel interaction runtime", () => {
       getQueuedChatCount: vi.fn(() => 0),
       enqueueChatMessage: vi.fn(() => true),
       maybeSendQueuedChat: vi.fn(),
-      startChatMessage: vi.fn(),
+      startChatMessage,
       typographyController: harness.typographyController,
       patchSettings: harness.patchSettings,
-      updateModelRowUI: vi.fn(),
-      isCustomModelHidden: vi.fn(() => true),
-      focusCustomModel: vi.fn(),
-      blurCustomModel: vi.fn(),
       readCurrentModelValue: vi.fn(() => "openai/gpt-5.4"),
     });
 
     disabledRuntime.sendChatMessage();
 
-    expect(harness.spies.focusCustomModel).not.toHaveBeenCalled();
+    expect(startChatMessage).not.toHaveBeenCalled();
   });
 });

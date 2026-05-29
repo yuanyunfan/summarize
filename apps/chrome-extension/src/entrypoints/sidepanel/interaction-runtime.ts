@@ -37,10 +37,6 @@ export function createSidepanelInteractionRuntime(options: {
     getCurrentLineHeight: () => number;
   };
   patchSettings: (value: Record<string, unknown>) => Promise<PatchSettingsResult>;
-  updateModelRowUI: () => void;
-  isCustomModelHidden: () => boolean;
-  focusCustomModel: () => void;
-  blurCustomModel: () => void;
   readCurrentModelValue: () => string;
 }) {
   async function send(message: object) {
@@ -119,10 +115,7 @@ export function createSidepanelInteractionRuntime(options: {
     })();
   };
 
-  const persistCurrentModel = (opts?: { focusCustom?: boolean; blurCustom?: boolean }) => {
-    options.updateModelRowUI();
-    if (opts?.focusCustom && !options.isCustomModelHidden()) options.focusCustomModel();
-    if (opts?.blurCustom) options.blurCustomModel();
+  const persistCurrentModel = () => {
     void (async () => {
       await options.patchSettings({ model: options.readCurrentModelValue() });
     })();

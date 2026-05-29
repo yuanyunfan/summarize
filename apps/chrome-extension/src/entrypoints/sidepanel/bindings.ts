@@ -13,9 +13,7 @@ export function bindSidepanelUiEvents({
   lineTightBtn,
   lineLooseBtn,
   modelPresetEl,
-  modelCustomEl,
   slidesLayoutEl,
-  modelRefreshBtn,
   advancedSettingsEl,
   lineHeightStep,
   sendSummarize,
@@ -29,7 +27,6 @@ export function bindSidepanelUiEvents({
   persistCurrentModel,
   setSlidesLayout,
   refreshModelsIfStale,
-  runRefreshFree,
 }: {
   refreshBtn: HTMLButtonElement;
   clearBtn: HTMLButtonElement;
@@ -43,9 +40,7 @@ export function bindSidepanelUiEvents({
   lineTightBtn: HTMLButtonElement;
   lineLooseBtn: HTMLButtonElement;
   modelPresetEl: HTMLSelectElement;
-  modelCustomEl: HTMLInputElement;
   slidesLayoutEl: HTMLSelectElement;
-  modelRefreshBtn: HTMLButtonElement;
   advancedSettingsEl: HTMLDetailsElement;
   lineHeightStep: number;
   sendSummarize: (opts?: { refresh?: boolean }) => void;
@@ -56,10 +51,9 @@ export function bindSidepanelUiEvents({
   sendChatMessage: () => void;
   bumpFontSize: (delta: number) => void;
   bumpLineHeight: (delta: number) => void;
-  persistCurrentModel: (opts?: { focusCustom?: boolean; blurCustom?: boolean }) => void;
+  persistCurrentModel: () => void;
   setSlidesLayout: (next: SlidesLayout) => void;
   refreshModelsIfStale: () => void;
-  runRefreshFree: () => Promise<void>;
 }) {
   refreshBtn.addEventListener("click", () => sendSummarize({ refresh: true }));
   clearBtn.addEventListener("click", () => {
@@ -91,13 +85,7 @@ export function bindSidepanelUiEvents({
   lineTightBtn.addEventListener("click", () => bumpLineHeight(-lineHeightStep));
   lineLooseBtn.addEventListener("click", () => bumpLineHeight(lineHeightStep));
 
-  modelPresetEl.addEventListener("change", () => persistCurrentModel({ focusCustom: true }));
-  modelCustomEl.addEventListener("change", () => persistCurrentModel());
-  modelCustomEl.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    persistCurrentModel({ blurCustom: true });
-  });
+  modelPresetEl.addEventListener("change", () => persistCurrentModel());
 
   slidesLayoutEl.addEventListener("change", () => {
     const next = slidesLayoutEl.value === "gallery" ? "gallery" : "strip";
@@ -106,13 +94,8 @@ export function bindSidepanelUiEvents({
 
   modelPresetEl.addEventListener("focus", refreshModelsIfStale);
   modelPresetEl.addEventListener("pointerdown", refreshModelsIfStale);
-  modelCustomEl.addEventListener("focus", refreshModelsIfStale);
-  modelCustomEl.addEventListener("pointerdown", refreshModelsIfStale);
   advancedSettingsEl.addEventListener("toggle", () => {
     if (advancedSettingsEl.open) refreshModelsIfStale();
-  });
-  modelRefreshBtn.addEventListener("click", () => {
-    void runRefreshFree();
   });
 }
 

@@ -8,15 +8,11 @@ export function createSetupControlsRuntime({
   defaultModel,
   drawerEl,
   drawerToggleBtn,
-  friendlyFetchError,
   generateToken,
   getStatusResetText,
   headerSetStatus,
   loadSettings,
-  modelCustomEl,
   modelPresetEl,
-  modelRefreshBtn,
-  modelRowEl,
   modelStatusEl,
   patchSettings,
   setupEl,
@@ -26,28 +22,20 @@ export function createSetupControlsRuntime({
   defaultModel: string;
   drawerEl: HTMLDivElement;
   drawerToggleBtn: HTMLButtonElement;
-  friendlyFetchError: (error: unknown, fallback: string) => string;
   generateToken: () => string;
   getStatusResetText: () => string;
   headerSetStatus: (text: string) => void;
   loadSettings: () => Promise<{ token: string }>;
-  modelCustomEl: HTMLInputElement;
   modelPresetEl: HTMLSelectElement;
-  modelRefreshBtn: HTMLButtonElement;
-  modelRowEl: HTMLDivElement;
   modelStatusEl: HTMLSpanElement;
   patchSettings: (patch: Record<string, unknown>) => Promise<unknown>;
   setupEl: HTMLDivElement;
 }) {
   const modelPresetsController = createModelPresetsController({
     modelPresetEl,
-    modelCustomEl,
-    modelRefreshBtn,
     modelStatusEl,
-    modelRowEl,
     defaultModel,
     loadSettings,
-    friendlyFetchError,
   });
 
   const drawerControls = createDrawerControls({
@@ -78,16 +66,13 @@ export function createSetupControlsRuntime({
 
   return {
     drawerControls,
-    isRefreshFreeRunning: modelPresetsController.isRefreshFreeRunning,
     maybeShowSetup: setupRuntime.maybeShowSetup,
     readCurrentModelValue: modelPresetsController.readCurrentValue,
     refreshModelPresets: modelPresetsController.refreshPresets,
     refreshModelsIfStale: modelPresetsController.refreshIfStale,
-    runRefreshFree: modelPresetsController.runRefreshFree,
+    refreshModelsNow: modelPresetsController.refreshNow,
     setDefaultModelPresets: modelPresetsController.setDefaultPresets,
-    setModelPlaceholderFromDiscovery: modelPresetsController.setPlaceholderFromDiscovery,
     setModelStatus: modelPresetsController.setStatus,
     setModelValue: modelPresetsController.setValue,
-    updateModelRowUI: modelPresetsController.updateRowUI,
   };
 }

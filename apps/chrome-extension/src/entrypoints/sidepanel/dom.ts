@@ -51,8 +51,6 @@ export function createSidepanelDom() {
     advancedSettingsEl.querySelector<HTMLElement>(".drawerAdvancedBody");
   if (!advancedSettingsBodyEl) throw new Error("Missing advanced settings body");
   const modelPresetEl = byId<HTMLSelectElement>("modelPreset");
-  const modelCustomEl = byId<HTMLInputElement>("modelCustom");
-  const modelRefreshBtn = byId<HTMLButtonElement>("modelRefresh");
   const modelStatusEl = byId<HTMLDivElement>("modelStatus");
   const modelRowEl = byId<HTMLDivElement>("modelRow");
   const copilotLoginBtn = byId<HTMLButtonElement>("accountsLoginBtn");
@@ -141,9 +139,7 @@ export function createSidepanelDom() {
     mainEl,
     metricsEl,
     metricsHomeEl,
-    modelCustomEl,
     modelPresetEl,
-    modelRefreshBtn,
     modelRowEl,
     modelStatusEl,
     pickersRoot,
