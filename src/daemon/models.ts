@@ -3,14 +3,16 @@ import { isOpenRouterBaseUrl } from "@steipete/summarize-core";
 import type { SummarizeConfig } from "../config.js";
 import { resolveCliAvailability } from "../run/env.js";
 import { resolveEnvState } from "../run/run-env.js";
+import { discoverCopilotModelIds } from "./provider-auth/copilot-token.js";
 import { ANTHROPIC_PROVIDER } from "./provider-auth/plugins/anthropic-oauth.js";
 import { GITHUB_COPILOT_PROVIDER } from "./provider-auth/plugins/github-copilot-device.js";
 import { OPENAI_PROVIDER } from "./provider-auth/plugins/openai-chatgpt.js";
 import { isProviderLoggedIn } from "./provider-auth/registry.js";
 
 /**
- * Curated Copilot models surfaced after a successful GitHub Copilot login.
- * Kept conservative; the user can still type any `copilot/<id>` manually.
+ * Fallback Copilot models if live discovery (`GET /models`) fails. When logged
+ * in we prefer the account's real model list; the user can still type any
+ * `copilot/<id>` manually.
  */
 const COPILOT_MODEL_IDS = ["gpt-4o", "gpt-4.1", "o4-mini", "claude-sonnet-4"] as const;
 
@@ -227,7 +229,9 @@ export async function buildModelPickerOptions({
   }
 
   if (providers.copilotOAuth) {
-    for (const id of COPILOT_MODEL_IDS) {
+    const discovered = await discoverCopilotModelIds({ env, fetchImpl, now: Date.now() });
+    const ids = discovered.length > 0 ? discovered : COPILOT_MODEL_IDS;
+    for (const id of ids) {
       options.push({ id: `copilot/${id}`, label: `Copilot: ${id}` });
     }
   }

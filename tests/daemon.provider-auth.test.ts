@@ -2,7 +2,10 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveCopilotAccessToken } from "../src/daemon/provider-auth/copilot-token.js";
+import {
+  discoverCopilotModelIds,
+  resolveCopilotAccessToken,
+} from "../src/daemon/provider-auth/copilot-token.js";
 import {
   resolveAnthropicToken,
   resolveOpenAiChatGptToken,
@@ -187,6 +190,71 @@ describe("copilot token exchange", () => {
   it("returns null when not logged in", async () => {
     const fetchImpl = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
     expect(await resolveCopilotAccessToken({ env, fetchImpl, now: 0 })).toBeNull();
+  });
+
+  it("falls back to the GitHub token directly when the exchange 404s, and caches it", async () => {
+    await setCredential(env, {
+      type: "oauth",
+      provider: "github-copilot-oauth",
+      refresh: "gho_direct",
+      access: "",
+      expires: 0,
+    });
+    let exchangeCalls = 0;
+    const fetchImpl = (async () => {
+      exchangeCalls += 1;
+      return new Response(JSON.stringify({ message: "Not Found" }), { status: 404 });
+    }) as unknown as typeof fetch;
+    // Enterprise accounts: /v2/token 404s, so we use the GitHub token directly.
+    expect(await resolveCopilotAccessToken({ env, fetchImpl, now: 0 })).toBe("gho_direct");
+    expect(exchangeCalls).toBe(1);
+    // Direct token is cached with a TTL → no second exchange attempt.
+    expect(await resolveCopilotAccessToken({ env, fetchImpl, now: 1000 })).toBe("gho_direct");
+    expect(exchangeCalls).toBe(1);
+  });
+});
+
+describe("copilot model discovery", () => {
+  it("lists picker-enabled model ids from the Copilot API", async () => {
+    await setCredential(env, {
+      type: "oauth",
+      provider: "github-copilot-oauth",
+      refresh: "gho_token",
+      access: "copilot_cached",
+      expires: 9_999_999_999_999, // fresh → no exchange
+    });
+    const fetchImpl = (async (url: string) => {
+      expect(url).toContain("api.githubcopilot.com/models");
+      return new Response(
+        JSON.stringify({
+          data: [
+            { id: "gpt-5.5", model_picker_enabled: true },
+            { id: "claude-opus-4.8", model_picker_enabled: true },
+            { id: "gpt-4o-2024-08-06", model_picker_enabled: false },
+            { id: "" },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const ids = await discoverCopilotModelIds({ env, fetchImpl, now: 0 });
+    expect(ids).toEqual(["claude-opus-4.8", "gpt-5.5"]);
+  });
+
+  it("returns an empty list (caller falls back) when not logged in or on error", async () => {
+    const ok = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    expect(await discoverCopilotModelIds({ env, fetchImpl: ok, now: 0 })).toEqual([]);
+
+    await setCredential(env, {
+      type: "oauth",
+      provider: "github-copilot-oauth",
+      refresh: "gho",
+      access: "tok",
+      expires: 9_999_999_999_999,
+    });
+    const fail = (async () => new Response("nope", { status: 500 })) as unknown as typeof fetch;
+    expect(await discoverCopilotModelIds({ env, fetchImpl: fail, now: 0 })).toEqual([]);
   });
 });
 
