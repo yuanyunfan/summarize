@@ -3,6 +3,22 @@ import { isOpenRouterBaseUrl } from "@steipete/summarize-core";
 import type { SummarizeConfig } from "../config.js";
 import { resolveCliAvailability } from "../run/env.js";
 import { resolveEnvState } from "../run/run-env.js";
+import { ANTHROPIC_PROVIDER } from "./provider-auth/plugins/anthropic-oauth.js";
+import { GITHUB_COPILOT_PROVIDER } from "./provider-auth/plugins/github-copilot-device.js";
+import { OPENAI_PROVIDER } from "./provider-auth/plugins/openai-chatgpt.js";
+import { isProviderLoggedIn } from "./provider-auth/registry.js";
+
+/**
+ * Curated Copilot models surfaced after a successful GitHub Copilot login.
+ * Kept conservative; the user can still type any `copilot/<id>` manually.
+ */
+const COPILOT_MODEL_IDS = ["gpt-4o", "gpt-4.1", "o4-mini", "claude-sonnet-4"] as const;
+
+/** Models surfaced after a ChatGPT (OpenAI OAuth) login. */
+const CHATGPT_MODEL_IDS = ["gpt-5.2", "gpt-5.2-codex"] as const;
+
+/** Models surfaced after an Anthropic (Claude OAuth) login. */
+const ANTHROPIC_OAUTH_MODEL_IDS = ["claude-sonnet-4-5", "claude-opus-4-1"] as const;
 
 export type ModelPickerOption = {
   id: string;
@@ -134,6 +150,9 @@ export async function buildModelPickerOptions({
     anthropic: boolean;
     openrouter: boolean;
     zai: boolean;
+    copilotOAuth: boolean;
+    chatgptOAuth: boolean;
+    anthropicOAuth: boolean;
     cliClaude: boolean;
     cliGemini: boolean;
     cliCodex: boolean;
@@ -155,6 +174,9 @@ export async function buildModelPickerOptions({
     anthropic: envState.anthropicConfigured,
     openrouter: envState.openrouterConfigured,
     zai: Boolean(envState.zaiApiKey),
+    copilotOAuth: false,
+    chatgptOAuth: false,
+    anthropicOAuth: false,
     cliClaude: false,
     cliGemini: false,
     cliCodex: false,
@@ -171,6 +193,10 @@ export async function buildModelPickerOptions({
   providers.cliOpenclaw = Boolean(cliAvailability.openclaw);
   providers.cliOpencode = Boolean(cliAvailability.opencode);
   providers.cliCopilot = Boolean(cliAvailability.copilot);
+
+  providers.copilotOAuth = await isProviderLoggedIn(env, GITHUB_COPILOT_PROVIDER);
+  providers.chatgptOAuth = await isProviderLoggedIn(env, OPENAI_PROVIDER);
+  providers.anthropicOAuth = await isProviderLoggedIn(env, ANTHROPIC_PROVIDER);
 
   const options: ModelPickerOption[] = [
     { id: "auto", label: "Auto" },
@@ -198,6 +224,24 @@ export async function buildModelPickerOptions({
   }
   if (providers.cliCopilot) {
     options.push({ id: "cli/copilot", label: "CLI: GitHub Copilot" });
+  }
+
+  if (providers.copilotOAuth) {
+    for (const id of COPILOT_MODEL_IDS) {
+      options.push({ id: `copilot/${id}`, label: `Copilot: ${id}` });
+    }
+  }
+
+  if (providers.chatgptOAuth) {
+    for (const id of CHATGPT_MODEL_IDS) {
+      options.push({ id: `chatgpt/${id}`, label: `ChatGPT: ${id}` });
+    }
+  }
+
+  if (providers.anthropicOAuth) {
+    for (const id of ANTHROPIC_OAUTH_MODEL_IDS) {
+      options.push({ id: `anthropic-oauth/${id}`, label: `Claude: ${id}` });
+    }
   }
 
   if (providers.openrouter) {

@@ -15,9 +15,11 @@ import { streamTextWithContext } from "./generate-text-stream.js";
 import { parseGatewayStyleModelId } from "./model-id.js";
 import type { LlmProvider } from "./model-id.js";
 import type { ModelRequestOptions } from "./model-options.js";
+import { CHATGPT_BASE_URL, buildChatGptHeaders } from "./oauth-providers.js";
 import type { Prompt } from "./prompt.js";
 import { resolveOpenAiCompatibleClientConfigForProvider } from "./provider-capabilities.js";
 import {
+  completeAnthropicOAuthText,
   completeAnthropicText,
   normalizeAnthropicModelAccessError,
 } from "./providers/anthropic.js";
@@ -76,6 +78,10 @@ export async function generateTextWithModelId({
   requestOptions,
   retries = 0,
   onRetry,
+  copilotAccessToken,
+  chatgptAccessToken,
+  chatgptAccountId,
+  anthropicAccessToken,
 }: {
   modelId: string;
   apiKeys: LlmApiKeys;
@@ -94,6 +100,13 @@ export async function generateTextWithModelId({
   requestOptions?: ModelRequestOptions;
   retries?: number;
   onRetry?: (notice: RetryNotice) => void;
+  /** Short-lived Copilot bearer for `copilot/...` models (from provider-auth). */
+  copilotAccessToken?: string | null;
+  /** ChatGPT OAuth bearer + account id for `chatgpt/...` models. */
+  chatgptAccessToken?: string | null;
+  chatgptAccountId?: string | null;
+  /** Anthropic OAuth bearer for `anthropic-oauth/...` models. */
+  anthropicAccessToken?: string | null;
 }): Promise<{
   text: string;
   canonicalModelId: string;
@@ -309,6 +322,89 @@ export async function generateTextWithModelId({
         };
       }
 
+      if (parsed.provider === "anthropic-oauth") {
+        if (!anthropicAccessToken) {
+          throw new Error(
+            "Not logged in to Anthropic. Log in from the extension settings (Accounts) first.",
+          );
+        }
+        const result = await completeAnthropicOAuthText({
+          modelId: parsed.model,
+          accessToken: anthropicAccessToken,
+          context,
+          temperature: effectiveTemperature,
+          maxOutputTokens,
+          signal: controller.signal,
+          fetchImpl,
+          anthropicBaseUrlOverride,
+        });
+        return {
+          text: result.text,
+          canonicalModelId: parsed.canonical,
+          provider: parsed.provider,
+          usage: result.usage,
+        };
+      }
+
+      if (parsed.provider === "chatgpt") {
+        if (!chatgptAccessToken) {
+          throw new Error(
+            "Not logged in to OpenAI (ChatGPT). Log in from the extension settings (Accounts) first.",
+          );
+        }
+        const openaiConfig: OpenAiClientConfig = {
+          apiKey: chatgptAccessToken,
+          baseURL: openaiBaseUrlOverride ?? CHATGPT_BASE_URL,
+          // ChatGPT Codex uses the Responses API.
+          useChatCompletions: false,
+          isOpenRouter: false,
+          forceResponses: true,
+          extraHeaders: buildChatGptHeaders(chatgptAccountId),
+          ...(requestOptions ? { requestOptions } : {}),
+        };
+        const result = await completeOpenAiText({
+          modelId: parsed.model,
+          openaiConfig,
+          context,
+          temperature: effectiveTemperature,
+          maxOutputTokens,
+          signal: controller.signal,
+          fetchImpl,
+        });
+        return {
+          text: result.text,
+          canonicalModelId: parsed.canonical,
+          provider: parsed.provider,
+          usage: result.usage,
+        };
+      }
+
+      if (parsed.provider === "copilot") {
+        const openaiConfig = resolveOpenAiCompatibleClientConfigForProvider({
+          provider: "copilot",
+          openaiApiKey: apiKeys.openaiApiKey,
+          openrouterApiKey: apiKeys.openrouterApiKey,
+          openaiBaseUrlOverride,
+          requestOptions,
+          copilotAccessToken,
+        });
+        const result = await completeOpenAiText({
+          modelId: parsed.model,
+          openaiConfig,
+          context,
+          temperature: effectiveTemperature,
+          maxOutputTokens,
+          signal: controller.signal,
+          fetchImpl,
+        });
+        return {
+          text: result.text,
+          canonicalModelId: parsed.canonical,
+          provider: parsed.provider,
+          usage: result.usage,
+        };
+      }
+
       if (parsed.provider === "openai" || parsed.provider === "github-copilot") {
         const openaiConfig = resolveOpenAiConfig(parsed.provider);
         const result = await completeOpenAiText({
@@ -424,6 +520,10 @@ export async function streamTextWithModelId({
   xaiBaseUrlOverride,
   forceChatCompletions,
   requestOptions,
+  copilotAccessToken,
+  chatgptAccessToken,
+  chatgptAccountId,
+  anthropicAccessToken,
 }: {
   modelId: string;
   apiKeys: LlmApiKeys;
@@ -439,6 +539,10 @@ export async function streamTextWithModelId({
   xaiBaseUrlOverride?: string | null;
   forceChatCompletions?: boolean;
   requestOptions?: ModelRequestOptions;
+  copilotAccessToken?: string | null;
+  chatgptAccessToken?: string | null;
+  chatgptAccountId?: string | null;
+  anthropicAccessToken?: string | null;
 }): Promise<{
   textStream: AsyncIterable<string>;
   canonicalModelId: string;
@@ -462,5 +566,9 @@ export async function streamTextWithModelId({
     xaiBaseUrlOverride,
     forceChatCompletions,
     requestOptions,
+    copilotAccessToken,
+    chatgptAccessToken,
+    chatgptAccountId,
+    anthropicAccessToken,
   });
 }

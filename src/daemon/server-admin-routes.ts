@@ -8,7 +8,28 @@ import {
   buildProcessLogsResult,
   type ProcessRegistry,
 } from "./process-registry.js";
-import { clampNumber, json } from "./server-http.js";
+import {
+  exchangeAuthorization,
+  listAuthMethods,
+  listAuthStatus,
+  logoutProvider,
+  pollAuthorization,
+  startAuthorization,
+} from "./provider-auth/registry.js";
+import { clampNumber, json, readJsonBody } from "./server-http.js";
+
+const AUTH_BODY_MAX_BYTES = 16_384;
+
+async function readAuthRequestBody(
+  req: http.IncomingMessage,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await readJsonBody(req, AUTH_BODY_MAX_BYTES);
+    return body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  } catch {
+    return null;
+  }
+}
 
 async function readLogTail({
   filePath,
@@ -205,6 +226,93 @@ export async function handleAdminRoutes({
       },
       cors,
     );
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/v1/auth/methods") {
+    json(res, 200, { ok: true, methods: listAuthMethods() }, cors);
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/v1/auth/status") {
+    const providers = await listAuthStatus(env);
+    json(res, 200, { ok: true, providers }, cors);
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/v1/auth/authorize") {
+    const body = await readAuthRequestBody(req);
+    if (!body) {
+      json(res, 400, { ok: false, error: "Invalid JSON body" }, cors);
+      return true;
+    }
+    const provider = typeof body.provider === "string" ? body.provider.trim() : "";
+    if (!provider) {
+      json(res, 400, { ok: false, error: "Missing provider" }, cors);
+      return true;
+    }
+    try {
+      const result = await startAuthorization({ provider, env, fetchImpl, now: Date.now() });
+      json(res, 200, { ok: true, ...result }, cors);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      json(res, 400, { ok: false, error: message }, cors);
+    }
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/v1/auth/poll") {
+    const body = await readAuthRequestBody(req);
+    if (!body) {
+      json(res, 400, { ok: false, error: "Invalid JSON body" }, cors);
+      return true;
+    }
+    const pendingId = typeof body.pendingId === "string" ? body.pendingId.trim() : "";
+    if (!pendingId) {
+      json(res, 400, { ok: false, error: "Missing pendingId" }, cors);
+      return true;
+    }
+    const result = await pollAuthorization({ pendingId, env, fetchImpl, now: Date.now() });
+    json(res, 200, { ok: true, ...result }, cors);
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/v1/auth/exchange") {
+    const body = await readAuthRequestBody(req);
+    if (!body) {
+      json(res, 400, { ok: false, error: "Invalid JSON body" }, cors);
+      return true;
+    }
+    const pendingId = typeof body.pendingId === "string" ? body.pendingId.trim() : "";
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    if (!pendingId || !code) {
+      json(res, 400, { ok: false, error: "Missing pendingId or code" }, cors);
+      return true;
+    }
+    const result = await exchangeAuthorization({
+      pendingId,
+      code,
+      env,
+      fetchImpl,
+      now: Date.now(),
+    });
+    json(res, 200, { ok: true, ...result }, cors);
+    return true;
+  }
+
+  if (req.method === "POST" && pathname === "/v1/auth/logout") {
+    const body = await readAuthRequestBody(req);
+    if (!body) {
+      json(res, 400, { ok: false, error: "Invalid JSON body" }, cors);
+      return true;
+    }
+    const provider = typeof body.provider === "string" ? body.provider.trim() : "";
+    if (!provider) {
+      json(res, 400, { ok: false, error: "Missing provider" }, cors);
+      return true;
+    }
+    const removed = await logoutProvider({ provider, env });
+    json(res, 200, { ok: true, removed }, cors);
     return true;
   }
 

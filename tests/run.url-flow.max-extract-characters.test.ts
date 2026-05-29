@@ -34,7 +34,7 @@ describe("runUrlFlow", () => {
     };
 
     let extracted: ExtractedLinkContent | null = null;
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,
@@ -87,7 +87,7 @@ describe("runUrlFlow", () => {
     };
 
     let extracted: ExtractedLinkContent | null = null;
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,

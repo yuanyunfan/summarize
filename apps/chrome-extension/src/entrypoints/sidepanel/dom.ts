@@ -55,6 +55,13 @@ export function createSidepanelDom() {
   const modelRefreshBtn = byId<HTMLButtonElement>("modelRefresh");
   const modelStatusEl = byId<HTMLDivElement>("modelStatus");
   const modelRowEl = byId<HTMLDivElement>("modelRow");
+  const copilotLoginBtn = byId<HTMLButtonElement>("accountsLoginBtn");
+  const copilotLogoutBtn = byId<HTMLButtonElement>("accountsLogoutBtn");
+  const accountsProviderEl = byId<HTMLSelectElement>("accountsProvider");
+  const accountsCodeRowEl = byId<HTMLDivElement>("accountsCodeRow");
+  const accountsCodeInputEl = byId<HTMLInputElement>("accountsCodeInput");
+  const accountsCodeSubmitBtn = byId<HTMLButtonElement>("accountsCodeSubmit");
+  const accountsStatusEl = byId<HTMLDivElement>("accountsStatus");
   const slidesLayoutEl = byId<HTMLSelectElement>("slidesLayout");
   const chatContainerEl = byId<HTMLElement>("chatContainer");
   const chatMessagesEl = byId<HTMLDivElement>("chatMessages");
@@ -85,6 +92,13 @@ export function createSidepanelDom() {
 
   return {
     advancedBtn,
+    accountsStatusEl,
+    accountsProviderEl,
+    accountsCodeRowEl,
+    accountsCodeInputEl,
+    accountsCodeSubmitBtn,
+    copilotLoginBtn,
+    copilotLogoutBtn,
     advancedSettingsBodyEl,
     advancedSettingsEl,
     advancedSettingsSummaryEl,

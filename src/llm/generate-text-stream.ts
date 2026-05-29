@@ -6,11 +6,15 @@ import type { LlmApiKeys } from "./generate-text.js";
 import { parseGatewayStyleModelId } from "./model-id.js";
 import type { LlmProvider } from "./model-id.js";
 import type { ModelRequestOptions } from "./model-options.js";
+import { CHATGPT_BASE_URL, buildChatGptHeaders } from "./oauth-providers.js";
 import {
   resolveOpenAiCompatibleClientConfigForProvider,
   supportsStreaming,
 } from "./provider-capabilities.js";
-import { normalizeAnthropicModelAccessError } from "./providers/anthropic.js";
+import {
+  completeAnthropicOAuthText,
+  normalizeAnthropicModelAccessError,
+} from "./providers/anthropic.js";
 import {
   resolveAnthropicModel,
   resolveGoogleModel,
@@ -40,6 +44,13 @@ export type StreamTextWithContextArgs = {
   xaiBaseUrlOverride?: string | null;
   forceChatCompletions?: boolean;
   requestOptions?: ModelRequestOptions;
+  /** Short-lived Copilot bearer for `copilot/...` models (from provider-auth). */
+  copilotAccessToken?: string | null;
+  /** ChatGPT OAuth bearer + account id for `chatgpt/...` models. */
+  chatgptAccessToken?: string | null;
+  chatgptAccountId?: string | null;
+  /** Anthropic OAuth bearer for `anthropic-oauth/...` models. */
+  anthropicAccessToken?: string | null;
 };
 
 export type StreamTextResult = {
@@ -162,6 +173,10 @@ export async function streamTextWithContext({
   xaiBaseUrlOverride,
   forceChatCompletions,
   requestOptions,
+  copilotAccessToken,
+  chatgptAccessToken,
+  chatgptAccountId,
+  anthropicAccessToken,
 }: StreamTextWithContextArgs): Promise<StreamTextResult> {
   const parsed = parseGatewayStyleModelId(modelId);
   if (!supportsStreaming(parsed.provider)) {
@@ -184,6 +199,82 @@ export async function streamTextWithContext({
   };
 
   try {
+    if (parsed.provider === "anthropic-oauth") {
+      if (!anthropicAccessToken) {
+        throw new Error(
+          "Not logged in to Anthropic. Log in from the extension settings (Accounts) first.",
+        );
+      }
+      const result = await completeAnthropicOAuthText({
+        modelId: parsed.model,
+        accessToken: anthropicAccessToken,
+        context,
+        temperature: effectiveTemperature,
+        maxOutputTokens,
+        signal: controller.signal,
+        fetchImpl,
+        anthropicBaseUrlOverride,
+      });
+      return {
+        textStream: createTimedTextStream({
+          textStream: {
+            async *[Symbol.asyncIterator]() {
+              yield result.text;
+            },
+          },
+          timeoutMs,
+          controller,
+          setLastError,
+        }),
+        canonicalModelId: parsed.canonical,
+        provider: parsed.provider,
+        usage: Promise.resolve(result.usage),
+        lastError: () => lastError,
+      };
+    }
+
+    if (parsed.provider === "chatgpt") {
+      if (!chatgptAccessToken) {
+        throw new Error(
+          "Not logged in to OpenAI (ChatGPT). Log in from the extension settings (Accounts) first.",
+        );
+      }
+      const openaiConfig: OpenAiClientConfig = {
+        apiKey: chatgptAccessToken,
+        baseURL: openaiBaseUrlOverride ?? CHATGPT_BASE_URL,
+        useChatCompletions: false,
+        isOpenRouter: false,
+        forceResponses: true,
+        extraHeaders: buildChatGptHeaders(chatgptAccountId),
+        ...(requestOptions ? { requestOptions } : {}),
+      };
+      const result = await completeOpenAiText({
+        modelId: parsed.model,
+        openaiConfig,
+        context,
+        temperature: effectiveTemperature,
+        maxOutputTokens,
+        signal: controller.signal,
+        fetchImpl,
+      });
+      return {
+        textStream: createTimedTextStream({
+          textStream: {
+            async *[Symbol.asyncIterator]() {
+              yield result.text;
+            },
+          },
+          timeoutMs,
+          controller,
+          setLastError,
+        }),
+        canonicalModelId: parsed.canonical,
+        provider: parsed.provider,
+        usage: Promise.resolve(result.usage),
+        lastError: () => lastError,
+      };
+    }
+
     if (parsed.provider === "xai") {
       const apiKey = apiKeys.xaiApiKey;
       if (!apiKey) throw new Error("Missing XAI_API_KEY for xai/... model");
@@ -291,7 +382,8 @@ export async function streamTextWithContext({
       parsed.provider === "openai" ||
       parsed.provider === "zai" ||
       parsed.provider === "nvidia" ||
-      parsed.provider === "github-copilot"
+      parsed.provider === "github-copilot" ||
+      parsed.provider === "copilot"
     ) {
       const openaiConfig: OpenAiClientConfig = resolveOpenAiCompatibleClientConfigForProvider({
         provider: parsed.provider,
@@ -301,9 +393,11 @@ export async function streamTextWithContext({
         openaiBaseUrlOverride,
         forceChatCompletions,
         requestOptions,
+        copilotAccessToken,
       });
       if (
         parsed.provider === "github-copilot" ||
+        parsed.provider === "copilot" ||
         (parsed.provider === "openai" &&
           (requestOptions ||
             shouldUseOpenAiResponsesTextStreamingFallback(parsed.model, openaiConfig)))

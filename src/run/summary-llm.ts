@@ -58,6 +58,10 @@ export async function summarizeWithModelId({
   requestOptions,
   retries,
   onRetry,
+  copilotAccessToken,
+  chatgptAccessToken,
+  chatgptAccountId,
+  anthropicAccessToken,
 }: {
   modelId: string;
   prompt: Prompt;
@@ -86,6 +90,10 @@ export async function summarizeWithModelId({
     delayMs: number;
     error: unknown;
   }) => void;
+  copilotAccessToken?: string | null;
+  chatgptAccessToken?: string | null;
+  chatgptAccountId?: string | null;
+  anthropicAccessToken?: string | null;
 }): Promise<{
   text: string;
   provider: LlmProvider;
@@ -110,6 +118,10 @@ export async function summarizeWithModelId({
     fetchImpl,
     retries,
     onRetry,
+    copilotAccessToken,
+    chatgptAccessToken,
+    chatgptAccountId,
+    anthropicAccessToken,
   });
   return {
     text: result.text,

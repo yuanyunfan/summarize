@@ -1223,3 +1223,113 @@ describe("llm generate/stream", () => {
     await expect(result.usage).resolves.toBeNull();
   });
 });
+
+describe("oauth provider routing (chatgpt / anthropic-oauth)", () => {
+  afterEach(() => {
+    mocks.completeSimple.mockClear();
+  });
+
+  it("routes chatgpt/* to the ChatGPT Codex responses endpoint with bearer + account id", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ output_text: "hello", usage: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const result = await generateTextWithModelId({
+      modelId: "chatgpt/gpt-5.2",
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      chatgptAccessToken: "chatgpt-bearer",
+      chatgptAccountId: "acct-9",
+    });
+    expect(result.text).toBe("hello");
+    expect(result.provider).toBe("chatgpt");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toContain("chatgpt.com/backend-api/codex");
+    expect(String(url)).toContain("/responses");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.authorization).toBe("Bearer chatgpt-bearer");
+    expect(headers["ChatGPT-Account-Id"]).toBe("acct-9");
+  });
+
+  it("errors when chatgpt/* selected without a token", async () => {
+    await expect(
+      generateTextWithModelId({
+        modelId: "chatgpt/gpt-5.2",
+        apiKeys: {
+          xaiApiKey: null,
+          openaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
+        prompt: { userText: "hi" },
+        timeoutMs: 2000,
+        fetchImpl: globalThis.fetch.bind(globalThis),
+      }),
+    ).rejects.toThrow(/Not logged in to OpenAI/);
+  });
+
+  it("routes anthropic-oauth/* to Messages API with a bearer + oauth beta", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            content: [{ type: "text", text: "claude-ok" }],
+            usage: { input_tokens: 2, output_tokens: 3 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const result = await generateTextWithModelId({
+      modelId: "anthropic-oauth/claude-sonnet-4-5",
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      anthropicAccessToken: "anthropic-bearer",
+    });
+    expect(result.text).toBe("claude-ok");
+    expect(result.provider).toBe("anthropic-oauth");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toContain("api.anthropic.com/v1/messages");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer anthropic-bearer");
+    expect(headers["anthropic-beta"]).toContain("oauth");
+    expect(headers["x-api-key"]).toBeUndefined();
+  });
+
+  it("errors when anthropic-oauth/* selected without a token", async () => {
+    await expect(
+      generateTextWithModelId({
+        modelId: "anthropic-oauth/claude-sonnet-4-5",
+        apiKeys: {
+          xaiApiKey: null,
+          openaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
+        prompt: { userText: "hi" },
+        timeoutMs: 2000,
+        fetchImpl: globalThis.fetch.bind(globalThis),
+      }),
+    ).rejects.toThrow(/Not logged in to Anthropic/);
+  });
+});

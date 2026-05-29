@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -95,5 +95,89 @@ describe("daemon /v1/models", () => {
     expect(result.ok).toBe(true);
     expect(result.providers.nvidia).toBe(true);
     expect(result.options.some((o) => o.id === "nvidia/z-ai/glm5")).toBe(true);
+  });
+
+  it("surfaces copilot/* options only when logged in to GitHub Copilot", async () => {
+    const home = mkdtempSync(path.join(tmpdir(), "summarize-copilot-home-"));
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+
+    // Not logged in → no copilot options.
+    const before = await buildModelPickerOptions({
+      env: { HOME: home },
+      envForRun: {},
+      configForCli: null,
+      fetchImpl,
+    });
+    expect(before.providers.copilotOAuth).toBe(false);
+    expect(before.options.some((o) => o.id.startsWith("copilot/"))).toBe(false);
+
+    // Write an auth.json with a Copilot credential.
+    mkdirSync(path.join(home, ".summarize"), { recursive: true });
+    writeFileSync(
+      path.join(home, ".summarize", "auth.json"),
+      JSON.stringify({
+        version: 1,
+        credentials: {
+          "github-copilot-oauth": {
+            type: "oauth",
+            provider: "github-copilot-oauth",
+            refresh: "gho_x",
+            access: "gho_x",
+            expires: 0,
+          },
+        },
+      }),
+      { encoding: "utf8" },
+    );
+
+    const after = await buildModelPickerOptions({
+      env: { HOME: home },
+      envForRun: {},
+      configForCli: null,
+      fetchImpl,
+    });
+    expect(after.providers.copilotOAuth).toBe(true);
+    expect(after.options.some((o) => o.id === "copilot/gpt-4o")).toBe(true);
+  });
+
+  it("surfaces chatgpt/* and anthropic-oauth/* options after those logins", async () => {
+    const home = mkdtempSync(path.join(tmpdir(), "summarize-oauth-home-"));
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    mkdirSync(path.join(home, ".summarize"), { recursive: true });
+    writeFileSync(
+      path.join(home, ".summarize", "auth.json"),
+      JSON.stringify({
+        version: 1,
+        credentials: {
+          "openai-chatgpt": {
+            type: "oauth",
+            provider: "openai-chatgpt",
+            refresh: "r",
+            access: "a",
+            expires: 0,
+            accountId: "acct",
+          },
+          "anthropic-oauth": {
+            type: "oauth",
+            provider: "anthropic-oauth",
+            refresh: "r",
+            access: "a",
+            expires: 0,
+          },
+        },
+      }),
+      { encoding: "utf8" },
+    );
+
+    const result = await buildModelPickerOptions({
+      env: { HOME: home },
+      envForRun: {},
+      configForCli: null,
+      fetchImpl,
+    });
+    expect(result.providers.chatgptOAuth).toBe(true);
+    expect(result.providers.anthropicOAuth).toBe(true);
+    expect(result.options.some((o) => o.id.startsWith("chatgpt/"))).toBe(true);
+    expect(result.options.some((o) => o.id.startsWith("anthropic-oauth/"))).toBe(true);
   });
 });

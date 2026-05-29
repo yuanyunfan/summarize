@@ -48,6 +48,12 @@ describe("llm provider capabilities", () => {
     expect(supportsDocumentAttachments("xai")).toBe(false);
     expect(supportsStreaming("anthropic")).toBe(true);
     expect(supportsStreaming("github-copilot")).toBe(true);
+    expect(supportsStreaming("copilot")).toBe(true);
+    expect(supportsStreaming("chatgpt")).toBe(true);
+    expect(supportsStreaming("anthropic-oauth")).toBe(true);
+    expect(supportsDocumentAttachments("copilot")).toBe(false);
+    expect(supportsDocumentAttachments("chatgpt")).toBe(false);
+    expect(supportsDocumentAttachments("anthropic-oauth")).toBe(false);
     expect(isVideoUnderstandingCapableModelId("google/gemini-3-flash")).toBe(true);
     expect(isVideoUnderstandingCapableModelId("openai/gpt-5.2")).toBe(false);
   });
@@ -77,6 +83,11 @@ describe("llm provider capabilities", () => {
       "NVIDIA_API_KEY",
     );
     expect(resolveRequiredEnvForModelId("github-copilot/gpt-4.1")).toBe("GITHUB_TOKEN");
+    expect(resolveRequiredEnvForModelId("copilot/gpt-4o")).toBe("OAUTH_COPILOT");
+    expect(resolveRequiredEnvForModelId("chatgpt/gpt-5.2")).toBe("OAUTH_CHATGPT");
+    expect(resolveRequiredEnvForModelId("anthropic-oauth/claude-sonnet-4-5")).toBe(
+      "OAUTH_ANTHROPIC",
+    );
 
     expect(
       resolveOpenAiCompatibleClientConfigForProvider({
@@ -109,6 +120,27 @@ describe("llm provider capabilities", () => {
         "X-GitHub-Api-Version": "2026-03-10",
       },
     });
+
+    expect(
+      resolveOpenAiCompatibleClientConfigForProvider({
+        provider: "copilot",
+        openaiApiKey: null,
+        openrouterApiKey: null,
+        openaiBaseUrlOverride: null,
+        copilotAccessToken: "copilot-bearer",
+      }),
+    ).toEqual({
+      apiKey: "copilot-bearer",
+      baseURL: "https://api.githubcopilot.com",
+      useChatCompletions: true,
+      isOpenRouter: false,
+      extraHeaders: {
+        "Editor-Version": "summarize/1.0",
+        "Editor-Plugin-Version": "summarize/1.0",
+        "Copilot-Integration-Id": "vscode-chat",
+        "User-Agent": "summarize",
+      },
+    });
   });
 
   it("returns false for invalid video model ids and requires provider keys", () => {
@@ -138,5 +170,14 @@ describe("llm provider capabilities", () => {
         openaiBaseUrlOverride: null,
       }),
     ).toThrow(/Missing GITHUB_TOKEN/);
+    expect(() =>
+      resolveOpenAiCompatibleClientConfigForProvider({
+        provider: "copilot",
+        openaiApiKey: null,
+        openrouterApiKey: null,
+        openaiBaseUrlOverride: null,
+        copilotAccessToken: null,
+      }),
+    ).toThrow(/Not logged in to GitHub Copilot/);
   });
 });

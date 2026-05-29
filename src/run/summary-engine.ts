@@ -2,6 +2,7 @@ import { countTokens } from "gpt-tokenizer";
 import { createMarkdownStreamer, render as renderMarkdownAnsi } from "markdansi";
 import type { CliProvider } from "../config.js";
 import { isCliDisabled, runCliModel } from "../llm/cli.js";
+import { COPILOT_API_BASE_URL } from "../llm/copilot.js";
 import { streamTextWithModelId } from "../llm/generate-text.js";
 import { resolveGitHubModelsApiKey } from "../llm/github-models.js";
 import { parseGatewayStyleModelId } from "../llm/model-id.js";
@@ -58,6 +59,9 @@ export type SummaryEngineDeps = {
       | "zai"
       | "nvidia"
       | "github-copilot"
+      | "copilot"
+      | "chatgpt"
+      | "anthropic-oauth"
       | "cli";
     model: string;
     usage: Awaited<ReturnType<typeof summarizeWithModelId>>["usage"] | null;
@@ -86,6 +90,13 @@ export type SummaryEngineDeps = {
     apiKey: string | null;
     baseUrl: string;
   };
+  /** Short-lived Copilot bearer for `copilot/...` models, resolved per run. */
+  copilotAccessToken?: string | null;
+  /** ChatGPT OAuth bearer + account id for `chatgpt/...` models. */
+  chatgptAccessToken?: string | null;
+  chatgptAccountId?: string | null;
+  /** Anthropic OAuth bearer for `anthropic-oauth/...` models. */
+  anthropicAccessToken?: string | null;
   providerBaseUrls: {
     openai: string | null;
     anthropic: string | null;
@@ -147,6 +158,17 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         forceChatCompletions: true,
       };
     }
+    if (modelIdLower.startsWith("copilot/")) {
+      // Copilot subscription: the bearer is the exchanged access token passed
+      // via deps.copilotAccessToken; the Copilot endpoint + headers are applied
+      // by the provider config. Pin the base URL so a local OPENAI_BASE_URL
+      // can't hijack the route, and force the chat-completions transport.
+      return {
+        ...attempt,
+        openaiBaseUrlOverride: attempt.openaiBaseUrlOverride ?? COPILOT_API_BASE_URL,
+        forceChatCompletions: true,
+      };
+    }
     return attempt;
   };
 
@@ -183,6 +205,15 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     }
     if (requiredEnv === "GITHUB_TOKEN") {
       return Boolean(resolveGitHubModelsApiKey(deps.envForRun));
+    }
+    if (requiredEnv === "OAUTH_COPILOT") {
+      return Boolean(deps.copilotAccessToken);
+    }
+    if (requiredEnv === "OAUTH_CHATGPT") {
+      return Boolean(deps.chatgptAccessToken);
+    }
+    if (requiredEnv === "OAUTH_ANTHROPIC") {
+      return Boolean(deps.anthropicAccessToken);
     }
     if (requiredEnv === "NVIDIA_API_KEY") {
       return Boolean(deps.nvidia.apiKey);
@@ -400,6 +431,10 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
           modelId: parsedModelEffective.canonical,
           env: deps.envForRun,
         }),
+        copilotAccessToken: deps.copilotAccessToken,
+        chatgptAccessToken: deps.chatgptAccessToken,
+        chatgptAccountId: deps.chatgptAccountId,
+        anthropicAccessToken: deps.anthropicAccessToken,
       });
       deps.llmCalls.push({
         provider: result.provider,
@@ -462,6 +497,10 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
           modelId: parsedModelEffective.canonical,
           env: deps.envForRun,
         }),
+        copilotAccessToken: deps.copilotAccessToken,
+        chatgptAccessToken: deps.chatgptAccessToken,
+        chatgptAccountId: deps.chatgptAccountId,
+        anthropicAccessToken: deps.anthropicAccessToken,
       });
       deps.llmCalls.push({
         provider: result.provider,
@@ -510,6 +549,10 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         maxOutputTokens: maxOutputTokensForCall ?? undefined,
         timeoutMs: deps.timeoutMs,
         fetchImpl: deps.trackedFetch,
+        copilotAccessToken: deps.copilotAccessToken,
+        chatgptAccessToken: deps.chatgptAccessToken,
+        chatgptAccountId: deps.chatgptAccountId,
+        anthropicAccessToken: deps.anthropicAccessToken,
       });
     } catch (error) {
       if (canFallbackFromStreamError(error)) {

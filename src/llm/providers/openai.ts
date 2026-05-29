@@ -517,6 +517,18 @@ export async function completeOpenAiText({
       fetchImpl,
     });
   }
+  if (openaiConfig.forceResponses) {
+    // ChatGPT Codex OAuth: always use the Responses API regardless of model name.
+    return completeOpenAiResponsesText({
+      modelId,
+      openaiConfig,
+      context,
+      temperature,
+      maxOutputTokens,
+      signal,
+      fetchImpl,
+    });
+  }
   if (
     openaiConfig.useChatCompletions &&
     openaiConfig.requestOptions &&

@@ -27,6 +27,8 @@ import {
 } from "../run/run-settings.js";
 import { createSummaryEngine } from "../run/summary-engine.js";
 import type { SlideImage, SlideSettings, SlideSourceKind } from "../slides/index.js";
+import { resolveCopilotAccessToken } from "./provider-auth/copilot-token.js";
+import { resolveAnthropicToken, resolveOpenAiChatGptToken } from "./provider-auth/oauth-tokens.js";
 
 type TextSink = {
   writeChunk: (text: string) => void;
@@ -111,7 +113,9 @@ export type DaemonUrlFlowContextArgs = {
   stdoutSink: TextSink;
 };
 
-export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlFlowContext {
+export async function createDaemonUrlFlowContext(
+  args: DaemonUrlFlowContextArgs,
+): Promise<UrlFlowContext> {
   const {
     env,
     fetchImpl,
@@ -240,6 +244,19 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
   const preprocessMode = resolvedOverrides.preprocessMode ?? "auto";
   const youtubeMode = resolvedOverrides.youtubeMode ?? "auto";
 
+  // Resolve OAuth bearers only when a matching `provider/...` model is selected,
+  // so we never trigger a token exchange/refresh for unrelated runs.
+  const requestedModelLower = requestedModelInput.toLowerCase();
+  const copilotAccessToken = requestedModelLower.startsWith("copilot/")
+    ? await resolveCopilotAccessToken({ env: envForRun, fetchImpl, now: Date.now() })
+    : null;
+  const chatgpt = requestedModelLower.startsWith("chatgpt/")
+    ? await resolveOpenAiChatGptToken({ env: envForRun, fetchImpl, now: Date.now() })
+    : null;
+  const anthropicOAuth = requestedModelLower.startsWith("anthropic-oauth/")
+    ? await resolveAnthropicToken({ env: envForRun, fetchImpl, now: Date.now() })
+    : null;
+
   const summaryEngine = createSummaryEngine({
     env: envForRun,
     envForRun,
@@ -276,6 +293,10 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     },
     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
+    copilotAccessToken,
+    chatgptAccessToken: chatgpt?.accessToken ?? null,
+    chatgptAccountId: chatgpt?.accountId ?? null,
+    anthropicAccessToken: anthropicOAuth?.accessToken ?? null,
     providerBaseUrls,
   });
 

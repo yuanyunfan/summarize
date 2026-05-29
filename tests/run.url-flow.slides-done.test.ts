@@ -101,7 +101,7 @@ describe("runUrlFlow slides done hook", () => {
       put: vi.fn(async () => null),
     };
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       urlFetchImpl: fetchImpl,
@@ -171,7 +171,7 @@ describe("runUrlFlow slides done hook", () => {
 
     let doneResult: { ok: boolean; error?: string | null } | null = null;
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl,
       cache,

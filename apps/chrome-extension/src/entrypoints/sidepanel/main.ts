@@ -13,6 +13,7 @@ import {
 import { splitSummaryFromSlides } from "../../lib/slides-text";
 import { generateToken } from "../../lib/token";
 import { createAppearanceControls } from "./appearance-controls";
+import { createAuthController } from "./auth-controller";
 import { createSidepanelBgMessageRuntime } from "./bg-message-runtime";
 import { bindSidepanelUiEvents } from "./bindings";
 import { bootstrapSidepanel } from "./bootstrap-runtime";
@@ -74,6 +75,13 @@ import { createUiStateRuntime } from "./ui-state-runtime";
 let currentRunTabId: number | null = null;
 const {
   advancedBtn,
+  accountsStatusEl,
+  accountsProviderEl,
+  accountsCodeRowEl,
+  accountsCodeInputEl,
+  accountsCodeSubmitBtn,
+  copilotLoginBtn,
+  copilotLogoutBtn,
   advancedSettingsBodyEl,
   advancedSettingsEl,
   advancedSettingsSummaryEl,
@@ -1133,6 +1141,29 @@ const {
   setModelValue,
   updateModelRowUI,
 } = setupControlsRuntime;
+
+const authController = createAuthController({
+  providerSelectEl: accountsProviderEl,
+  loginBtn: copilotLoginBtn,
+  logoutBtn: copilotLogoutBtn,
+  codeRowEl: accountsCodeRowEl,
+  codeInputEl: accountsCodeInputEl,
+  codeSubmitBtn: accountsCodeSubmitBtn,
+  accountsStatusEl,
+  onLoginChanged: () => {
+    refreshModelsIfStale();
+  },
+});
+void authController.refreshStatus();
+copilotLoginBtn.addEventListener("click", () => {
+  void authController.runLogin();
+});
+copilotLogoutBtn.addEventListener("click", () => {
+  void authController.runLogout();
+});
+accountsCodeSubmitBtn.addEventListener("click", () => {
+  void authController.submitCode();
+});
 
 const slidesRuntime = createSidepanelSlidesRuntime({
   applySlidesPayload,

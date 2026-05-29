@@ -1,4 +1,5 @@
 import type { CliProvider } from "../config.js";
+import { buildCopilotHeaders, COPILOT_API_BASE_URL } from "./copilot.js";
 import {
   buildGitHubModelsHeaders,
   GITHUB_MODELS_BASE_URL,
@@ -16,7 +17,10 @@ export type GatewayProvider =
   | "anthropic"
   | "zai"
   | "nvidia"
-  | "github-copilot";
+  | "github-copilot"
+  | "copilot"
+  | "chatgpt"
+  | "anthropic-oauth";
 
 export type RequiredModelEnv =
   | "XAI_API_KEY"
@@ -27,6 +31,9 @@ export type RequiredModelEnv =
   | "OPENROUTER_API_KEY"
   | "Z_AI_API_KEY"
   | "GITHUB_TOKEN"
+  | "OAUTH_COPILOT"
+  | "OAUTH_CHATGPT"
+  | "OAUTH_ANTHROPIC"
   | "CLI_CLAUDE"
   | "CLI_CODEX"
   | "CLI_GEMINI"
@@ -81,6 +88,28 @@ const GATEWAY_PROVIDER_PROFILES: Record<GatewayProvider, GatewayProviderProfile>
   },
   "github-copilot": {
     requiredEnv: "GITHUB_TOKEN",
+    supportsDocuments: false,
+    supportsStreaming: true,
+    supportsVideoUnderstanding: false,
+  },
+  copilot: {
+    // OAuth-based; the daemon gates availability via the provider-auth store
+    // rather than an env key.
+    requiredEnv: "OAUTH_COPILOT",
+    supportsDocuments: false,
+    supportsStreaming: true,
+    supportsVideoUnderstanding: false,
+  },
+  chatgpt: {
+    // OpenAI ChatGPT OAuth; availability gated by the provider-auth store.
+    requiredEnv: "OAUTH_CHATGPT",
+    supportsDocuments: false,
+    supportsStreaming: true,
+    supportsVideoUnderstanding: false,
+  },
+  "anthropic-oauth": {
+    // Anthropic Claude OAuth; availability gated by the provider-auth store.
+    requiredEnv: "OAUTH_ANTHROPIC",
     supportsDocuments: false,
     supportsStreaming: true,
     supportsVideoUnderstanding: false,
@@ -205,14 +234,17 @@ export function resolveOpenAiCompatibleClientConfigForProvider({
   openaiBaseUrlOverride,
   forceChatCompletions,
   requestOptions,
+  copilotAccessToken,
 }: {
-  provider: "openai" | "zai" | "nvidia" | "github-copilot";
+  provider: "openai" | "zai" | "nvidia" | "github-copilot" | "copilot";
   openaiApiKey: string | null;
   openrouterApiKey: string | null;
   forceOpenRouter?: boolean;
   openaiBaseUrlOverride?: string | null;
   forceChatCompletions?: boolean;
   requestOptions?: ModelRequestOptions;
+  /** Short-lived Copilot bearer (already exchanged from the GitHub OAuth token). */
+  copilotAccessToken?: string | null;
 }): OpenAiClientConfig {
   if (provider === "openai") {
     return resolveOpenAiClientConfig({
@@ -225,6 +257,22 @@ export function resolveOpenAiCompatibleClientConfigForProvider({
       forceChatCompletions,
       requestOptions,
     });
+  }
+  if (provider === "copilot") {
+    const apiKey = copilotAccessToken?.trim() || null;
+    if (!apiKey) {
+      throw new Error(
+        "Not logged in to GitHub Copilot. Log in from the extension settings (Accounts) first.",
+      );
+    }
+    return {
+      apiKey,
+      baseURL: openaiBaseUrlOverride ?? COPILOT_API_BASE_URL,
+      useChatCompletions: true,
+      isOpenRouter: false,
+      extraHeaders: buildCopilotHeaders(),
+      ...(requestOptions ? { requestOptions } : {}),
+    };
   }
   if (provider === "github-copilot") {
     const apiKey = openaiApiKey;

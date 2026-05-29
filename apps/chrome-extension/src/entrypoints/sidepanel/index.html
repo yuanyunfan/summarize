@@ -81,6 +81,26 @@
         <summary>高级</summary>
         <div class="drawerAdvancedBody">
           <label class="wide">
+            <span>账户</span>
+            <div id="accountsRow" class="combo accountsRow">
+              <select id="accountsProvider" aria-label="登录方式"></select>
+              <button id="accountsLoginBtn" type="button" class="ghost small">登录</button>
+              <button id="accountsLogoutBtn" type="button" class="ghost small" hidden>退出</button>
+            </div>
+            <div id="accountsCodeRow" class="combo accountsCodeRow" hidden>
+              <input
+                id="accountsCodeInput"
+                type="text"
+                placeholder="粘贴授权代码"
+                autocapitalize="off"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="accountsCodeSubmit" type="button" class="ghost small">提交</button>
+            </div>
+            <div id="accountsStatus" class="accountsStatus" role="status" aria-live="polite"></div>
+          </label>
+          <label class="wide">
             <span>模型</span>
             <div id="modelRow" class="combo modelRow">
               <select id="modelPreset">

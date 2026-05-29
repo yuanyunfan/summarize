@@ -24,9 +24,9 @@ describe("daemon/flow-context (overrides)", () => {
     path: null,
   });
 
-  it("defaults to xl + auto language when unset", () => {
+  it("defaults to xl + auto language when unset", async () => {
     const home = makeTempHome();
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -43,10 +43,10 @@ describe("daemon/flow-context (overrides)", () => {
     expect(ctx.flags.outputLanguage).toEqual({ kind: "auto" });
   });
 
-  it("accepts custom length and language overrides", () => {
+  it("accepts custom length and language overrides", async () => {
     const home = makeTempHome();
     writeConfig(home, { output: { language: "de" } });
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -66,10 +66,10 @@ describe("daemon/flow-context (overrides)", () => {
     );
   });
 
-  it("uses config language when request is unset, then prefers request overrides", () => {
+  it("uses config language when request is unset, then prefers request overrides", async () => {
     const home = makeTempHome();
     writeConfig(home, { output: { language: "de" } });
-    const configCtx = createDaemonUrlFlowContext({
+    const configCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -86,7 +86,7 @@ describe("daemon/flow-context (overrides)", () => {
       configCtx.flags.outputLanguage.kind === "fixed" ? configCtx.flags.outputLanguage.tag : null,
     ).toBe("de");
 
-    const requestCtx = createDaemonUrlFlowContext({
+    const requestCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -104,11 +104,11 @@ describe("daemon/flow-context (overrides)", () => {
     ).toBe("en");
   });
 
-  it("uses config length when request length is unset, then prefers request overrides", () => {
+  it("uses config length when request length is unset, then prefers request overrides", async () => {
     const home = makeTempHome();
     writeConfig(home, { output: { length: "short" } });
 
-    const configCtx = createDaemonUrlFlowContext({
+    const configCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -122,7 +122,7 @@ describe("daemon/flow-context (overrides)", () => {
     });
     expect(configCtx.flags.lengthArg).toEqual({ kind: "preset", preset: "short" });
 
-    const requestCtx = createDaemonUrlFlowContext({
+    const requestCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -137,13 +137,13 @@ describe("daemon/flow-context (overrides)", () => {
     expect(requestCtx.flags.lengthArg).toEqual({ kind: "chars", maxCharacters: 20000 });
   });
 
-  it("keeps config output defaults in prompt instructions when promptOverride is set", () => {
+  it("keeps config output defaults in prompt instructions when promptOverride is set", async () => {
     const home = makeTempHome();
     writeConfig(home, {
       output: { length: "short", language: "de" },
     });
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -160,9 +160,9 @@ describe("daemon/flow-context (overrides)", () => {
     expect(ctx.flags.languageInstruction).toBe("Output should be German.");
   });
 
-  it("applies run overrides for daemon contexts", () => {
+  it("applies run overrides for daemon contexts", async () => {
     const home = makeTempHome();
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -200,9 +200,9 @@ describe("daemon/flow-context (overrides)", () => {
     expect(ctx.flags.maxOutputTokensArg).toBe(512);
   });
 
-  it("defaults markdownMode to readability when format=markdown", () => {
+  it("defaults markdownMode to readability when format=markdown", async () => {
     const home = makeTempHome();
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -219,9 +219,9 @@ describe("daemon/flow-context (overrides)", () => {
     expect(ctx.flags.markdownMode).toBe("readability");
   });
 
-  it("adjusts desired output tokens based on length", () => {
+  it("adjusts desired output tokens based on length", async () => {
     const home = makeTempHome();
-    const shortCtx = createDaemonUrlFlowContext({
+    const shortCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),
@@ -233,7 +233,7 @@ describe("daemon/flow-context (overrides)", () => {
       runStartedAtMs: Date.now(),
       stdoutSink: { writeChunk: () => {} },
     });
-    const xlCtx = createDaemonUrlFlowContext({
+    const xlCtx = await createDaemonUrlFlowContext({
       env: { HOME: home },
       fetchImpl: fetch,
       cache: makeCacheState(),

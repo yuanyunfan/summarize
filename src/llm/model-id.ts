@@ -7,7 +7,10 @@ export type LlmProvider =
   | "anthropic"
   | "zai"
   | "nvidia"
-  | "github-copilot";
+  | "github-copilot"
+  | "copilot"
+  | "chatgpt"
+  | "anthropic-oauth";
 
 export type ParsedModelId = {
   provider: LlmProvider;
@@ -29,6 +32,9 @@ const PROVIDERS: LlmProvider[] = [
   "zai",
   "nvidia",
   "github-copilot",
+  "copilot",
+  "chatgpt",
+  "anthropic-oauth",
 ];
 
 /**

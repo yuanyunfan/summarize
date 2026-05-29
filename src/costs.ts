@@ -8,6 +8,9 @@ export type LlmProvider =
   | "zai"
   | "nvidia"
   | "github-copilot"
+  | "copilot"
+  | "chatgpt"
+  | "anthropic-oauth"
   | "cli";
 
 export type LlmCall = {

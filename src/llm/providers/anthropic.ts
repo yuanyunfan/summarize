@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/pi-ai";
 import { completeSimple } from "@earendil-works/pi-ai";
 import type { Attachment } from "../attachments.js";
+import { ANTHROPIC_OAUTH_BASE_URL, ANTHROPIC_OAUTH_BETA } from "../oauth-providers.js";
 import type { LlmTokenUsage } from "../types.js";
 import { normalizeAnthropicUsage, normalizeTokenUsage } from "../usage.js";
 import { resolveAnthropicModel } from "./models.js";
@@ -82,6 +83,91 @@ export async function completeAnthropicText({
   const text = extractText(result);
   if (!text) throw new Error(`LLM returned an empty summary (model anthropic/${modelId}).`);
   return { text, usage: normalizeTokenUsage(result.usage) };
+}
+
+function contextToAnthropicMessages(context: Context): Array<{ role: string; content: string }> {
+  const messages: Array<{ role: string; content: string }> = [];
+  for (const message of context.messages) {
+    const content =
+      typeof message.content === "string"
+        ? message.content.trim()
+        : Array.isArray(message.content)
+          ? message.content
+              .map((part) => (part.type === "text" ? part.text : ""))
+              .join("")
+              .trim()
+          : "";
+    if (!content) continue;
+    messages.push({ role: message.role === "assistant" ? "assistant" : "user", content });
+  }
+  return messages;
+}
+
+/**
+ * Complete via the Anthropic Messages API using an **OAuth bearer** (Claude
+ * Pro/Max login) rather than an `x-api-key`. The OAuth beta header is required
+ * for token-authenticated requests.
+ */
+export async function completeAnthropicOAuthText({
+  modelId,
+  accessToken,
+  context,
+  temperature,
+  maxOutputTokens,
+  signal,
+  fetchImpl,
+  anthropicBaseUrlOverride,
+}: {
+  modelId: string;
+  accessToken: string;
+  context: Context;
+  temperature?: number;
+  maxOutputTokens?: number;
+  signal: AbortSignal;
+  fetchImpl: typeof fetch;
+  anthropicBaseUrlOverride?: string | null;
+}): Promise<{ text: string; usage: LlmTokenUsage | null }> {
+  const baseUrl = resolveBaseUrlOverride(anthropicBaseUrlOverride) ?? ANTHROPIC_OAUTH_BASE_URL;
+  const url = new URL("/v1/messages", baseUrl);
+  const system = context.systemPrompt?.trim();
+  const payload = {
+    model: modelId,
+    max_tokens: maxOutputTokens ?? 4096,
+    ...(system ? { system } : {}),
+    ...(typeof temperature === "number" ? { temperature } : {}),
+    messages: contextToAnthropicMessages(context),
+  };
+  const response = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": ANTHROPIC_OAUTH_BETA,
+    },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const error = new Error(`Anthropic API error (${response.status}).`);
+    (error as { statusCode?: number }).statusCode = response.status;
+    (error as { responseBody?: string }).responseBody = bodyText;
+    throw normalizeAnthropicModelAccessError(error, modelId) ?? error;
+  }
+  const data = JSON.parse(bodyText) as {
+    content?: Array<{ type?: string; text?: string }>;
+    usage?: unknown;
+  };
+  const text = Array.isArray(data.content)
+    ? data.content
+        .filter((block) => block.type === "text" && typeof block.text === "string")
+        .map((block) => block.text)
+        .join("")
+        .trim()
+    : "";
+  if (!text) throw new Error(`LLM returned an empty summary (model anthropic-oauth/${modelId}).`);
+  return { text, usage: normalizeAnthropicUsage(data.usage) };
 }
 
 export async function completeAnthropicDocument({

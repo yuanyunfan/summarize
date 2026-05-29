@@ -34,7 +34,10 @@ export type MarkdownConverters = {
     | "anthropic"
     | "zai"
     | "nvidia"
-    | "github-copilot";
+    | "github-copilot"
+    | "copilot"
+    | "chatgpt"
+    | "anthropic-oauth";
   markdownModel: MarkdownModel | null;
   convertHtmlToMarkdown:
     | ((args: {

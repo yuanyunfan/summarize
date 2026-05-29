@@ -84,7 +84,7 @@ describe("runUrlFlow transcription wiring", () => {
       },
     });
 
-    const ctx = createDaemonUrlFlowContext({
+    const ctx = await createDaemonUrlFlowContext({
       env: { HOME: root, OPENAI_API_KEY: "test" },
       fetchImpl: vi.fn() as unknown as typeof fetch,
       cache,

@@ -371,6 +371,57 @@
   color: color-mix(in srgb, var(--accent) 80%, var(--muted));
 }
 
+.drawerAdvanced .accountsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawerAdvanced .accountsCodeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* `display: grid` would otherwise override the `hidden` attribute. */
+.drawerAdvanced .accountsCodeRow[hidden] {
+  display: none;
+}
+
+.drawerAdvanced .accountsCodeRow input {
+  height: 32px;
+}
+
+.drawerAdvanced .accountsRow .accountsLabel {
+  font-size: 12px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountsStatus {
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.accountsStatus[data-state="running"] {
+  color: color-mix(in srgb, var(--accent) 65%, var(--muted));
+}
+
+.accountsStatus[data-state="error"] {
+  color: color-mix(in srgb, #ff6b6b 70%, var(--muted));
+}
+
+.accountsStatus[data-state="ok"] {
+  color: color-mix(in srgb, var(--accent) 80%, var(--muted));
+}
+
 .drawerActions {
   display: flex;
   align-items: center;
