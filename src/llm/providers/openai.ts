@@ -89,7 +89,9 @@ export function resolveOpenAiClientConfig({
     }
   })();
 
-  const useChatCompletions = Boolean(forceChatCompletions) || isOpenRouter || isCustomBaseURL;
+  const useChatCompletions =
+    isOpenRouter ||
+    (typeof forceChatCompletions === "boolean" ? forceChatCompletions : isCustomBaseURL);
   return {
     apiKey,
     baseURL: baseURL ?? undefined,
@@ -144,6 +146,34 @@ function stripOpenAiProviderPrefix(modelId: string): string {
 function isOpenAiResponsesTextModelId(modelId: string): boolean {
   const normalized = stripOpenAiProviderPrefix(modelId).toLowerCase();
   return normalized.startsWith("gpt-5") && normalized !== "gpt-5-chat";
+}
+
+export function shouldUseOpenAiResponsesTextEndpoint(
+  modelId: string,
+  openaiConfig: Pick<OpenAiClientConfig, "baseURL" | "useChatCompletions" | "isOpenRouter">,
+): boolean {
+  if (!isOpenAiResponsesTextModelId(modelId)) return false;
+  if (openaiConfig.isOpenRouter) return false;
+  if (isGitHubModelsBaseUrl(openaiConfig.baseURL)) return false;
+  if (openaiConfig.useChatCompletions) {
+    return isApiOpenAiBaseUrl(openaiConfig.baseURL);
+  }
+  if (!openaiConfig.baseURL) return true;
+  if (isApiOpenAiBaseUrl(openaiConfig.baseURL)) return true;
+  try {
+    new URL(openaiConfig.baseURL);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function shouldUseOpenAiResponsesTextStreamingFallback(
+  modelId: string,
+  openaiConfig: Pick<OpenAiClientConfig, "baseURL" | "useChatCompletions" | "isOpenRouter">,
+): boolean {
+  if (!shouldUseOpenAiResponsesTextEndpoint(modelId, openaiConfig)) return false;
+  return Boolean(openaiConfig.baseURL) && !isApiOpenAiBaseUrl(openaiConfig.baseURL);
 }
 
 function buildOpenAiResponsesRequestOptions(
@@ -272,6 +302,36 @@ function buildOpenAiRequestHeaders(openaiConfig: OpenAiClientConfig): Record<str
       : {}),
     ...(openaiConfig.extraHeaders ?? {}),
   };
+}
+
+function extractOpenAiAssistantErrorMessage(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      return extractOpenAiAssistantErrorMessage(parsed) ?? trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  return (
+    extractOpenAiAssistantErrorMessage(record.error) ??
+    extractOpenAiAssistantErrorMessage(record.message) ??
+    extractOpenAiAssistantErrorMessage(record.details)
+  );
+}
+
+export function normalizeOpenAiAssistantError(response: unknown, modelId: string): Error | null {
+  const record =
+    response && typeof response === "object" ? (response as Record<string, unknown>) : {};
+  const raw = typeof record.errorMessage === "string" ? record.errorMessage : "";
+  if (!raw.trim() && record.stopReason !== "error") return null;
+  const message =
+    extractOpenAiAssistantErrorMessage(raw) ?? `OpenAI request failed for model "${modelId}".`;
+  return new Error(`OpenAI API rejected model "${modelId}": ${message}`);
 }
 
 function createOpenAiHttpError({
@@ -484,11 +544,7 @@ export async function completeOpenAiText({
       fetchImpl,
     });
   }
-  if (
-    !openaiConfig.isOpenRouter &&
-    isApiOpenAiBaseUrl(openaiConfig.baseURL) &&
-    isOpenAiResponsesTextModelId(modelId)
-  ) {
+  if (shouldUseOpenAiResponsesTextEndpoint(modelId, openaiConfig)) {
     return completeOpenAiResponsesText({
       modelId,
       openaiConfig,
@@ -506,6 +562,8 @@ export async function completeOpenAiText({
     apiKey: openaiConfig.apiKey,
     signal,
   });
+  const normalizedError = normalizeOpenAiAssistantError(result, modelId);
+  if (normalizedError) throw normalizedError;
   const text = result.content
     .filter((c) => c.type === "text")
     .map((c) => c.text)

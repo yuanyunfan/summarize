@@ -102,16 +102,17 @@ function resolveApiKeys(
   };
 }
 
-function resolveOpenAiUseChatCompletions({
+function resolveOpenAiUseChatCompletionsOverride({
   env,
   configForCli,
 }: {
   env: Record<string, string | undefined>;
   configForCli: SummarizeConfig | null;
-}): boolean {
+}): boolean | null {
   const envValue = parseBooleanEnv(env.OPENAI_USE_CHAT_COMPLETIONS);
   if (envValue !== null) return envValue;
-  return configForCli?.openai?.useChatCompletions === true;
+  const configValue = configForCli?.openai?.useChatCompletions;
+  return typeof configValue === "boolean" ? configValue : null;
 }
 
 async function streamNativeChatResponse({
@@ -178,7 +179,10 @@ export async function streamChatResponse({
 }) {
   const apiKeys = resolveApiKeys(env, configForCli);
   const envState = resolveEnvState({ env, envForRun: env, configForCli });
-  const openaiUseChatCompletions = resolveOpenAiUseChatCompletions({ env, configForCli });
+  const openaiUseChatCompletionsOverride = resolveOpenAiUseChatCompletionsOverride({
+    env,
+    configForCli,
+  });
   const openaiRequestOptions = mergeModelRequestOptions(configForCli?.openai);
   const context = buildContext({ pageUrl, pageTitle, pageContent, messages });
   const resolveOpenAiCompatibleBaseUrlOverride = ({
@@ -237,6 +241,11 @@ export async function streamChatResponse({
           requestOptions: undefined,
         };
       }
+      const openaiBaseUrlOverride = resolveOpenAiCompatibleBaseUrlOverride({
+        requiredEnv: requested.requiredEnv,
+        provider: requested.provider,
+        openaiBaseUrlOverride: requested.openaiBaseUrlOverride ?? null,
+      });
       return {
         userModelId: requested.userModelId,
         modelId: requested.llmModelId,
@@ -250,19 +259,18 @@ export async function streamChatResponse({
               : requested.requiredEnv === "GITHUB_TOKEN"
                 ? resolveGitHubModelsApiKey(env)
                 : null,
-        openaiBaseUrlOverride: resolveOpenAiCompatibleBaseUrlOverride({
-          requiredEnv: requested.requiredEnv,
-          provider: requested.provider,
-          openaiBaseUrlOverride: requested.openaiBaseUrlOverride ?? null,
-        }),
+        openaiBaseUrlOverride,
         anthropicBaseUrlOverride:
           requested.provider === "anthropic" ? envState.providerBaseUrls.anthropic : null,
         googleBaseUrlOverride:
           requested.provider === "google" ? envState.providerBaseUrls.google : null,
         xaiBaseUrlOverride: requested.provider === "xai" ? envState.providerBaseUrls.xai : null,
         forceChatCompletions:
-          Boolean(requested.forceChatCompletions) ||
-          (requested.provider === "openai" && openaiUseChatCompletions),
+          typeof requested.forceChatCompletions === "boolean"
+            ? requested.forceChatCompletions
+            : requested.provider === "openai"
+              ? (openaiUseChatCompletionsOverride ?? (openaiBaseUrlOverride ? undefined : false))
+              : undefined,
         requestOptions: requested.requestOptions,
       };
     }
@@ -360,6 +368,11 @@ export async function streamChatResponse({
     return;
   }
 
+  const openaiBaseUrlOverride = resolveOpenAiCompatibleBaseUrlOverride({
+    requiredEnv: attempt.requiredEnv,
+    provider: attempt.llmModelId?.split("/", 1)[0] ?? null,
+  });
+
   await streamNativeChatResponse({
     args: {
       modelId: attempt.llmModelId!,
@@ -368,14 +381,14 @@ export async function streamChatResponse({
       timeoutMs: 30_000,
       fetchImpl,
       forceOpenRouter: attempt.forceOpenRouter,
-      openaiBaseUrlOverride: resolveOpenAiCompatibleBaseUrlOverride({
-        requiredEnv: attempt.requiredEnv,
-        provider: attempt.llmModelId?.split("/", 1)[0] ?? null,
-      }),
+      openaiBaseUrlOverride,
       anthropicBaseUrlOverride: envState.providerBaseUrls.anthropic,
       googleBaseUrlOverride: envState.providerBaseUrls.google,
       xaiBaseUrlOverride: envState.providerBaseUrls.xai,
-      forceChatCompletions: attempt.requiredEnv === "OPENAI_API_KEY" && openaiUseChatCompletions,
+      forceChatCompletions:
+        attempt.requiredEnv === "OPENAI_API_KEY"
+          ? (openaiUseChatCompletionsOverride ?? (openaiBaseUrlOverride ? undefined : false))
+          : undefined,
       requestOptions: mergeModelRequestOptions(openaiRequestOptions, attempt.requestOptions),
     },
     pushToSession,

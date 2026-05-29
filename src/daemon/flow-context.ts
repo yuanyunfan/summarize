@@ -166,6 +166,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     cliConfigForRun,
     configForCli,
     openaiUseChatCompletions,
+    openaiUseChatCompletionsOverride,
     configModelLabel,
     apiKey,
     openrouterApiKey,
@@ -253,6 +254,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     verbose: false,
     verboseColor: false,
     openaiUseChatCompletions,
+    openaiUseChatCompletionsOverride,
     cliConfigForRun: cliConfigForRun ?? null,
     cliAvailability,
     trackedFetch: metrics.trackedFetch,
@@ -432,6 +434,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       envForAuto,
       cliAvailability,
       openaiUseChatCompletions,
+      openaiUseChatCompletionsOverride,
       openaiWhisperUsdPerMinute,
       apiStatus: {
         xaiApiKey,

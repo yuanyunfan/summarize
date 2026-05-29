@@ -15,6 +15,7 @@ export type ConfigState = {
   cliConfigForRun: SummarizeConfig["cli"] | undefined;
   configForCli: SummarizeConfig | null;
   openaiUseChatCompletions: boolean;
+  openaiUseChatCompletionsOverride: boolean | null;
   openaiRequestOptions: ModelRequestOptions | undefined;
   openaiRequestOptionsOverride: ModelRequestOptions | undefined;
   configModelLabel: string | null;
@@ -71,7 +72,7 @@ export function resolveConfigState({
       ? { ...(config ?? {}), ...(cliConfigForRun ? { cli: cliConfigForRun } : {}) }
       : config;
 
-  const openaiUseChatCompletions = (() => {
+  const openaiUseChatCompletionsOverride = (() => {
     const envValue = parseBooleanEnv(
       typeof envForRun.OPENAI_USE_CHAT_COMPLETIONS === "string"
         ? envForRun.OPENAI_USE_CHAT_COMPLETIONS
@@ -79,8 +80,9 @@ export function resolveConfigState({
     );
     if (envValue !== null) return envValue;
     const configValue = config?.openai?.useChatCompletions;
-    return typeof configValue === "boolean" ? configValue : false;
+    return typeof configValue === "boolean" ? configValue : null;
   })();
+  const openaiUseChatCompletions = openaiUseChatCompletionsOverride ?? false;
 
   const openaiRequestOptions: ModelRequestOptions | undefined = (() => {
     const options: ModelRequestOptions = {};
@@ -135,6 +137,7 @@ export function resolveConfigState({
     cliConfigForRun,
     configForCli,
     openaiUseChatCompletions,
+    openaiUseChatCompletionsOverride,
     openaiRequestOptions,
     openaiRequestOptionsOverride,
     configModelLabel,

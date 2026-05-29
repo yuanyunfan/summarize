@@ -41,6 +41,7 @@ export type SummaryEngineDeps = {
   verbose: boolean;
   verboseColor: boolean;
   openaiUseChatCompletions: boolean;
+  openaiUseChatCompletionsOverride?: boolean | null;
   openaiRequestOptions?: ModelRequestOptions;
   openaiRequestOptionsOverride?: ModelRequestOptions;
   cliConfigForRun: Parameters<typeof runCliModel>[0]["config"];
@@ -342,8 +343,16 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         transport: attempt.transport === "openrouter" ? "openrouter" : "native",
       });
     const forceChatCompletions =
-      Boolean(attempt.forceChatCompletions) ||
-      (deps.openaiUseChatCompletions && parsedModelEffective.provider === "openai");
+      typeof attempt.forceChatCompletions === "boolean"
+        ? attempt.forceChatCompletions
+        : parsedModelEffective.provider === "openai"
+          ? (deps.openaiUseChatCompletionsOverride ??
+            (deps.openaiUseChatCompletions
+              ? true
+              : attempt.openaiBaseUrlOverride || deps.providerBaseUrls.openai
+                ? undefined
+                : false))
+          : undefined;
 
     const maxOutputTokensForCall = await deps.resolveMaxOutputTokensForCall(
       parsedModelEffective.canonical,

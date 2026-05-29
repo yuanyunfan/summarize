@@ -55,6 +55,23 @@ describe("openai provider helpers", () => {
           openrouterApiKey: null,
         },
         openaiBaseUrlOverride: "https://gateway.example/v1",
+        forceChatCompletions: false,
+      }),
+    ).toEqual({
+      apiKey: "oa-key",
+      baseURL: "https://gateway.example/v1",
+      useChatCompletions: false,
+      isOpenRouter: false,
+    });
+
+    expect(
+      resolveOpenAiClientConfig({
+        apiKeys: {
+          openaiApiKey: "oa-key",
+          openrouterApiKey: null,
+        },
+        openaiBaseUrlOverride: "https://gateway.example/v1",
+        forceChatCompletions: true,
       }),
     ).toEqual({
       apiKey: "oa-key",
@@ -383,6 +400,47 @@ describe("openai provider helpers", () => {
     expect(result.resolvedModelId).toBe("gpt-5.4");
   });
 
+  it("uses the Responses API for GPT-5-family custom OpenAI-compatible base URLs", async () => {
+    mocks.completeSimple.mockClear();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://127.0.0.1:7024/v1/responses");
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      expect(body.model).toBe("gpt-5.5");
+      return new Response(
+        JSON.stringify({
+          output: [
+            { type: "reasoning", summary: [] },
+            {
+              type: "message",
+              content: [{ type: "output_text", text: "Hello from custom responses" }],
+            },
+          ],
+          usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const result = await completeOpenAiText({
+      modelId: "gpt-5.5",
+      openaiConfig: {
+        apiKey: "oa-key",
+        baseURL: "http://127.0.0.1:7024/v1",
+        useChatCompletions: false,
+        isOpenRouter: false,
+      },
+      context: {
+        systemPrompt: null,
+        messages: [{ role: "user", content: "hello" }],
+      },
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    expect(result.text).toBe("Hello from custom responses");
+    expect(mocks.completeSimple).not.toHaveBeenCalled();
+  });
+
   it("forwards OpenAI Responses request options", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as {
@@ -599,5 +657,50 @@ describe("openai provider helpers", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it("surfaces embedded OpenAI assistant errors instead of reporting an empty summary", async () => {
+    mocks.completeSimple.mockClear();
+    mocks.completeSimple.mockResolvedValueOnce({
+      role: "assistant",
+      content: [],
+      api: "openai-completions",
+      provider: "openai",
+      model: "accounts/msft/routers/fmfeto88",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "error",
+      timestamp: Date.now(),
+      errorMessage: JSON.stringify({
+        error: {
+          message: "The requested model is not supported.",
+          code: "model_not_supported",
+        },
+      }),
+    });
+
+    await expect(
+      completeOpenAiText({
+        modelId: "accounts/msft/routers/fmfeto88",
+        openaiConfig: {
+          apiKey: "oa-key",
+          baseURL: "http://127.0.0.1:7024/v1",
+          useChatCompletions: true,
+          isOpenRouter: false,
+        },
+        context: {
+          systemPrompt: null,
+          messages: [{ role: "user", content: "hello" }],
+        },
+        signal: new AbortController().signal,
+        fetchImpl: globalThis.fetch.bind(globalThis),
+      }),
+    ).rejects.toThrow(/requested model is not supported/i);
   });
 });

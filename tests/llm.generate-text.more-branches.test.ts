@@ -82,6 +82,86 @@ describe("llm/generate-text extra branches", () => {
     );
   });
 
+  it("streams custom OpenAI GPT-5-family models via the Responses API fallback", async () => {
+    mocks.streamSimple.mockClear();
+    mocks.completeSimple.mockClear();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe("http://127.0.0.1:7024/v1/responses");
+      return new Response(JSON.stringify({ output_text: "custom response ok" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const result = await streamTextWithModelId({
+      modelId: "openai/gpt-5.5",
+      apiKeys: {
+        openaiApiKey: "k",
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as typeof fetch,
+      openaiBaseUrlOverride: "http://127.0.0.1:7024/v1",
+      forceChatCompletions: false,
+      maxOutputTokens: 10,
+    });
+
+    const chunks: string[] = [];
+    for await (const chunk of result.textStream) chunks.push(chunk);
+    expect(chunks.join("")).toBe("custom response ok");
+    expect(mocks.streamSimple).not.toHaveBeenCalled();
+    expect(mocks.completeSimple).not.toHaveBeenCalled();
+  });
+
+  it("normalizes OpenAI assistant error events during streaming", async () => {
+    mocks.streamSimple.mockImplementationOnce(() =>
+      makeTextDeltaStream([], makeAssistantMessage({ text: "", api: "openai-completions" }), {
+        error: {
+          role: "assistant",
+          content: [],
+          api: "openai-completions",
+          provider: "openai",
+          model: "accounts/msft/routers/fmfeto88",
+          stopReason: "error",
+          errorMessage: JSON.stringify({
+            error: {
+              message: "The requested model is not supported.",
+              code: "model_not_supported",
+            },
+          }),
+        },
+      }),
+    );
+
+    const result = await streamTextWithModelId({
+      modelId: "openai/accounts/msft/routers/fmfeto88",
+      apiKeys: {
+        openaiApiKey: "k",
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: globalThis.fetch.bind(globalThis),
+      openaiBaseUrlOverride: "http://127.0.0.1:7024/v1",
+      maxOutputTokens: 10,
+    });
+
+    for await (const _chunk of result.textStream) {
+      // Drain stream to observe error event and store lastError.
+    }
+    const err = result.lastError();
+    expect(err instanceof Error ? err.message : String(err)).toMatch(
+      /requested model is not supported/i,
+    );
+  });
+
   it("generateTextWithModelId retries on timeout-like errors", async () => {
     vi.useFakeTimers();
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);

@@ -15,7 +15,8 @@ const language = process.env.SUMMARIZE_LIVE_E2E_LANGUAGE?.trim() || "zh-cn";
 const requestTimeout = process.env.SUMMARIZE_LIVE_E2E_REQUEST_TIMEOUT?.trim() || "10m";
 const maxOutputTokens = process.env.SUMMARIZE_LIVE_E2E_MAX_OUTPUT_TOKENS?.trim() || "4k";
 const preferredModels = (
-  process.env.SUMMARIZE_LIVE_E2E_PREFERRED_MODELS ?? "openai/accounts/msft/routers/fmfeto88"
+  process.env.SUMMARIZE_LIVE_E2E_PREFERRED_MODELS ??
+  "openai/gpt-5.5,openai/accounts/msft/routers/fmfeto88"
 )
   .split(",")
   .map((value) => value.trim())

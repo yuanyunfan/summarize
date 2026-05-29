@@ -17,7 +17,11 @@ import {
   resolveOpenAiModel,
   resolveXaiModel,
 } from "./providers/models.js";
-import { completeOpenAiText } from "./providers/openai.js";
+import {
+  completeOpenAiText,
+  normalizeOpenAiAssistantError,
+  shouldUseOpenAiResponsesTextStreamingFallback,
+} from "./providers/openai.js";
 import type { OpenAiClientConfig } from "./providers/types.js";
 import type { LlmTokenUsage } from "./types.js";
 
@@ -300,7 +304,9 @@ export async function streamTextWithContext({
       });
       if (
         parsed.provider === "github-copilot" ||
-        (parsed.provider === "openai" && requestOptions)
+        (parsed.provider === "openai" &&
+          (requestOptions ||
+            shouldUseOpenAiResponsesTextStreamingFallback(parsed.model, openaiConfig)))
       ) {
         const result = await completeOpenAiText({
           modelId: parsed.model,
@@ -342,7 +348,10 @@ export async function streamTextWithContext({
           textStream: collectTextDeltas({
             stream,
             onError: (error) => {
-              lastError = error;
+              lastError =
+                parsed.provider === "openai"
+                  ? (normalizeOpenAiAssistantError(error, parsed.model) ?? error)
+                  : error;
             },
           }),
           timeoutMs,

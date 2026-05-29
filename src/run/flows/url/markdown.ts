@@ -115,7 +115,9 @@ export function createMarkdownConverters(
         llmModelId: ctx.model.requestedModel.llmModelId,
         forceOpenRouter: false,
         requiredEnv: ctx.model.fixedModelSpec?.requiredEnv,
-        forceChatCompletions: ctx.model.openaiUseChatCompletions,
+        forceChatCompletions:
+          ctx.model.openaiUseChatCompletionsOverride ??
+          (ctx.model.openaiUseChatCompletions ? true : undefined),
         requestOptions: ctx.model.requestedModel.requestOptions,
       };
     }
@@ -133,7 +135,9 @@ export function createMarkdownConverters(
         llmModelId: "openai/gpt-5-mini",
         forceOpenRouter: false,
         requiredEnv: "OPENAI_API_KEY",
-        forceChatCompletions: ctx.model.openaiUseChatCompletions,
+        forceChatCompletions:
+          ctx.model.openaiUseChatCompletionsOverride ??
+          (ctx.model.openaiUseChatCompletions ? true : undefined),
       };
     }
     if (ctx.model.apiStatus.openrouterConfigured) {
@@ -240,7 +244,10 @@ export function createMarkdownConverters(
           xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
           forceChatCompletions:
             markdownModel.forceChatCompletions ??
-            (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
+            (markdownProvider === "openai"
+              ? (ctx.model.openaiUseChatCompletionsOverride ??
+                (ctx.model.openaiUseChatCompletions ? true : undefined))
+              : undefined),
           requestOptions: mergeModelRequestOptions(
             ctx.model.openaiRequestOptions,
             markdownModel.requestOptions,
@@ -345,7 +352,10 @@ export function createMarkdownConverters(
           xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
           forceChatCompletions:
             markdownModel.forceChatCompletions ??
-            (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
+            (markdownProvider === "openai"
+              ? (ctx.model.openaiUseChatCompletionsOverride ??
+                (ctx.model.openaiUseChatCompletions ? true : undefined))
+              : undefined),
           requestOptions: mergeModelRequestOptions(
             ctx.model.openaiRequestOptions,
             markdownModel.requestOptions,
