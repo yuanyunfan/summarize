@@ -108,6 +108,11 @@ function resolveOpenAiResponsesUrl(baseUrl: string): URL {
     url.pathname = path;
     return url;
   }
+  // GitHub Copilot exposes /responses directly (no /v1 segment).
+  if (url.host === "api.githubcopilot.com") {
+    url.pathname = `${path}/responses`;
+    return url;
+  }
   if (/\/v1$/.test(path)) {
     url.pathname = `${path}/responses`;
     return url;
@@ -119,7 +124,8 @@ function resolveOpenAiResponsesUrl(baseUrl: string): URL {
 function resolveOpenAiChatCompletionsUrl(baseUrl: string): URL {
   const url = new URL(baseUrl);
   const path = url.pathname.replace(/\/$/, "");
-  if (url.host === "models.github.ai") {
+  // GitHub Models and Copilot expose /chat/completions directly (no /v1).
+  if (url.host === "models.github.ai" || url.host === "api.githubcopilot.com") {
     if (/\/chat\/completions$/.test(path)) {
       url.pathname = path;
       return url;
@@ -528,6 +534,31 @@ export async function completeOpenAiText({
       signal,
       fetchImpl,
     });
+  }
+  if (openaiConfig.customGateway) {
+    // OpenAI-compatible gateway (GitHub Copilot): must use custom-fetch so the
+    // auth/editor headers ride along, with per-model endpoint selection —
+    // gpt-5* go to /responses, everything else to /chat/completions.
+    const useResponses = isOpenAiResponsesTextModelId(modelId);
+    return useResponses
+      ? completeOpenAiResponsesText({
+          modelId,
+          openaiConfig,
+          context,
+          temperature,
+          maxOutputTokens,
+          signal,
+          fetchImpl,
+        })
+      : completeOpenAiChatText({
+          modelId,
+          openaiConfig,
+          context,
+          temperature,
+          maxOutputTokens,
+          signal,
+          fetchImpl,
+        });
   }
   if (
     openaiConfig.useChatCompletions &&

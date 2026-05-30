@@ -1333,3 +1333,88 @@ describe("oauth provider routing (chatgpt / anthropic-oauth)", () => {
     ).rejects.toThrow(/Not logged in to Anthropic/);
   });
 });
+
+describe("copilot subscription routing", () => {
+  afterEach(() => {
+    mocks.completeSimple.mockClear();
+  });
+
+  it("routes copilot/gpt-4o to the Copilot /chat/completions endpoint with the bearer", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }], usage: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const result = await generateTextWithModelId({
+      modelId: "copilot/gpt-4o",
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      copilotAccessToken: "copilot-bearer",
+    });
+    expect(result.text).toBe("ok");
+    expect(result.provider).toBe("copilot");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    // No /v1 segment, and the chat-completions endpoint for a non-gpt-5 model.
+    expect(String(url)).toBe("https://api.githubcopilot.com/chat/completions");
+    const headers = init.headers as Record<string, string>;
+    expect(headers.authorization).toBe("Bearer copilot-bearer");
+    expect(headers["Copilot-Integration-Id"]).toBe("vscode-chat");
+  });
+
+  it("routes copilot/gpt-5.5 to the Copilot /responses endpoint", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ output_text: "ok", usage: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const result = await generateTextWithModelId({
+      modelId: "copilot/gpt-5.5",
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      copilotAccessToken: "copilot-bearer",
+    });
+    expect(result.text).toBe("ok");
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toBe("https://api.githubcopilot.com/responses");
+    // The SDK fallback must NOT be used (it would drop the auth headers).
+    expect(mocks.completeSimple).not.toHaveBeenCalled();
+  });
+
+  it("errors when copilot/* selected without a token", async () => {
+    await expect(
+      generateTextWithModelId({
+        modelId: "copilot/gpt-4o",
+        apiKeys: {
+          xaiApiKey: null,
+          openaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
+        prompt: { userText: "hi" },
+        timeoutMs: 2000,
+        fetchImpl: globalThis.fetch.bind(globalThis),
+      }),
+    ).rejects.toThrow(/Not logged in to GitHub Copilot/);
+  });
+});

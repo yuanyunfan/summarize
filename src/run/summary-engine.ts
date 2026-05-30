@@ -159,14 +159,14 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       };
     }
     if (modelIdLower.startsWith("copilot/")) {
-      // Copilot subscription: the bearer is the exchanged access token passed
-      // via deps.copilotAccessToken; the Copilot endpoint + headers are applied
-      // by the provider config. Pin the base URL so a local OPENAI_BASE_URL
-      // can't hijack the route, and force the chat-completions transport.
+      // Copilot subscription: the bearer is the access token passed via
+      // deps.copilotAccessToken; the endpoint + headers come from the provider
+      // config (a custom gateway that picks /responses vs /chat/completions per
+      // model). Pin the base URL unconditionally so a generic OPENAI_BASE_URL
+      // (e.g. a local gateway) can't hijack the Copilot route.
       return {
         ...attempt,
-        openaiBaseUrlOverride: attempt.openaiBaseUrlOverride ?? COPILOT_API_BASE_URL,
-        forceChatCompletions: true,
+        openaiBaseUrlOverride: COPILOT_API_BASE_URL,
       };
     }
     return attempt;

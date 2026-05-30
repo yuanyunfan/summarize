@@ -55,6 +55,12 @@ describe("generate-text shared helpers", () => {
     expect(isOpenAiGpt5Model("openai", "gpt-5-mini")).toBe(true);
     expect(isOpenAiGpt5Model("openai", "openai/gpt-5-mini")).toBe(true);
     expect(isOpenAiGpt5Model("github-copilot", "openai/gpt-5.4")).toBe(true);
+    // Copilot subscription + ChatGPT OAuth gpt-5.x also reject `temperature`.
+    expect(isOpenAiGpt5Model("copilot", "gpt-5.5")).toBe(true);
+    expect(isOpenAiGpt5Model("copilot", "gpt-5.2-codex")).toBe(true);
+    expect(isOpenAiGpt5Model("copilot", "gpt-4o")).toBe(false);
+    expect(isOpenAiGpt5Model("copilot", "claude-opus-4.8")).toBe(false);
+    expect(isOpenAiGpt5Model("chatgpt", "gpt-5.2")).toBe(true);
     expect(isOpenAiGpt5Model("openai", "gpt-4.1")).toBe(false);
 
     expect(

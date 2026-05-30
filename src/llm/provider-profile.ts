@@ -10,6 +10,15 @@ import type { ModelRequestOptions } from "./model-options.js";
 import { resolveOpenAiClientConfig } from "./providers/openai.js";
 import type { OpenAiClientConfig } from "./providers/types.js";
 
+function isCopilotApiBaseUrl(baseUrl: string | null | undefined): boolean {
+  if (!baseUrl) return false;
+  try {
+    return new URL(baseUrl).host === "api.githubcopilot.com";
+  } catch {
+    return false;
+  }
+}
+
 export type GatewayProvider =
   | "xai"
   | "openai"
@@ -267,9 +276,15 @@ export function resolveOpenAiCompatibleClientConfigForProvider({
     }
     return {
       apiKey,
-      baseURL: openaiBaseUrlOverride ?? COPILOT_API_BASE_URL,
+      // Always the Copilot API host. A generic OPENAI_BASE_URL override (e.g. a
+      // local gateway) must NOT hijack the Copilot route — only honor an
+      // override that is itself a Copilot URL.
+      baseURL: isCopilotApiBaseUrl(openaiBaseUrlOverride)
+        ? (openaiBaseUrlOverride ?? COPILOT_API_BASE_URL)
+        : COPILOT_API_BASE_URL,
       useChatCompletions: true,
       isOpenRouter: false,
+      customGateway: true,
       extraHeaders: buildCopilotHeaders(),
       ...(requestOptions ? { requestOptions } : {}),
     };

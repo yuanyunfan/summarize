@@ -98,6 +98,8 @@ export function isOpenAiGpt5Model(provider: string, model: string): boolean {
     .replace(/^openai\//, "");
   return (
     (provider === "openai" && /^gpt-5([-.].+)?$/i.test(normalized)) ||
+    (provider === "chatgpt" && /^gpt-5([-.].+)?$/i.test(normalized)) ||
+    (provider === "copilot" && /^gpt-5([-.].+)?$/i.test(normalized)) ||
     (provider === "github-copilot" && /^openai\/gpt-5([-.].+)?$/i.test(model))
   );
 }

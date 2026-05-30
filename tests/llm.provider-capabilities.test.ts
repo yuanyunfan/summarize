@@ -134,6 +134,7 @@ describe("llm provider capabilities", () => {
       baseURL: "https://api.githubcopilot.com",
       useChatCompletions: true,
       isOpenRouter: false,
+      customGateway: true,
       extraHeaders: {
         "Editor-Version": "summarize/1.0",
         "Editor-Plugin-Version": "summarize/1.0",
@@ -141,6 +142,17 @@ describe("llm provider capabilities", () => {
         "User-Agent": "summarize",
       },
     });
+
+    // A generic OPENAI_BASE_URL override must NOT hijack the Copilot route.
+    expect(
+      resolveOpenAiCompatibleClientConfigForProvider({
+        provider: "copilot",
+        openaiApiKey: null,
+        openrouterApiKey: null,
+        openaiBaseUrlOverride: "http://localhost:7024/v1",
+        copilotAccessToken: "copilot-bearer",
+      }).baseURL,
+    ).toBe("https://api.githubcopilot.com");
   });
 
   it("returns false for invalid video model ids and requires provider keys", () => {
