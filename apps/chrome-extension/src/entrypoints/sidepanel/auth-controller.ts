@@ -7,6 +7,16 @@ const DAEMON_BASE_URL = "http://127.0.0.1:8787";
 
 type AuthMethod = { provider: string; label: string; kind: AuthKind };
 
+/**
+ * Map a login provider to the model-id prefix it serves, so selecting an
+ * account filters the model dropdown to just that account's models.
+ */
+const PROVIDER_MODEL_PREFIX: Record<string, string> = {
+  "github-copilot-oauth": "copilot/",
+  "openai-chatgpt": "chatgpt/",
+  "anthropic-oauth": "anthropic-oauth/",
+};
+
 type MethodsResponse = { ok?: boolean; methods?: AuthMethod[] };
 
 type AuthorizeResponse = {
@@ -58,6 +68,7 @@ export function createAuthController({
   codeSubmitBtn,
   accountsStatusEl,
   onLoginChanged,
+  onModelFilterChanged,
 }: {
   providerSelectEl: HTMLSelectElement;
   loginBtn: HTMLButtonElement;
@@ -69,6 +80,12 @@ export function createAuthController({
   accountsStatusEl: HTMLElement;
   /** Called after login/logout completes so the caller can refresh models. */
   onLoginChanged: () => void;
+  /**
+   * Called with the model-id prefix the dropdown should filter to (the selected
+   * account's models), or null to show the full list (selected account not
+   * logged in, or no mapping).
+   */
+  onModelFilterChanged: (prefix: string | null) => void;
 }) {
   let busy = false;
   let methods: AuthMethod[] = [];
@@ -86,6 +103,16 @@ export function createAuthController({
   };
 
   const selectedProvider = () => providerSelectEl.value;
+
+  /**
+   * Filter the model dropdown to the selected account when it's logged in;
+   * otherwise show the full list.
+   */
+  const syncModelFilter = () => {
+    const provider = selectedProvider();
+    const prefix = loggedIn.has(provider) ? (PROVIDER_MODEL_PREFIX[provider] ?? null) : null;
+    onModelFilterChanged(prefix);
+  };
 
   const syncButtons = () => {
     const provider = selectedProvider();
@@ -135,6 +162,7 @@ export function createAuthController({
     } else if (!pendingCode) {
       setStatus("", "idle");
     }
+    syncModelFilter();
   };
 
   const finishLogin = (provider: string) => {
@@ -142,6 +170,7 @@ export function createAuthController({
     pendingCode = null;
     syncButtons();
     setStatus(`登录成功，已加载 ${methodFor(provider)?.label ?? provider} 模型`, "ok");
+    syncModelFilter();
     onLoginChanged();
   };
 
@@ -274,6 +303,7 @@ export function createAuthController({
       pendingCode = null;
       syncButtons();
       setStatus(`已退出 ${methodFor(provider)?.label ?? provider}`, "idle");
+      syncModelFilter();
       onLoginChanged();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

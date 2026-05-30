@@ -96,6 +96,48 @@ describe("sidepanel model presets", () => {
     expect(values).not.toContain("custom");
   });
 
+  it("filters options to the selected account's provider prefix", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          ok: true,
+          options: [
+            { id: "copilot/gpt-5.5", label: "Copilot: gpt-5.5" },
+            { id: "copilot/claude-opus-4.8", label: "Copilot: claude-opus-4.8" },
+            { id: "openai/gpt-4o", label: "OpenAI: GPT-4o" },
+            { id: "anthropic/claude-3-haiku", label: "Anthropic" },
+          ],
+        }),
+      ),
+    );
+    const { controller, modelPresetEl } = createController();
+    await controller.refreshPresets("token");
+    await flushAsyncWork();
+
+    // No filter → everything is shown plus general presets.
+    let values = Array.from(modelPresetEl.options).map((o) => o.value);
+    expect(values).toContain("openai/gpt-4o");
+    expect(values).toContain("free");
+
+    // Filter to Copilot → only copilot/* + universal `auto`, no env-key models.
+    controller.setProviderFilter("copilot/");
+    values = Array.from(modelPresetEl.options).map((o) => o.value);
+    expect(values).toContain("auto");
+    expect(values).toContain("copilot/gpt-5.5");
+    expect(values).toContain("copilot/claude-opus-4.8");
+    expect(values).not.toContain("openai/gpt-4o");
+    expect(values).not.toContain("anthropic/claude-3-haiku");
+    expect(values).not.toContain("free");
+    expect(values).not.toContain("gpt-fast");
+
+    // Clearing the filter restores the full list.
+    controller.setProviderFilter(null);
+    values = Array.from(modelPresetEl.options).map((o) => o.value);
+    expect(values).toContain("openai/gpt-4o");
+    expect(values).toContain("free");
+  });
+
   it("ignores older token results that resolve after a newer refresh", async () => {
     const oldRefresh = createDeferred<Response>();
     const newRefresh = createDeferred<Response>();

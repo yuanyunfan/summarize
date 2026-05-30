@@ -4,10 +4,17 @@ type StatusState = "idle" | "running" | "error" | "ok";
 
 type LoadSettings = () => Promise<Pick<Settings, "token">>;
 
+type ModelOption = { id: string; label: string };
+
 /**
  * Single-dropdown model selector. The dropdown is the only model control: it
  * lists the models the daemon reports for the current credentials/logins
  * (`GET /v1/models`), so it stays in sync with the Accounts section above it.
+ *
+ * When an account (login method) is selected above, the list is filtered to
+ * just that account's models via {@link setProviderFilter} — e.g. selecting
+ * "GitHub Copilot" shows only `copilot/*` models. With no filter the full list
+ * is shown.
  *
  * A saved model that isn't in the current list (e.g. a manually-configured id,
  * or a provider that just logged out) is preserved as a transient option so the
@@ -25,6 +32,10 @@ export function createModelPresetsController({
   loadSettings: LoadSettings;
 }) {
   let refreshAt = 0;
+  /** Last full option list from the daemon, kept so we can re-filter instantly. */
+  let lastOptions: ModelOption[] = [];
+  /** When set, only models whose id starts with this prefix are shown. */
+  let providerFilter: string | null = null;
 
   const setStatus = (text: string, state: StatusState = "idle") => {
     modelStatusEl.textContent = text;
@@ -35,16 +46,20 @@ export function createModelPresetsController({
     }
   };
 
-  // Baseline options always available regardless of login state.
-  const baseOptions: Array<{ value: string; label: string }> = [
+  // Baseline options. `auto` is universal; `gpt-fast`/`free` are only relevant
+  // when no specific account is selected.
+  const universalOptions: Array<{ value: string; label: string }> = [
     { value: "auto", label: "自动" },
+  ];
+  const generalOnlyOptions: Array<{ value: string; label: string }> = [
     { value: "gpt-fast", label: "GPT Fast" },
     { value: "free", label: "Free" },
   ];
 
   const setDefaultPresets = () => {
     modelPresetEl.innerHTML = "";
-    for (const { value, label } of baseOptions) {
+    const base = providerFilter ? universalOptions : [...universalOptions, ...generalOnlyOptions];
+    for (const { value, label } of base) {
       const option = document.createElement("option");
       option.value = value;
       option.textContent = label;
@@ -72,32 +87,44 @@ export function createModelPresetsController({
 
   const readCurrentValue = () => modelPresetEl.value.trim() || defaultModel;
 
+  /** Rebuild the dropdown from {@link lastOptions} applying the current filter. */
+  const applyOptions = () => {
+    // Read the selection now so a choice made while a request was in flight,
+    // or before the filter changed, is preserved.
+    const selected = readCurrentValue();
+    setDefaultPresets();
+    const seen = optionValues();
+    for (const option of lastOptions) {
+      if (providerFilter && !option.id.startsWith(providerFilter)) continue;
+      if (seen.has(option.id)) continue;
+      seen.add(option.id);
+      const el = document.createElement("option");
+      el.value = option.id;
+      el.textContent = option.label ? `${option.id} — ${option.label}` : option.id;
+      modelPresetEl.append(el);
+    }
+    // Preserve the prior selection (adds a transient option if it's filtered out).
+    setValue(selected);
+  };
+
+  /**
+   * Filter the list to a single provider's models (by id prefix), or pass null
+   * to show everything. Re-applies immediately against the cached options.
+   */
+  const setProviderFilter = (prefix: string | null) => {
+    providerFilter = prefix && prefix.trim() ? prefix.trim() : null;
+    applyOptions();
+  };
+
   let refreshRequestId = 0;
   const refreshPresets = async (token: string) => {
     const requestId = ++refreshRequestId;
     const isCurrentRequest = () => requestId === refreshRequestId;
     const trimmed = token.trim();
 
-    const rebuild = (options: Array<{ id: string; label: string }>) => {
-      // Read the selection at rebuild time (after the await) so a choice the
-      // user made while the request was in flight is preserved.
-      const selected = readCurrentValue();
-      setDefaultPresets();
-      const seen = optionValues();
-      for (const option of options) {
-        if (seen.has(option.id)) continue;
-        seen.add(option.id);
-        const el = document.createElement("option");
-        el.value = option.id;
-        el.textContent = option.label ? `${option.id} — ${option.label}` : option.id;
-        modelPresetEl.append(el);
-      }
-      // Preserve the prior selection (adds a transient option if it's gone).
-      setValue(selected);
-    };
-
     if (!trimmed) {
-      rebuild([]);
+      lastOptions = [];
+      applyOptions();
       return;
     }
     try {
@@ -106,7 +133,8 @@ export function createModelPresetsController({
       });
       if (!isCurrentRequest()) return;
       if (!response.ok) {
-        rebuild([]);
+        lastOptions = [];
+        applyOptions();
         return;
       }
       const json = (await response.json()) as unknown;
@@ -116,7 +144,7 @@ export function createModelPresetsController({
       if (record.ok !== true) return;
 
       const optionsRaw = record.options;
-      const options = Array.isArray(optionsRaw)
+      lastOptions = Array.isArray(optionsRaw)
         ? optionsRaw
             .map((item) => {
               if (!item || typeof item !== "object") return null;
@@ -126,9 +154,9 @@ export function createModelPresetsController({
               if (!id) return null;
               return { id, label };
             })
-            .filter((item): item is { id: string; label: string } => item !== null)
+            .filter((item): item is ModelOption => item !== null)
         : [];
-      rebuild(options);
+      applyOptions();
     } catch {
       // Daemon unreachable: keep whatever is currently shown.
     }
@@ -159,6 +187,7 @@ export function createModelPresetsController({
     refreshNow,
     refreshPresets,
     setDefaultPresets,
+    setProviderFilter,
     setStatus,
     setValue,
   };

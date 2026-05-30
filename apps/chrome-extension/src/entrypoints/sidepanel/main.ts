@@ -1130,6 +1130,7 @@ const {
   refreshModelsIfStale,
   refreshModelsNow,
   setDefaultModelPresets,
+  setModelProviderFilter,
   setModelValue,
 } = setupControlsRuntime;
 
@@ -1143,6 +1144,9 @@ const authController = createAuthController({
   accountsStatusEl,
   onLoginChanged: () => {
     refreshModelsNow();
+  },
+  onModelFilterChanged: (prefix) => {
+    setModelProviderFilter(prefix);
   },
 });
 void authController.refreshStatus();

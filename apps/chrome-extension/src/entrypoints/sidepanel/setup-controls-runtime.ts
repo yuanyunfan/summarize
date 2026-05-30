@@ -72,6 +72,7 @@ export function createSetupControlsRuntime({
     refreshModelsIfStale: modelPresetsController.refreshIfStale,
     refreshModelsNow: modelPresetsController.refreshNow,
     setDefaultModelPresets: modelPresetsController.setDefaultPresets,
+    setModelProviderFilter: modelPresetsController.setProviderFilter,
     setModelStatus: modelPresetsController.setStatus,
     setModelValue: modelPresetsController.setValue,
   };
